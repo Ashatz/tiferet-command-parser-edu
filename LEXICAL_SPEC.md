@@ -73,8 +73,6 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 
 ### Layout & Error Tokens
 
-- INDENT                 Increase in leading whitespace (optional – may be deferred to AST phase)
-- DEDENT                 Decrease in leading whitespace (optional)
 - NEWLINE                `\n`
 - UNKNOWN                Any unmatched character or sequence (for error reporting)
 
@@ -89,7 +87,7 @@ ARTIFACT_START          #\s*\*{3}.*
 ARTIFACT_SECTION        #\s*\*{2}\s+.*
 ARTIFACT_MEMBER         #\s*\*\s+.*
 ARTIFACT_IMPORTS_START  #\s*\*{3}\s+imports\s*
-ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra|adapters|...)
+ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra)
 ```
 
 ### Documentation & Comments
