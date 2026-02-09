@@ -92,7 +92,7 @@ ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra)
 
 ### Documentation & Comments
 ```
-DOCSTRING               (""".*?""")|('''.*?''')    (non-greedy, multiline)
+DOCSTRING               (""".*?""")   
 LINE_COMMENT            #.*$                        (not starting with * after #)
 ```
 
@@ -106,7 +106,7 @@ VERIFY_PARAMETER        self\.verify_parameter\(
 VERIFY                  self\.verify\(
 SERVICE_CALL            self\.[a-zA-Z_][a-zA-Z0-9_]*_service\.[a-zA-Z_][a-zA-Z0-9_]*\(
 FACTORY_CALL            [a-zA-Z_][a-zA-Z0-9_]*\.new\(
-CONST_REF               a\.const\.[a-zA-Z_][a-zA-Z0-9_]*
+CONST_REF               a\.const\.[A-Z_][A-Z_]*
 SELF                    self
 ```
 
@@ -114,7 +114,7 @@ SELF                    self
 ```
 PYTHON_KEYWORD          (and|as|assert|break|class|continue|def|del|elif|else|except|False|finally|for|from|global|if|import|in|is|lambda|None|nonlocal|not|or|pass|raise|return|True|try|while|with|yield)
 IDENTIFIER              [a-zA-Z_][a-zA-Z0-9_]*
-STRING_LITERAL          ("([^"\\]|\\.)*")|('([^'\\]|\\.)*')|(""".*?""")|('''.*?''')
+STRING_LITERAL          ("([^"\\]|\\.)*")|('([^'\\]|\\.)*')|('''.*?''')
 NUMBER_LITERAL          [0-9]+(\.[0-9]+)?
 ```
 
@@ -135,8 +135,6 @@ EQUALS                  =
 
 ### Layout
 ```
-INDENT                  (handled by tracking leading whitespace – optional)
-DEDENT                  (handled by tracking leading whitespace – optional)
 NEWLINE                 \n
 UNKNOWN                 .
 ```
