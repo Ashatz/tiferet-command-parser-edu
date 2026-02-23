@@ -16,21 +16,22 @@ attrs:
     class_name: TiferetLexer
 
 features:
-  scan.event:
-    name: 'Scan Event'
-    description: 'Perform lexical scanning on a Tiferet event source file'
-    commands:
-      - attribute_id: extract_text_event
-        name: Extract text blocks from source file
-        data_key: text_blocks
-      - attribute_id: lexer_initialized_event
-        name: Validate extracted text blocks
-        data_key: validated_blocks
-      - attribute_id: perform_lexical_analysis_event
-        name: Tokenize and compute lexical metrics
-        data_key: analysis_result
-      - attribute_id: emit_scan_result_event
-        name: Format and emit scan result
+  scan:
+    event:
+      name: 'Scan Event'
+      description: 'Perform lexical scanning on a Tiferet event source file'
+      commands:
+        - attribute_id: extract_text_event
+          name: Extract text blocks from source file
+          data_key: text_blocks
+        - attribute_id: lexer_initialized_event
+          name: Validate extracted text blocks
+          data_key: validated_blocks
+        - attribute_id: perform_lexical_analysis_event
+          name: Tokenize and compute lexical metrics
+          data_key: analysis_result
+        - attribute_id: emit_scan_result_event
+          name: Format and emit scan result
 
 errors:
   source_file_not_found:
@@ -48,6 +49,8 @@ errors:
     message:
       - lang: en_US
         text: 'Lexical error detected during tokenization'
+
+logging: {}
 
 cli:
   cmds:
@@ -88,22 +91,11 @@ interfaces:
     description: Lexical scanning and artifact extraction for Tiferet source files
     module_path: tiferet.contexts.app
     class_name: AppInterfaceContext
-    attrs:
-      container_repo:
-        class_name: ContainerYamlProxy
-        module_path: tiferet.proxies.yaml.container
-        params:
-          container_config_file: config.yml
-      feature_repo:
-        class_name: FeatureYamlProxy
-        module_path: tiferet.proxies.yaml.feature
-        params:
-          feature_config_file: config.yml
-      error_repo:
-        class_name: ErrorYamlProxy
-        module_path: tiferet.proxies.yaml.error
-        params:
-          error_config_file: config.yml
+    const:
+      container_config_file: config.yml
+      feature_config_file: config.yml
+      error_config_file: config.yml
+      logging_config_file: config.yml
   compiler_cli:
     name: Scanner CLI
     description: Tiferet Dialect Scanner via CLI
@@ -118,18 +110,10 @@ interfaces:
       cli_service:
         module_path: tiferet.handlers.cli
         class_name: CliHandler
-      container_repo:
-        class_name: ContainerYamlProxy
-        module_path: tiferet.proxies.yaml.container
-        params:
-          container_config_file: config.yml
-      feature_repo:
-        class_name: FeatureYamlProxy
-        module_path: tiferet.proxies.yaml.feature
-        params:
-          feature_config_file: config.yml
-      error_repo:
-        class_name: ErrorYamlProxy
-        module_path: tiferet.proxies.yaml.error
-        params:
-          error_config_file: config.yml
+    const:
+      cli_config_file: config.yml
+      container_config_file: config.yml
+      feature_config_file: config.yml
+      error_config_file: config.yml
+      logging_config_file: config.yml
+      
