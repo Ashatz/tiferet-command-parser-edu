@@ -12,7 +12,8 @@ from tiferet.events import TiferetError
 
 # ** app
 from ..settings import DomainEvent
-from ..scan import ExtractText, LexerInitialized
+from ..scan import ExtractText, LexerInitialized, PerformLexicalAnalysis
+from ...interfaces import LexerService
 
 # *** fixtures
 
@@ -73,6 +74,18 @@ def sample_text_blocks() -> list:
             'length_chars': 70,
         },
     ]
+
+# ** fixture: mock_lexer_service
+@pytest.fixture
+def mock_lexer_service() -> LexerService:
+    '''
+    Create a mock LexerService for testing.
+
+    :return: A mock lexer service.
+    :rtype: LexerService
+    '''
+
+    return mock.Mock(spec=LexerService)
 
 # *** tests — ExtractText
 
@@ -225,4 +238,64 @@ def test_lexer_initialized_empty_text() -> None:
         DomainEvent.handle(
             LexerInitialized,
             text_blocks=[{'name': 'bad_block', 'text': '   '}],
+        )
+
+# *** tests — PerformLexicalAnalysis
+
+# ** test: perform_lexical_analysis_success
+def test_perform_lexical_analysis_success(
+        mock_lexer_service: LexerService,
+        sample_text_blocks: list,
+    ) -> None:
+    '''
+    Test successful tokenization and metrics computation.
+
+    :param mock_lexer_service: Mocked lexer service.
+    :type mock_lexer_service: LexerService
+    :param sample_text_blocks: Sample text blocks.
+    :type sample_text_blocks: list
+    '''
+
+    # Arrange the lexer service to return sample tokens.
+    mock_lexer_service.tokenize.return_value = [
+        {'type': 'CLASS', 'value': 'class', 'line': 1, 'column': 0},
+        {'type': 'IDENTIFIER', 'value': 'SampleEvent', 'line': 1, 'column': 6},
+        {'type': 'EXECUTE', 'value': 'execute', 'line': 3, 'column': 8},
+    ]
+
+    # Execute via DomainEvent.handle with injected dependency.
+    result = DomainEvent.handle(
+        PerformLexicalAnalysis,
+        dependencies={'lexer_service': mock_lexer_service},
+        validated_blocks=sample_text_blocks,
+    )
+
+    # Assert the result structure.
+    assert 'tokens' in result
+    assert 'token_count' in result
+    assert 'metrics' in result
+    assert result['token_count'] == 3
+    assert result['metrics']['commands_detected'] == 1
+    assert result['metrics']['execute_methods_found'] == 1
+
+    # Verify the lexer service was called.
+    mock_lexer_service.tokenize.assert_called_once_with(sample_text_blocks[0]['text'])
+
+
+# ** test: perform_lexical_analysis_missing_param
+def test_perform_lexical_analysis_missing_param(
+        mock_lexer_service: LexerService,
+    ) -> None:
+    '''
+    Test that missing validated_blocks raises TiferetError.
+
+    :param mock_lexer_service: Mocked lexer service.
+    :type mock_lexer_service: LexerService
+    '''
+
+    # Attempt without validated_blocks.
+    with pytest.raises(TiferetError):
+        DomainEvent.handle(
+            PerformLexicalAnalysis,
+            dependencies={'lexer_service': mock_lexer_service},
         )
