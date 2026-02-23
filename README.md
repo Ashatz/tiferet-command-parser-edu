@@ -122,7 +122,7 @@ python -m pytest src/events/tests/test_scan.py -v
 
 ### Development Status
 
-- **Current branch**: `v0.x-proto`
+- **Current branch**: `master`
 - **Version**: 0.1.0
 - **Focus**: Lexical scanner for the Tiferet Domain Event pattern
 - **License**: MIT (educational reuse encouraged)
