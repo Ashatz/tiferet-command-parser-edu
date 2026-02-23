@@ -61,17 +61,38 @@ class ExtractText(DomainEvent):
         with open(source_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
-        # Build the section pattern for the given group type.
+        # Build patterns for the given group type and imports section.
         section_pattern = re.compile(
             rf'^\s*#\s*\*\*\s+{re.escape(group_type)}:\s+(\S+)'
         )
+        imports_start_pattern = re.compile(r'^\s*#\s*\*{3}\s+imports\s*$')
+        top_level_pattern = re.compile(r'^\s*#\s*\*{3}\s+\S+')
 
         # Parse optional extract filter into a set.
         extract_ids = None
         if extract:
             extract_ids = set(name.strip() for name in extract.split(','))
 
-        # Walk lines to find matching blocks.
+        # Locate the imports section (from # *** imports to next # *** section).
+        imports_block = None
+        imports_start = None
+
+        for i, line in enumerate(lines):
+            if imports_start is None:
+                if imports_start_pattern.match(line):
+                    imports_start = i
+            elif top_level_pattern.match(line):
+                imports_block = {
+                    'name': '__imports__',
+                    'line_start': imports_start,
+                    'line_end': i,
+                    'text': ''.join(lines[imports_start:i]),
+                    'length_chars': 0,
+                }
+                imports_block['length_chars'] = len(imports_block['text'])
+                break
+
+        # Walk lines to find matching artifact blocks.
         blocks = []
         current_block = None
 
@@ -108,9 +129,13 @@ class ExtractText(DomainEvent):
             current_block['length_chars'] = len(current_block['text'])
             blocks.append(current_block)
 
-        # Apply extract filter if specified.
+        # Apply extract filter if specified (imports are always included).
         if extract_ids:
             blocks = [b for b in blocks if b['name'] in extract_ids]
+
+        # Prepend the imports block if found.
+        if imports_block:
+            blocks.insert(0, imports_block)
 
         # Verify at least one block was found.
         self.verify(
@@ -246,6 +271,7 @@ class EmitScanResult(DomainEvent):
     def execute(self,
             source_file: str = None,
             analysis_result: Dict[str, Any] = None,
+            extract: str = None,
             summary_only: bool = False,
             with_metrics: bool = False,
             output_format: str = 'yaml',
@@ -260,6 +286,8 @@ class EmitScanResult(DomainEvent):
         :type source_file: str
         :param analysis_result: The analysis result from PerformLexicalAnalysis.
         :type analysis_result: Dict[str, Any]
+        :param extract: Comma-separated artifact names that were extracted (optional).
+        :type extract: str
         :param summary_only: If True, omit the token list.
         :type summary_only: bool
         :param with_metrics: If True, include metrics in output.
@@ -290,6 +318,12 @@ class EmitScanResult(DomainEvent):
             'source_file': source_file,
             'token_count': analysis['token_count'],
         }
+
+        # Include extracted artifact names if the extract filter was used.
+        if extract:
+            result['extracted_artifacts'] = [
+                name.strip() for name in extract.split(',')
+            ]
 
         # Include metrics if requested or summary-only mode.
         if with_metrics or summary_only:
