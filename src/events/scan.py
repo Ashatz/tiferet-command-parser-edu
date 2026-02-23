@@ -5,10 +5,12 @@
 # ** core
 import os
 import re
+from collections import Counter
 from typing import List, Dict, Any
 
 # ** app
 from .settings import DomainEvent, a
+from ..interfaces import LexerService
 
 # *** events
 
@@ -185,3 +187,72 @@ class LexerInitialized(DomainEvent):
 
         # Return the validated blocks.
         return text_blocks
+
+
+# ** event: perform_lexical_analysis
+class PerformLexicalAnalysis(DomainEvent):
+    '''
+    Core analytical event that tokenizes validated text blocks via
+    an injected LexerService and computes aggregate domain metrics.
+    '''
+
+    # * attribute: lexer_service
+    lexer_service: LexerService
+
+    # * init
+    def __init__(self, lexer_service: LexerService):
+        '''
+        Initialize the PerformLexicalAnalysis event.
+
+        :param lexer_service: The lexer service for tokenization.
+        :type lexer_service: LexerService
+        '''
+
+        # Set the lexer service dependency.
+        self.lexer_service = lexer_service
+
+    # * method: execute
+    @DomainEvent.parameters_required(['validated_blocks'])
+    def execute(self,
+            validated_blocks: List[Dict[str, Any]],
+            **kwargs,
+        ) -> Dict[str, Any]:
+        '''
+        Tokenize all validated blocks and compute domain metrics.
+
+        :param validated_blocks: The list of validated text block dicts.
+        :type validated_blocks: List[Dict[str, Any]]
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: dict
+        :return: Analysis result with tokens, token_count, and metrics.
+        :rtype: Dict[str, Any]
+        '''
+
+        # Tokenize all blocks.
+        all_tokens = []
+        for block in validated_blocks:
+            block_tokens = self.lexer_service.tokenize(block['text'])
+            all_tokens.extend(block_tokens)
+
+        # Count token types for metrics computation.
+        type_counts = Counter(t['type'] for t in all_tokens)
+
+        # Compute domain metrics from token type counts.
+        metrics = {
+            'commands_detected': type_counts.get('CLASS', 0),
+            'execute_methods_found': type_counts.get('EXECUTE', 0),
+            'verify_calls': type_counts.get('VERIFY', 0),
+            'parameters_required_decorators': type_counts.get('PARAMETERS_REQUIRED', 0),
+            'service_calls': type_counts.get('SERVICE_CALL', 0),
+            'factory_calls': type_counts.get('FACTORY_CALL', 0),
+            'constants_referenced': type_counts.get('CONST_REF', 0),
+            'docstrings_found': type_counts.get('DOCSTRING', 0),
+            'top_token_types': dict(type_counts.most_common(10)),
+        }
+
+        # Return the analysis result.
+        return {
+            'tokens': all_tokens,
+            'token_count': len(all_tokens),
+            'metrics': metrics,
+        }
