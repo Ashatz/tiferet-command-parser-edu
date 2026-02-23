@@ -12,7 +12,7 @@ from tiferet.events import TiferetError
 
 # ** app
 from ..settings import DomainEvent
-from ..scan import ExtractText, LexerInitialized, PerformLexicalAnalysis
+from ..scan import ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult
 from ...interfaces import LexerService
 
 # *** fixtures
@@ -86,6 +86,35 @@ def mock_lexer_service() -> LexerService:
     '''
 
     return mock.Mock(spec=LexerService)
+
+# ** fixture: sample_analysis_result
+@pytest.fixture
+def sample_analysis_result() -> dict:
+    '''
+    Return a sample analysis result dict.
+
+    :return: A sample analysis result.
+    :rtype: dict
+    '''
+
+    return {
+        'tokens': [
+            {'type': 'ARTIFACT_SECTION', 'value': '# ** event: sample_event', 'line': 1, 'column': 0},
+            {'type': 'CLASS', 'value': 'class', 'line': 2, 'column': 0},
+            {'type': 'IDENTIFIER', 'value': 'SampleEvent', 'line': 2, 'column': 6},
+        ],
+        'token_count': 3,
+        'metrics': {
+            'commands_detected': 1,
+            'execute_methods_found': 0,
+            'verify_calls': 0,
+            'service_calls': 0,
+            'factory_calls': 0,
+            'constants_referenced': 0,
+            'docstrings_found': 0,
+            'top_token_types': {'CLASS': 1, 'ARTIFACT_SECTION': 1, 'IDENTIFIER': 1},
+        },
+    }
 
 # *** tests — ExtractText
 
@@ -299,3 +328,155 @@ def test_perform_lexical_analysis_missing_param(
             PerformLexicalAnalysis,
             dependencies={'lexer_service': mock_lexer_service},
         )
+
+# *** tests — EmitScanResult
+
+# ** test: emit_scan_result_default
+def test_emit_scan_result_default(sample_analysis_result: dict) -> None:
+    '''
+    Test default emit returns tokens and token_count.
+
+    :param sample_analysis_result: Sample analysis result.
+    :type sample_analysis_result: dict
+    '''
+
+    # Execute the EmitScanResult event.
+    result = DomainEvent.handle(
+        EmitScanResult,
+        source_file='test.py',
+        analysis_result=sample_analysis_result,
+    )
+
+    # Assert default includes tokens and no metrics.
+    assert result['event_type'] == 'TokensScanned'
+    assert result['source_file'] == 'test.py'
+    assert result['token_count'] == 3
+    assert 'tokens' in result
+    assert 'metrics' not in result
+
+
+# ** test: emit_scan_result_summary_only
+def test_emit_scan_result_summary_only(sample_analysis_result: dict) -> None:
+    '''
+    Test summary-only mode omits tokens and includes metrics.
+
+    :param sample_analysis_result: Sample analysis result.
+    :type sample_analysis_result: dict
+    '''
+
+    # Execute with summary_only flag.
+    result = DomainEvent.handle(
+        EmitScanResult,
+        source_file='test.py',
+        analysis_result=sample_analysis_result,
+        summary_only=True,
+    )
+
+    # Assert tokens are omitted, metrics are present.
+    assert 'tokens' not in result
+    assert 'metrics' in result
+    assert result['token_count'] == 3
+
+
+# ** test: emit_scan_result_with_metrics
+def test_emit_scan_result_with_metrics(sample_analysis_result: dict) -> None:
+    '''
+    Test with_metrics flag includes both tokens and metrics.
+
+    :param sample_analysis_result: Sample analysis result.
+    :type sample_analysis_result: dict
+    '''
+
+    # Execute with with_metrics flag.
+    result = DomainEvent.handle(
+        EmitScanResult,
+        source_file='test.py',
+        analysis_result=sample_analysis_result,
+        with_metrics=True,
+    )
+
+    # Assert both tokens and metrics are present.
+    assert 'tokens' in result
+    assert 'metrics' in result
+
+
+# ** test: emit_scan_result_no_analysis
+def test_emit_scan_result_no_analysis() -> None:
+    '''
+    Test emit with no analysis_result uses empty defaults.
+    '''
+
+    # Execute without analysis_result.
+    result = DomainEvent.handle(
+        EmitScanResult,
+        source_file='test.py',
+    )
+
+    # Assert default empty result.
+    assert result['token_count'] == 0
+    assert result['tokens'] == []
+
+
+# ** test: emit_scan_result_write_yaml
+def test_emit_scan_result_write_yaml(
+        sample_analysis_result: dict,
+        tmp_path,
+    ) -> None:
+    '''
+    Test writing result to a YAML file.
+
+    :param sample_analysis_result: Sample analysis result.
+    :type sample_analysis_result: dict
+    :param tmp_path: Pytest temporary directory fixture.
+    :type tmp_path: pathlib.Path
+    '''
+
+    # Set the output path.
+    output_path = str(tmp_path / 'result.yaml')
+
+    # Execute with output path.
+    DomainEvent.handle(
+        EmitScanResult,
+        source_file='test.py',
+        analysis_result=sample_analysis_result,
+        output=output_path,
+    )
+
+    # Assert the file was created with content.
+    assert os.path.isfile(output_path)
+    with open(output_path) as f:
+        content = f.read()
+    assert 'TokensScanned' in content
+
+
+# ** test: emit_scan_result_write_json
+def test_emit_scan_result_write_json(
+        sample_analysis_result: dict,
+        tmp_path,
+    ) -> None:
+    '''
+    Test writing result to a JSON file.
+
+    :param sample_analysis_result: Sample analysis result.
+    :type sample_analysis_result: dict
+    :param tmp_path: Pytest temporary directory fixture.
+    :type tmp_path: pathlib.Path
+    '''
+
+    # Set the output path.
+    output_path = str(tmp_path / 'result.json')
+
+    # Execute with output path and json format.
+    DomainEvent.handle(
+        EmitScanResult,
+        source_file='test.py',
+        analysis_result=sample_analysis_result,
+        output=output_path,
+        output_format='json',
+    )
+
+    # Assert the file was created with JSON content.
+    assert os.path.isfile(output_path)
+    with open(output_path) as f:
+        content = f.read()
+    assert '"event_type"' in content

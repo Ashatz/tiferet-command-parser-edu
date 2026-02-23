@@ -5,8 +5,13 @@
 # ** core
 import os
 import re
+import json
 from collections import Counter
+from datetime import datetime, timezone
 from typing import List, Dict, Any
+
+# ** infra
+import yaml
 
 # ** app
 from .settings import DomainEvent, a
@@ -256,3 +261,112 @@ class PerformLexicalAnalysis(DomainEvent):
             'token_count': len(all_tokens),
             'metrics': metrics,
         }
+
+
+# ** event: emit_scan_result
+class EmitScanResult(DomainEvent):
+    '''
+    Terminal pipeline event that assembles the scan result payload,
+    applies output mode flags, and optionally writes to file.
+    '''
+
+    # * method: execute
+    def execute(self,
+            source_file: str = None,
+            analysis_result: Dict[str, Any] = None,
+            extract: str = None,
+            summary_only: bool = False,
+            with_metrics: bool = False,
+            output_format: str = 'yaml',
+            metrics_format: str = 'yaml',
+            output: str = None,
+            **kwargs,
+        ) -> Dict[str, Any]:
+        '''
+        Assemble and emit the scan result payload.
+
+        :param source_file: Original source file path.
+        :type source_file: str
+        :param analysis_result: Output from PerformLexicalAnalysis.
+        :type analysis_result: Dict[str, Any]
+        :param extract: Original -x filter string.
+        :type extract: str
+        :param summary_only: If truthy, omit tokens and include metrics.
+        :type summary_only: bool
+        :param with_metrics: If truthy, include metrics alongside tokens.
+        :type with_metrics: bool
+        :param output_format: Output format: yaml, json, or auto.
+        :type output_format: str
+        :param metrics_format: Reserved for future use.
+        :type metrics_format: str
+        :param output: File path to write output to.
+        :type output: str
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: dict
+        :return: The assembled result payload.
+        :rtype: Dict[str, Any]
+        '''
+
+        # Default analysis if missing.
+        analysis = analysis_result or {
+            'tokens': [],
+            'token_count': 0,
+            'metrics': {},
+        }
+
+        # Build base payload.
+        result = {
+            'event_type': 'TokensScanned',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'source_file': source_file,
+            'token_count': analysis['token_count'],
+        }
+
+        # Include extracted artifact names if -x was used.
+        if extract:
+            result['extracted_artifacts'] = [
+                name.strip() for name in extract.split(',')
+            ]
+
+        # Include metrics if requested.
+        if with_metrics or summary_only:
+            result['metrics'] = analysis['metrics']
+
+        # Include tokens unless summary-only.
+        if not summary_only:
+            result['tokens'] = analysis['tokens']
+
+        # Write to file if output path specified.
+        if output:
+            self._write_output(result, output, output_format)
+
+        # Return the result payload.
+        return result
+
+    # * method: _write_output
+    def _write_output(self, result: Dict[str, Any], output_path: str, output_format: str) -> None:
+        '''
+        Write the result payload to a file.
+
+        :param result: The result payload to write.
+        :type result: Dict[str, Any]
+        :param output_path: The file path to write to.
+        :type output_path: str
+        :param output_format: The output format (yaml, json, or auto).
+        :type output_format: str
+        '''
+
+        # Auto-detect format from file extension.
+        if output_format == 'auto':
+            ext = os.path.splitext(output_path)[1].lower()
+            if ext == '.json':
+                output_format = 'json'
+            else:
+                output_format = 'yaml'
+
+        # Write the output file.
+        with open(output_path, 'w', encoding='utf-8') as f:
+            if output_format == 'json':
+                json.dump(result, f, indent=2, default=str)
+            else:
+                yaml.dump(result, f, default_flow_style=False, sort_keys=False)
