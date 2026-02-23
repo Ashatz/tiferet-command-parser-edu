@@ -141,3 +141,47 @@ class ExtractText(DomainEvent):
 
         # Return the extracted blocks.
         return blocks
+
+
+# ** event: lexer_initialized
+class LexerInitialized(DomainEvent):
+    '''
+    Validation gate event that verifies extracted text blocks are
+    non-empty and suitable for lexical analysis.
+    '''
+
+    # * method: execute
+    @DomainEvent.parameters_required(['text_blocks'])
+    def execute(self,
+            text_blocks: List[Dict[str, Any]],
+            **kwargs,
+        ) -> List[Dict[str, Any]]:
+        '''
+        Validate that text blocks are non-empty and contain text.
+
+        :param text_blocks: The list of text block dicts from ExtractText.
+        :type text_blocks: List[Dict[str, Any]]
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: dict
+        :return: The validated text blocks, unchanged.
+        :rtype: List[Dict[str, Any]]
+        '''
+
+        # Verify the blocks list is non-empty.
+        self.verify(
+            expression=len(text_blocks) > 0,
+            error_code='TEXT_EXTRACTION_FAILED',
+            message='No text blocks provided for lexer initialization.',
+        )
+
+        # Verify each block has non-empty text.
+        for block in text_blocks:
+            self.verify(
+                expression=bool(block.get('text', '').strip()),
+                error_code='TEXT_EXTRACTION_FAILED',
+                message=f'Empty text block: {block.get("name", "unknown")}.',
+                block_name=block.get('name', 'unknown'),
+            )
+
+        # Return the validated blocks.
+        return text_blocks

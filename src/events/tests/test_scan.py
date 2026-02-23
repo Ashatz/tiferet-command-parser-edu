@@ -12,7 +12,7 @@ from tiferet.events import TiferetError
 
 # ** app
 from ..settings import DomainEvent
-from ..scan import ExtractText
+from ..scan import ExtractText, LexerInitialized
 
 # *** fixtures
 
@@ -53,6 +53,26 @@ class AnotherEvent(DomainEvent):
     file_path = tmp_path / 'sample_events.py'
     file_path.write_text(content)
     return str(file_path)
+
+# ** fixture: sample_text_blocks
+@pytest.fixture
+def sample_text_blocks() -> list:
+    '''
+    Return sample text blocks as extracted by ExtractText.
+
+    :return: List of text block dicts.
+    :rtype: list
+    '''
+
+    return [
+        {
+            'name': 'sample_event',
+            'line_start': 7,
+            'line_end': 13,
+            'text': '# ** event: sample_event\nclass SampleEvent(DomainEvent):\n    pass\n',
+            'length_chars': 70,
+        },
+    ]
 
 # *** tests — ExtractText
 
@@ -146,4 +166,63 @@ def test_extract_text_no_matching_blocks(tmp_path) -> None:
         DomainEvent.handle(
             ExtractText,
             source_file=str(file_path),
+        )
+
+# *** tests — LexerInitialized
+
+# ** test: lexer_initialized_success
+def test_lexer_initialized_success(sample_text_blocks: list) -> None:
+    '''
+    Test successful validation of text blocks.
+
+    :param sample_text_blocks: Sample text blocks.
+    :type sample_text_blocks: list
+    '''
+
+    # Execute the LexerInitialized event.
+    result = DomainEvent.handle(
+        LexerInitialized,
+        text_blocks=sample_text_blocks,
+    )
+
+    # Assert the blocks are returned unchanged.
+    assert result == sample_text_blocks
+
+
+# ** test: lexer_initialized_missing_param
+def test_lexer_initialized_missing_param() -> None:
+    '''
+    Test that missing text_blocks parameter raises TiferetError.
+    '''
+
+    # Attempt without text_blocks.
+    with pytest.raises(TiferetError):
+        DomainEvent.handle(LexerInitialized)
+
+
+# ** test: lexer_initialized_empty_blocks
+def test_lexer_initialized_empty_blocks() -> None:
+    '''
+    Test that empty text blocks list raises TiferetError.
+    '''
+
+    # Attempt with empty list.
+    with pytest.raises(TiferetError):
+        DomainEvent.handle(
+            LexerInitialized,
+            text_blocks=[],
+        )
+
+
+# ** test: lexer_initialized_empty_text
+def test_lexer_initialized_empty_text() -> None:
+    '''
+    Test that a block with empty text raises TiferetError.
+    '''
+
+    # Attempt with a block that has blank text.
+    with pytest.raises(TiferetError):
+        DomainEvent.handle(
+            LexerInitialized,
+            text_blocks=[{'name': 'bad_block', 'text': '   '}],
         )
