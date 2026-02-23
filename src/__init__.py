@@ -3,7 +3,7 @@
 # *** exports
 
 # ** app
-from .events import DomainEvent, TiferetError, ExtractText
+from .events import DomainEvent, TiferetError, ExtractText, LexerInitialized
 from .interfaces import LexerService
 from .utils import TiferetLexer
 
