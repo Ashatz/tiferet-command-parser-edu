@@ -14,14 +14,116 @@ For the full project narrative — including detailed motivation (DDD & Clean Ar
 
 → **[PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md)**
 
-### Quick Start / Usage
+### Quick Start
 
-(Coming soon — once the prototype is ready)
+**Prerequisites:** Python 3.10+, pip
+
+```bash
+# Clone the repository
+git clone https://github.com/ashatz/tiferet-command-parser-edu.git
+cd tiferet-command-parser-edu
+
+# Create a virtual environment and install dependencies
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+### Scanner Usage
+
+The scanner performs lexical analysis on Python source files written in the Tiferet Command/Event pattern, recognizing domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords.
+
+#### CLI Commands
+
+Scan a Tiferet event source file:
+
+```bash
+python compiler.py scan event <source_file>
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-o`, `--output` | Write results to a YAML or JSON file |
+| `--format` | Output format: `yaml`, `json`, `console`, or `auto` |
+| `-x`, `--extract` | Comma-separated artifact names to extract (e.g., `add_error,get_error`) |
+| `--summary-only` | Output only metrics/summary (omit the full token list) |
+| `--with-metrics` | Include detailed lexical metrics section |
+| `--metrics-format` | Metrics rendering format: `yaml`, `json`, or `text` |
+
+**Examples:**
+
+```bash
+# Scan an event file and print tokens to console
+python compiler.py scan event src/events/scan.py
+
+# Scan and write output to YAML
+python compiler.py scan event src/events/scan.py -o results.yaml
+
+# Scan only specific artifacts with metrics
+python compiler.py scan event src/events/scan.py -x extract_text,emit_scan_result --with-metrics
+
+# Summary-only mode (no token list)
+python compiler.py scan event src/events/scan.py --summary-only
+```
+
+#### Token Categories
+
+The scanner recognizes the following token families (see [LEXICAL_SPEC.md](./LEXICAL_SPEC.md) for the complete formal specification):
+
+- **Artifact Comments** — `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`
+- **Documentation** — `DOCSTRING`, `LINE_COMMENT`
+- **Structural Keywords** — `CLASS`, `DEF`, `EXECUTE`, `INIT`, `RETURN`, `SELF`
+- **Domain Idioms** — `VERIFY_PARAMETER`, `VERIFY`, `SERVICE_CALL`, `FACTORY_CALL`, `CONST_REF`
+- **Generic Python** — `PYTHON_KEYWORD`, `IDENTIFIER`, `STRING_LITERAL`, `NUMBER_LITERAL`
+- **Punctuation** — `LPAREN`, `RPAREN`, `LBRACK`, `RBRACK`, `LBRACE`, `RBRACE`, `COMMA`, `COLON`, `ARROW`, `DOT`, `EQUALS`
+- **Layout** — `NEWLINE`, `UNKNOWN`
+
+Unrecognized characters are emitted as `UNKNOWN` tokens for error reporting.
+
+### Running Tests
+
+The test suite validates every token type, non-matching/unknown tokens, and the full event pipeline.
+
+```bash
+# Run all tests
+python -m pytest
+
+# Run with verbose output
+python -m pytest -v
+
+# Run only lexer tests (37 tests)
+python -m pytest src/utils/tests/test_lexer.py -v
+
+# Run only event tests (17 tests)
+python -m pytest src/events/tests/test_scan.py -v
+```
+
+**Lexer tests** (`src/utils/tests/test_lexer.py`) cover:
+- All artifact comment types (imports start, start, import group, section, member)
+- Docstrings (single-line and multiline)
+- Line comments
+- All structural keywords (class, def, init, execute, return, self)
+- All domain idioms (verify_parameter, verify, service_call, factory_call, const_ref)
+- Python keywords, identifiers, string/number literals
+- All punctuation and delimiters
+- Line and column tracking
+- Non-matching / unknown tokens (`@`, `$`, `` ` ``, `~`, `!`, `%`, `^`, `&`)
+- Full Tiferet command snippet integration test
+- Edge cases (empty input, whitespace-only input)
+
+**Event tests** (`src/events/tests/test_scan.py`) cover:
+- `ExtractText` — success, extract filter, missing param, file not found, no matching blocks
+- `LexerInitialized` — success, missing param, empty blocks, empty text
+- `PerformLexicalAnalysis` — success with mocked lexer service, missing param
+- `EmitScanResult` — default, summary-only, with-metrics, no analysis, YAML output, JSON output
 
 ### Development Status
 
-- **Current branch**: `prototype/command-parser`  
-- **Focus**: Command pattern only (error-management suite as demonstration)  
+- **Current branch**: `v0.x-proto`
+- **Version**: 0.1.0
+- **Focus**: Lexical scanner for the Tiferet Command/Event pattern
 - **License**: MIT (educational reuse encouraged)
 
 ### Acknowledgments
