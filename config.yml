@@ -1,0 +1,118 @@
+attrs:
+  extract_text_event:
+    module_path: src.events.scan
+    class_name: ExtractText
+  lexer_initialized_event:
+    module_path: src.events.scan
+    class_name: LexerInitialized
+  perform_lexical_analysis_event:
+    module_path: src.events.scan
+    class_name: PerformLexicalAnalysis
+  emit_scan_result_event:
+    module_path: src.events.scan
+    class_name: EmitScanResult
+  lexer_service:
+    module_path: src.utils.lexer
+    class_name: TiferetLexer
+
+features:
+  scan:
+    event:
+      name: 'Scan Event'
+      description: 'Perform lexical scanning on a Tiferet event source file'
+      commands:
+        - attribute_id: extract_text_event
+          name: Extract text blocks from source file
+          data_key: text_blocks
+        - attribute_id: lexer_initialized_event
+          name: Validate extracted text blocks
+          data_key: validated_blocks
+        - attribute_id: perform_lexical_analysis_event
+          name: Tokenize and compute lexical metrics
+          data_key: analysis_result
+        - attribute_id: emit_scan_result_event
+          name: Format and emit scan result
+
+errors:
+  source_file_not_found:
+    name: Source File Not Found
+    message:
+      - lang: en_US
+        text: 'Source file not found: {source_file}'
+  text_extraction_failed:
+    name: Text Extraction Failed
+    message:
+      - lang: en_US
+        text: 'Failed to extract text blocks from source file: {source_file}'
+  lexical_error_detected:
+    name: Lexical Error Detected
+    message:
+      - lang: en_US
+        text: 'Lexical error detected during tokenization'
+
+logging: {}
+
+cli:
+  cmds:
+    scan:
+      event:
+        group_key: scan
+        key: event
+        name: Scan Event Command
+        description: Perform lexical scanning on a Tiferet event source file.
+        args:
+          - name_or_flags:
+              - source_file
+            description: Path to the Python source file to scan.
+          - name_or_flags:
+              - -o
+              - --output
+            description: Path to output YAML/JSON file.
+          - name_or_flags:
+              - --format
+            description: "Output format: yaml, json, console, or auto."
+          - name_or_flags:
+              - -x
+              - --extract
+            description: Comma-separated artifact names to extract.
+          - name_or_flags:
+              - --summary-only
+            description: Output only metrics/summary (no token list).
+          - name_or_flags:
+              - --with-metrics
+            description: Include detailed lexical metrics section.
+          - name_or_flags:
+              - --metrics-format
+            description: "Metrics rendering format: yaml, json, or text."
+
+interfaces:
+  compiler:
+    name: Tiferet Dialect Scanner
+    description: Lexical scanning and artifact extraction for Tiferet source files
+    module_path: tiferet.contexts.app
+    class_name: AppInterfaceContext
+    const:
+      container_config_file: config.yml
+      feature_config_file: config.yml
+      error_config_file: config.yml
+      logging_config_file: config.yml
+  compiler_cli:
+    name: Scanner CLI
+    description: Tiferet Dialect Scanner via CLI
+    module_path: tiferet.contexts.cli
+    class_name: CliContext
+    attrs:
+      cli_repo:
+        module_path: tiferet.proxies.yaml.cli
+        class_name: CliYamlProxy
+        params:
+          cli_config_file: config.yml
+      cli_service:
+        module_path: tiferet.handlers.cli
+        class_name: CliHandler
+    const:
+      cli_config_file: config.yml
+      container_config_file: config.yml
+      feature_config_file: config.yml
+      error_config_file: config.yml
+      logging_config_file: config.yml
