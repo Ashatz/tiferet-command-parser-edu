@@ -2,14 +2,17 @@
 
 ## Input language: 
 
-The input language is the **Tiferet Command dialect**, a highly structured subset of **Python 3.10+** used within the Tiferet framework to implement domain-driven events via the Command pattern classes following Clean Architecture and Domain-Driven Design principles.
+The input language is the **Tiferet Domain Event dialect**, a highly structured subset of **Python 3.10+** used within the Tiferet framework to implement domain-driven events following Clean Architecture and Domain-Driven Design (DDD) principles.
+
+In DDD, a Domain Event represents a discrete, well-defined operation within the domain — a focused action that changes or queries domain state in response to a business requirement. Tiferet's `DomainEvent` base class formalizes this concept: each event class encapsulates a single operation, receives dependencies via constructor injection, validates inputs declaratively through the `@DomainEvent.parameters_required` decorator, and enforces domain rules via `self.verify(...)` calls.
 
 The dialect is characterized by:
-- Strict use of artifact comments (`# ***`, `# **`, `# *`) to mark architectural sections, commands, methods, and attributes
-- Command classes inheriting from `Command`
+- Strict use of artifact comments (`# ***`, `# **`, `# *`) to mark architectural sections, events, methods, and attributes
+- Event classes inheriting from `DomainEvent`
 - Dependency injection via `__init__`
 - A single `execute` method containing ordered business logic
-- Ubiquitous use of `self.verify_parameter(...)`, `self.verify(...)`, `self.*_service.*(...)`, domain object factories `*.new(...)`, and domain constants `a.const.*`
+- Declarative parameter validation via `@DomainEvent.parameters_required([...])`
+- Ubiquitous use of `self.verify(...)`, `self.*_service.*(...)`, domain object factories `*.new(...)`, and domain constants `a.const.*`
 - Standard Python syntax for function signatures, type annotations, calls, lists, dicts, etc.
 
 The scanner is **not** a complete Python lexer — it recognizes only the tokens necessary to identify domain structure, validation patterns, service interactions, and execution flow for later AST-based extraction.
@@ -19,8 +22,8 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 
 ### Artifact Comments (Tiferet-specific structural markers)
 
-- ARTIFACT_START         `# *** …`     (major sections: imports, commands, etc.)
-- ARTIFACT_SECTION       `# ** …`      (subsections: command names, import groups)
+- ARTIFACT_START         `# *** …`     (major sections: imports, events, etc.)
+- ARTIFACT_SECTION       `# ** …`      (subsections: event names, import groups)
 - ARTIFACT_MEMBER        `# * …`       (members: method: execute, attribute: xxx_service)
 - ARTIFACT_IMPORTS_START `# *** imports`
 - ARTIFACT_IMPORT_GROUP  `# ** core`, `# ** app`, etc.
@@ -40,7 +43,7 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 
 ### Domain Idioms & Patterns (core semantic carriers)
 
-- VERIFY_PARAMETER       `self.verify_parameter(`
+- PARAMETERS_REQUIRED    `@DomainEvent.parameters_required(`  (declarative parameter validation decorator)
 - VERIFY                 `self.verify(`
 - SERVICE_CALL           `self.<ident>_service.<ident>(`   (service method invocation)
 - FACTORY_CALL           `<ident>.new(`                    (domain factory invocation)
@@ -102,7 +105,7 @@ CLASS                   class
 DEF                     def
 INIT                    __init__
 RETURN                  return
-VERIFY_PARAMETER        self\.verify_parameter\(
+PARAMETERS_REQUIRED     @DomainEvent\.parameters_required\(
 VERIFY                  self\.verify\(
 SERVICE_CALL            self\.[a-zA-Z_][a-zA-Z0-9_]*_service\.[a-zA-Z_][a-zA-Z0-9_]*\(
 FACTORY_CALL            [a-zA-Z_][a-zA-Z0-9_]*\.new\(
@@ -139,7 +142,7 @@ NEWLINE                 \n
 UNKNOWN                 .
 ```
 
-**Note:** The lexer should use longest-match-first priority and prefer domain-specific patterns (VERIFY_PARAMETER, SERVICE_CALL, etc.) over generic IDENTIFIER or PYTHON_KEYWORD.
+**Note:** The lexer should use longest-match-first priority and prefer domain-specific patterns (PARAMETERS_REQUIRED, SERVICE_CALL, etc.) over generic IDENTIFIER or PYTHON_KEYWORD.
 
 
 ## Examples: 
@@ -152,28 +155,32 @@ UNKNOWN                 .
 from typing import List, Dict, Any
 
 # ** app
-from .settings import Command, a
-from ..models import Error
+from .settings import DomainEvent, a
+from ..domain import Error
+from ..interfaces import ErrorService
+from ..mappers import ErrorAggregate
 
-# *** commands
+# *** events
 
-# ** command: add_error
-class AddError(Command):
+# ** event: add_error
+class AddError(DomainEvent):
 ```
 
 ### Class & Method Structure
 ```python
-class AddError(Command):
+class AddError(DomainEvent):
     def __init__(self, error_service: ErrorService):
         self.error_service = error_service
 
-    def execute(self, id: str, name: str) -> None:
+    @DomainEvent.parameters_required(['id', 'name', 'message'])
+    def execute(self, id: str, name: str, message: str, **kwargs) -> None:
 ```
 
 ### Domain Idioms & Validation
 ```python
-        self.verify_parameter(parameter=id, parameter_name='id', command_name='AddError')
-        
+    @DomainEvent.parameters_required(['id', 'name', 'message'])
+    def execute(self, id: str, name: str, message: str, **kwargs):
+
         exists = self.error_service.exists(id)
         self.verify(
             expression=exists is False,
@@ -184,7 +191,7 @@ class AddError(Command):
 
 ### Factory & Return
 ```python
-        new_error = Error.new(id=id, name=name, message=[{'lang': 'en_US', 'text': message}])
+        new_error = Aggregate.new(ErrorAggregate, id=id, name=name, message=error_messages)
         self.error_service.save(new_error)
         return new_error
 ```

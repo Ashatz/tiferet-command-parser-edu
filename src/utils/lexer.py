@@ -48,7 +48,7 @@ class TiferetLexer(LexerService):
         'LINE_COMMENT',
 
         # Domain idioms (must precede generic tokens)
-        'VERIFY_PARAMETER',
+        'PARAMETERS_REQUIRED',
         'VERIFY',
         'SERVICE_CALL',
         'FACTORY_CALL',
@@ -142,9 +142,9 @@ class TiferetLexer(LexerService):
 
     # -- Domain idiom rules (must precede IDENTIFIER)
 
-    # * rule: verify_parameter
-    def t_VERIFY_PARAMETER(self, t):
-        r'self\.verify_parameter\('
+    # * rule: parameters_required
+    def t_PARAMETERS_REQUIRED(self, t):
+        r'@DomainEvent\.parameters_required\('
         return t
 
     # * rule: verify

@@ -200,14 +200,14 @@ def test_self_reference(lexer: TiferetLexer) -> None:
     assert tok['type'] == 'SELF'
 
 
-# ** test: verify_parameter
-def test_verify_parameter(lexer: TiferetLexer) -> None:
+# ** test: parameters_required
+def test_parameters_required(lexer: TiferetLexer) -> None:
     '''
-    Test that self.verify_parameter( is recognized as VERIFY_PARAMETER.
+    Test that @DomainEvent.parameters_required( is recognized as PARAMETERS_REQUIRED.
     '''
 
-    tok = first_token(lexer, 'self.verify_parameter(')
-    assert tok['type'] == 'VERIFY_PARAMETER'
+    tok = first_token(lexer, '@DomainEvent.parameters_required(')
+    assert tok['type'] == 'PARAMETERS_REQUIRED'
 
 
 # ** test: verify_call
@@ -410,12 +410,12 @@ def test_full_command_snippet(lexer: TiferetLexer) -> None:
     '''
 
     text = '''# ** command: add_error
-class AddError(Command):
+class AddError(DomainEvent):
     def __init__(self, error_service: ErrorService):
         self.error_service = error_service
 
+    @DomainEvent.parameters_required(['id', 'name'])
     def execute(self, id: str, **kwargs):
-        self.verify_parameter(parameter=id, parameter_name='id', command_name='AddError')
         exists = self.error_service.exists(id)
         self.verify(
             expression=exists is False,
@@ -434,7 +434,7 @@ class AddError(Command):
     assert 'CLASS' in types
     assert 'INIT' in types
     assert 'EXECUTE' in types
-    assert 'VERIFY_PARAMETER' in types
+    assert 'PARAMETERS_REQUIRED' in types
     assert 'VERIFY' in types
     assert 'SERVICE_CALL' in types
     assert 'FACTORY_CALL' in types
