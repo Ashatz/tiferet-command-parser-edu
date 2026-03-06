@@ -58,7 +58,30 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - PYTHON_KEYWORD         Python reserved words: `from`, `import`, `if`, `else`, `for`, `True`, `False`, `None`, `is`, `not`, `in`, `and`, `or`, `as`, `with`, etc.
 - IDENTIFIER             Letter/_ followed by letters/digits/_
 - STRING_LITERAL         `'…'`, `"…"`, `'''…'''`, `"""…"""`
-- NUMBER_LITERAL         Integer, float, or simple scientific notation
+- NUMBER_LITERAL         Integer or float; digit-prefixed identifiers (e.g. `123abc`) are promoted to UNKNOWN
+
+### Operators
+
+- DOUBLESTAR             `**`
+- PLUS                   `+`
+- MINUS                  `-`
+- STAR                   `*`
+- SLASH                  `/`
+- DOUBLESLASH            `//`
+- PERCENT                `%`
+- PIPE                   `|`
+- AMPERSAND              `&`
+- TILDE                  `~`
+- CARET                  `^`
+- LSHIFT                 `<<`
+- RSHIFT                 `>>`
+- EQEQ                   `==`
+- NOTEQ                  `!=`
+- LTEQ                   `<=`
+- GTEQ                   `>=`
+- LT                     `<`
+- GT                     `>`
+- AT                     `@`
 
 ### Punctuation & Delimiters
 
@@ -87,8 +110,8 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 ### Artifact Comments
 ```
 ARTIFACT_IMPORTS_START  #\s*\*{3}\s+imports\s*
-ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra)
-ARTIFACT_START          #\s*\*{3}.*
+ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra)\b.*
+ARTIFACT_START          #\s*\*{3}\s+.*
 ARTIFACT_SECTION        #\s*\*{2}\s+.*
 ARTIFACT_MEMBER         #\s*\*\s+.*
 ```
@@ -109,7 +132,7 @@ PARAMETERS_REQUIRED     @DomainEvent\.parameters_required\(
 VERIFY                  self\.verify\(
 SERVICE_CALL            self\.[a-zA-Z_][a-zA-Z0-9_]*_service\.[a-zA-Z_][a-zA-Z0-9_]*\(
 FACTORY_CALL            [a-zA-Z_][a-zA-Z0-9_]*\.new\(
-CONST_REF               a\.const\.[A-Z_][A-Z_]*
+CONST_REF               a\.const\.[A-Z_][A-Z0-9_]*
 SELF                    self
 ```
 
@@ -118,7 +141,33 @@ SELF                    self
 PYTHON_KEYWORD          (and|as|assert|break|class|continue|def|del|elif|else|except|False|finally|for|from|global|if|import|in|is|lambda|None|nonlocal|not|or|pass|raise|return|True|try|while|with|yield)
 IDENTIFIER              [a-zA-Z_][a-zA-Z0-9_]*
 STRING_LITERAL          ("([^"\\]|\\.)*")|('([^'\\]|\\.)*')|('''.*?''')
-NUMBER_LITERAL          [0-9]+(\.[0-9]+)?
+NUMBER_LITERAL          [0-9]+(\.[0-9]+)?([a-zA-Z_][a-zA-Z0-9_]*)?
+```
+
+If a `NUMBER_LITERAL` match contains trailing alphabetic/underscore characters (e.g. `123abc`), the token is promoted to `UNKNOWN`.
+
+### Operators (longest match first)
+```
+DOUBLESTAR              \*\*
+DOUBLESLASH             //
+LSHIFT                  <<
+RSHIFT                  >>
+EQEQ                    ==
+NOTEQ                   !=
+LTEQ                    <=
+GTEQ                    >=
+PLUS                    \+
+MINUS                   -
+STAR                    \*
+SLASH                   /
+PERCENT                 %
+PIPE                    \|
+AMPERSAND               &
+TILDE                   ~
+CARET                   \^
+LT                      <
+GT                      >
+AT                      @
 ```
 
 ### Punctuation & Delimiters (single characters / short fixed strings)
