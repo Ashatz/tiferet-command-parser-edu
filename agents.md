@@ -2,7 +2,7 @@
 
 **Repository:** tiferet-command-parser-edu
 **Version:** 0.1.0
-**Branch:** v0.x-proto
+**Branch:** master
 **Framework:** Tiferet (DDD, Domain Events)
 **Purpose:** Educational compiler front-end for ECE 506 (Compiler Design) — performs lexical scanning on Python source files written in the Tiferet framework's Domain Event pattern.
 
@@ -23,6 +23,8 @@ This project is a Tiferet application. It uses Domain Events as the primary oper
 compiler.py              — Entry point: loads Tiferet CLI app from config.yml
 config.yml               — Tiferet app configuration (attrs, features, errors, cli, interfaces)
 pyproject.toml           — Project metadata, dependencies (tiferet, ply, pyyaml)
+samples/
+  error_events.py        — Sample input: Tiferet error event source file
 
 src/
   __init__.py            — Package exports and version (0.1.0)
@@ -38,15 +40,10 @@ src/
     lexer.py             — LexerService abstract interface (extends tiferet Service)
     __init__.py          — Interfaces package exports
   utils/
-    lexer.py             — TiferetLexer: PLY-based lexer implementing LexerService with 30+ token types
+    lexer.py             — TiferetLexer: PLY-based lexer implementing LexerService with 35 token types
     __init__.py          — Utils package exports
     tests/
       test_lexer.py      — 37 tests for all lexer token rules
-
-docs/
-  LEXICAL_SPEC.md        — Formal lexical specification (token types, regex patterns, examples)
-  PROJECT_SUMMARY.md     — Course context and educational goals
-  README.md              — Usage instructions, CLI commands, test instructions
 ```
 
 ## Key Files
