@@ -60,10 +60,10 @@ python compiler.py scan event <source_file>
 
 ```bash
 # Full scan with YAML output
-python compiler.py scan event samples/error_events.py -o results.yaml
+python compiler.py scan event samples/add_error_event.py -o results.yaml
 
 # JSON output
-python compiler.py scan event samples/error_events.py -o results.json --format json
+python compiler.py scan event samples/add_error_event.py -o results.json --format json
 
 # Summary with metrics only (no token list)
 python compiler.py scan event samples/error_events.py --summary-only true --with-metrics true
@@ -86,28 +86,49 @@ The scanner recognizes the following token families (see [LEXICAL_SPEC.md](./LEX
 
 Unrecognized characters are emitted as `UNKNOWN` tokens for error reporting.
 
+### Sample Files
+
+The `samples/` directory contains 7 Tiferet Domain Event source files for testing the scanner. Five are well-formed success cases; two contain intentional syntax errors (failure cases).
+
+**Success cases:**
+
+| File | Description |
+|------|-------------|
+| `add_calc_event.py` | Single `AddNumber` event — calculator addition with `verify_number` validation |
+| `add_error_event.py` | Single `AddError` event — error creation with service injection and aggregate factory |
+| `base_calc_event.py` | `BasicCalcEvent` base class — numeric validation helper extending `DomainEvent` |
+| `error_events.py` | Multi-event module — `AddError`, `GetError`, `ListErrors`, `RenameError`, and more |
+| `remove_error_message_event.py` | `RemoveErrorMessage` event — message removal with existence and constraint verification |
+
+**Failure cases:**
+
+| File | Description |
+|------|-------------|
+| `invalid_class_name_event.py` | Digit-prefixed class name (`123AddError`) — lexer should emit `UNKNOWN` tokens |
+| `invalid_member_names_event.py` | Digit-prefixed attribute and method names — lexer should emit `UNKNOWN` tokens |
+
 ### Running Tests
 
 The test suite validates every token type, non-matching/unknown tokens, and the full event pipeline.
 
 ```bash
 # Run all tests
-python -m pytest src/ -v
+python -m pytest Scanner/ -v
 
-# Run only lexer tests (37 tests)
-python -m pytest src/utils/tests/test_lexer.py -v
+# Run only lexer tests (43 tests)
+python -m pytest Scanner/utils/tests/test_lexer.py -v
 
 # Run only parser utility tests (13 tests)
-python -m pytest src/utils/tests/test_parser.py -v
+python -m pytest Scanner/utils/tests/test_parser.py -v
 
 # Run only output utility tests (11 tests)
-python -m pytest src/utils/tests/test_output.py -v
+python -m pytest Scanner/utils/tests/test_output.py -v
 
 # Run only event tests (17 tests)
-python -m pytest src/events/tests/test_scan.py -v
+python -m pytest Scanner/events/tests/test_scan.py -v
 ```
 
-**Total: 78 tests** (37 lexer + 13 parser + 11 output + 17 events)
+**Total: 84 tests** (43 lexer + 13 parser + 11 output + 17 events)
 
 ### Project Structure
 
@@ -116,10 +137,17 @@ compiler.py              — Entry point: loads Tiferet CLI app from config.yml
 config.yml               — Tiferet app configuration (attrs, features, errors, cli, interfaces)
 pyproject.toml           — Project metadata, dependencies (tiferet, ply, pyyaml)
 samples/
-  error_events.py        — Sample input: Tiferet error event source file
+  add_calc_event.py      — Single AddNumber calculator event (success case)
+  add_error_event.py     — Single AddError event with service injection (success case)
+  base_calc_event.py     — BasicCalcEvent base class with verify_number (success case)
+  error_events.py        — Multi-event module: AddError, GetError, ListErrors, RenameError (success case)
+  invalid_class_name_event.py        — Digit-prefixed class name (failure case)
+  invalid_member_names_event.py      — Digit-prefixed attribute/method names (failure case)
+  remove_error_message_event.py      — RemoveErrorMessage event (success case)
 
-src/
+Scanner/
   __init__.py            — Package exports and version (0.1.0)
+  assets/                — Reserved for future scanner assets
   domain/
     __init__.py          — Reserved for future domain objects
   events/
@@ -137,7 +165,7 @@ src/
     output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
     __init__.py          — Utils package exports
     tests/
-      test_lexer.py      — 37 tests for all lexer token rules
+      test_lexer.py      — 43 tests for all lexer token rules
       test_parser.py     — 13 tests for artifact block parser utility
       test_output.py     — 11 tests for scan output writer utility
 ```
@@ -150,7 +178,7 @@ src/
 
 ### Development Status
 
-- **Current branch**: `master`
+- **Current branch**: `v0.x-proto`
 - **Version**: 0.1.0
 - **Focus**: Lexical scanner for the Tiferet Domain Event pattern
 - **License**: MIT (educational reuse encouraged)
