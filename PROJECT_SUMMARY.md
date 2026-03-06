@@ -11,12 +11,14 @@ This project treats the Tiferet Domain Event dialect as its own first-class inpu
 
 ## Project Scope
 
-The compiler front-end processes Python source files written in the Tiferet Domain Event dialect. The primary demonstration target is the error-management event suite (`tiferet/events/error.py`), which contains seven Domain Events that together form a coherent bounded context for structured error handling.
+The compiler front-end processes Python source files written in the Tiferet Domain Event dialect. The primary demonstration target is the error-management event suite (`tiferet/events/error.py`), which contains Domain Events that together form a coherent bounded context for structured error handling.
 
 The tool applies:
 - lexical analysis (recognizing Tiferet idioms such as artifact sections, import groups, and validation decorators),
 - syntactic analysis (via Python's `ast` module to extract `DomainEvent` classes and ordered `execute` snippets),
 - semantic analysis (resolving service dependencies, model factories, constant references, and enforcing DDD architectural rules).
+
+**Note:** v0.1.0 focuses on lexical scanning only. Syntactic analysis, semantic analysis, and code generation are planned for future versions.
 
 ## Deliverables
 
@@ -38,7 +40,7 @@ The tool applies:
 
 ## Compiler Pipeline Summary
 
-- Lexical analysis → tokenization of Tiferet’s ubiquitous language elements
+- Lexical analysis → tokenization of Tiferet's ubiquitous language elements
 - Syntactic analysis → AST traversal to preserve domain intent in `execute` bodies
 - Semantic analysis → dependency resolution and DDD rule enforcement
 - Intermediate representation & code generation → language-neutral YAML IR + dual-format graph outputs
@@ -49,6 +51,6 @@ The project demonstrates core compiler design methodologies — phase separation
 
 ## Future Inquiry
 
-• Analysis of **Interfaces** (service contracts) and **Domain Objects** (domain entities)  
-• Broader intra-bounded-context dependency tracking  
-• Cross-language translation studies (especially C# and C++)
+- Analysis of **Interfaces** (service contracts) and **Domain Objects** (domain entities)  
+- Broader intra-bounded-context dependency tracking  
+- Cross-language translation studies (especially C# and C++)

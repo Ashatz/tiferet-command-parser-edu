@@ -21,11 +21,11 @@ class LexerService(Service):
     @abstractmethod
     def tokenize(self, text: str) -> List[Dict[str, Any]]:
         '''
-        Tokenize the provided source text into a list of token dictionaries.
+        Tokenize a block of source text.
 
-        :param text: The source text to tokenize.
+        :param text: A block of source text to tokenize.
         :type text: str
-        :return: A list of token dictionaries with keys: type, value, line, column.
+        :return: A list of token dictionaries with type, value, line, and column.
         :rtype: List[Dict[str, Any]]
         '''
 

@@ -1,6 +1,6 @@
-# Scanner part 1 - Lexical Specification
+# Scanner Part 1 — Lexical Specification
 
-## Input language: 
+## Input Language
 
 The input language is the **Tiferet Domain Event dialect**, a highly structured subset of **Python 3.10+** used within the Tiferet framework to implement domain-driven events following Clean Architecture and Domain-Driven Design (DDD) principles.
 
@@ -18,15 +18,15 @@ The dialect is characterized by:
 The scanner is **not** a complete Python lexer — it recognizes only the tokens necessary to identify domain structure, validation patterns, service interactions, and execution flow for later AST-based extraction.
 
 
-## Token Categories/Types:
+## Token Categories/Types
 
 ### Artifact Comments (Tiferet-specific structural markers)
 
+- ARTIFACT_IMPORTS_START `# *** imports`
+- ARTIFACT_IMPORT_GROUP  `# ** core`, `# ** app`, etc.
 - ARTIFACT_START         `# *** …`     (major sections: imports, events, etc.)
 - ARTIFACT_SECTION       `# ** …`      (subsections: event names, import groups)
 - ARTIFACT_MEMBER        `# * …`       (members: method: execute, attribute: xxx_service)
-- ARTIFACT_IMPORTS_START `# *** imports`
-- ARTIFACT_IMPORT_GROUP  `# ** core`, `# ** app`, etc.
 
 ### Documentation & Conventional Comments
 
@@ -37,9 +37,13 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 
 - CLASS                  `class`
 - DEF                    `def`
-- EXECUTE                `execute`     (the core business method)
 - INIT                   `__init__`     (dependency injection point)
+- EXECUTE                `execute`     (the core business method)
 - RETURN                 `return`
+
+### Self Reference
+
+- SELF                   `self`
 
 ### Domain Idioms & Patterns (core semantic carriers)
 
@@ -48,10 +52,6 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - SERVICE_CALL           `self.<ident>_service.<ident>(`   (service method invocation)
 - FACTORY_CALL           `<ident>.new(`                    (domain factory invocation)
 - CONST_REF              `a.const.<ident>`
-
-### Self Reference
-
-- SELF                   `self`
 
 ### Generic Python Structural Tokens
 
@@ -80,22 +80,22 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - UNKNOWN                Any unmatched character or sequence (for error reporting)
 
 
-## Formal Specification:
+## Formal Specification
 
 (using basic regular expression notation as taught in class)
 
 ### Artifact Comments
 ```
+ARTIFACT_IMPORTS_START  #\s*\*{3}\s+imports\s*
+ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra)
 ARTIFACT_START          #\s*\*{3}.*
 ARTIFACT_SECTION        #\s*\*{2}\s+.*
 ARTIFACT_MEMBER         #\s*\*\s+.*
-ARTIFACT_IMPORTS_START  #\s*\*{3}\s+imports\s*
-ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra)
 ```
 
 ### Documentation & Comments
 ```
-DOCSTRING               (""".*?""")   
+DOCSTRING               (""".*?""")
 LINE_COMMENT            #.*$                        (not starting with * after #)
 ```
 
@@ -142,10 +142,26 @@ NEWLINE                 \n
 UNKNOWN                 .
 ```
 
-**Note:** The lexer should use longest-match-first priority and prefer domain-specific patterns (PARAMETERS_REQUIRED, SERVICE_CALL, etc.) over generic IDENTIFIER or PYTHON_KEYWORD.
+**Ignored characters:** spaces and tabs (`t_ignore = ' \t'`).
+
+**Note:** The lexer uses longest-match-first priority and prefers domain-specific patterns (PARAMETERS_REQUIRED, SERVICE_CALL, etc.) over generic IDENTIFIER or PYTHON_KEYWORD.
+
+### Keyword Resolution Rules
+
+When the lexer matches an `IDENTIFIER` pattern (`[a-zA-Z_][a-zA-Z0-9_]*`), it checks the matched text against a keyword table and promotes the token to a more specific type:
+
+- `class` → `CLASS`
+- `def` → `DEF`
+- `__init__` → `INIT`
+- `execute` → `EXECUTE`
+- `return` → `RETURN`
+- `self` → `SELF`
+- Any Python reserved word (`from`, `import`, `if`, `else`, `for`, `True`, `False`, `None`, `is`, `not`, `in`, `and`, `or`, `as`, `with`, `yield`, etc.) → `PYTHON_KEYWORD`
+
+If the identifier does not match any keyword, it remains `IDENTIFIER`.
 
 
-## Examples: 
+## Examples
 
 ### Artifact Comments & Structure
 ```python

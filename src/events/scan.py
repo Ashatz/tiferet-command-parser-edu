@@ -6,9 +6,9 @@
 import os
 import re
 import json
+from collections import Counter
 from datetime import datetime, timezone
 from typing import List, Dict, Any
-from collections import Counter
 
 # ** infra
 import yaml
@@ -153,7 +153,8 @@ class ExtractText(DomainEvent):
 # ** event: lexer_initialized
 class LexerInitialized(DomainEvent):
     '''
-    Event to validate extracted text blocks are ready for tokenization.
+    Validation gate event that verifies extracted text blocks are
+    non-empty and suitable for lexical analysis.
     '''
 
     # * method: execute
@@ -163,17 +164,17 @@ class LexerInitialized(DomainEvent):
             **kwargs,
         ) -> List[Dict[str, Any]]:
         '''
-        Validate that text blocks are non-empty and ready for lexical analysis.
+        Validate that text blocks are non-empty and contain text.
 
-        :param text_blocks: The extracted text blocks to validate.
+        :param text_blocks: The list of text block dicts from ExtractText.
         :type text_blocks: List[Dict[str, Any]]
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
-        :return: The validated text blocks.
+        :return: The validated text blocks, unchanged.
         :rtype: List[Dict[str, Any]]
         '''
 
-        # Verify the blocks list is not empty.
+        # Verify the blocks list is non-empty.
         self.verify(
             expression=len(text_blocks) > 0,
             error_code='TEXT_EXTRACTION_FAILED',
@@ -196,8 +197,8 @@ class LexerInitialized(DomainEvent):
 # ** event: perform_lexical_analysis
 class PerformLexicalAnalysis(DomainEvent):
     '''
-    Event to tokenize text blocks and compute domain metrics.
-    Injects lexer_service for PLY-based tokenization.
+    Core analytical event that tokenizes validated text blocks via
+    an injected LexerService and computes aggregate domain metrics.
     '''
 
     # * attribute: lexer_service
@@ -222,13 +223,13 @@ class PerformLexicalAnalysis(DomainEvent):
             **kwargs,
         ) -> Dict[str, Any]:
         '''
-        Tokenize validated text blocks and compute lexical metrics.
+        Tokenize all validated blocks and compute domain metrics.
 
-        :param validated_blocks: The validated text blocks to analyze.
+        :param validated_blocks: The list of validated text block dicts.
         :type validated_blocks: List[Dict[str, Any]]
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
-        :return: Dict with tokens, token_count, and metrics.
+        :return: Analysis result with tokens, token_count, and metrics.
         :rtype: Dict[str, Any]
         '''
 
@@ -238,9 +239,10 @@ class PerformLexicalAnalysis(DomainEvent):
             block_tokens = self.lexer_service.tokenize(block['text'])
             all_tokens.extend(block_tokens)
 
-        # Compute domain metrics from the token stream.
-        type_counts = Counter(tok['type'] for tok in all_tokens)
+        # Count token types for metrics computation.
+        type_counts = Counter(t['type'] for t in all_tokens)
 
+        # Compute domain metrics from token type counts.
         metrics = {
             'commands_detected': type_counts.get('CLASS', 0),
             'execute_methods_found': type_counts.get('EXECUTE', 0),
@@ -264,7 +266,8 @@ class PerformLexicalAnalysis(DomainEvent):
 # ** event: emit_scan_result
 class EmitScanResult(DomainEvent):
     '''
-    Event to assemble and format the final scan result payload.
+    Terminal pipeline event that assembles the scan result payload,
+    applies output mode flags, and optionally writes to file.
     '''
 
     # * method: execute
@@ -280,38 +283,38 @@ class EmitScanResult(DomainEvent):
             **kwargs,
         ) -> Dict[str, Any]:
         '''
-        Assemble the final scan result and optionally write to file.
+        Assemble and emit the scan result payload.
 
-        :param source_file: The original source file path.
+        :param source_file: Original source file path.
         :type source_file: str
-        :param analysis_result: The analysis result from PerformLexicalAnalysis.
+        :param analysis_result: Output from PerformLexicalAnalysis.
         :type analysis_result: Dict[str, Any]
-        :param extract: Comma-separated artifact names that were extracted (optional).
+        :param extract: Original -x filter string.
         :type extract: str
-        :param summary_only: If True, omit the token list.
+        :param summary_only: If truthy, omit tokens and include metrics.
         :type summary_only: bool
-        :param with_metrics: If True, include metrics in output.
+        :param with_metrics: If truthy, include metrics alongside tokens.
         :type with_metrics: bool
-        :param output_format: Output format (yaml, json, console).
+        :param output_format: Output format: yaml, json, or auto.
         :type output_format: str
-        :param metrics_format: Metrics rendering format (yaml, json, text).
+        :param metrics_format: Reserved for future use.
         :type metrics_format: str
-        :param output: Optional output file path.
+        :param output: File path to write output to.
         :type output: str
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
-        :return: The formatted scan result dict.
+        :return: The assembled result payload.
         :rtype: Dict[str, Any]
         '''
 
-        # Use empty defaults if analysis_result is missing.
+        # Default analysis if missing.
         analysis = analysis_result or {
             'tokens': [],
             'token_count': 0,
             'metrics': {},
         }
 
-        # Build the result payload.
+        # Build base payload.
         result = {
             'event_type': 'TokensScanned',
             'timestamp': datetime.now(timezone.utc).isoformat(),
@@ -319,21 +322,21 @@ class EmitScanResult(DomainEvent):
             'token_count': analysis['token_count'],
         }
 
-        # Include extracted artifact names if the extract filter was used.
+        # Include extracted artifact names if -x was used.
         if extract:
             result['extracted_artifacts'] = [
                 name.strip() for name in extract.split(',')
             ]
 
-        # Include metrics if requested or summary-only mode.
+        # Include metrics if requested.
         if with_metrics or summary_only:
             result['metrics'] = analysis['metrics']
 
-        # Include tokens unless summary-only mode.
+        # Include tokens unless summary-only.
         if not summary_only:
             result['tokens'] = analysis['tokens']
 
-        # Write to file if output path is specified.
+        # Write to file if output path specified.
         if output:
             self._write_output(result, output, output_format)
 
@@ -341,32 +344,27 @@ class EmitScanResult(DomainEvent):
         return result
 
     # * method: _write_output
-    def _write_output(self,
-            result: Dict[str, Any],
-            output_path: str,
-            output_format: str,
-        ) -> None:
+    def _write_output(self, result: Dict[str, Any], output_path: str, output_format: str) -> None:
         '''
-        Write the scan result to a file in the specified format.
+        Write the result payload to a file.
 
-        :param result: The scan result dict.
+        :param result: The result payload to write.
         :type result: Dict[str, Any]
         :param output_path: The file path to write to.
         :type output_path: str
-        :param output_format: The output format (yaml, json).
+        :param output_format: The output format (yaml, json, or auto).
         :type output_format: str
         '''
 
-        # Determine format from file extension if auto.
+        # Auto-detect format from file extension.
         if output_format == 'auto':
-            if output_path.endswith(('.yaml', '.yml')):
-                output_format = 'yaml'
-            elif output_path.endswith('.json'):
+            ext = os.path.splitext(output_path)[1].lower()
+            if ext == '.json':
                 output_format = 'json'
             else:
                 output_format = 'yaml'
 
-        # Write the result to the output file.
+        # Write the output file.
         with open(output_path, 'w', encoding='utf-8') as f:
             if output_format == 'json':
                 json.dump(result, f, indent=2, default=str)

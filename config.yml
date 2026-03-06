@@ -116,4 +116,3 @@ interfaces:
       feature_config_file: config.yml
       error_config_file: config.yml
       logging_config_file: config.yml
-      

@@ -5,11 +5,14 @@ Educational parser and static analysis tool for the Tiferet Domain Event pattern
 ### Project Abstract
 
 This project develops a domain-specific compiler front-end for analyzing Python code written in the Tiferet framework's Domain Event pattern — a highly regular dialect that embodies Domain-Driven Design (DDD) principles and Clean Architecture layering. In enterprise software development, domain experts define critical business requirements that must be faithfully translated into features and then reliably implemented, tested, and maintained by cross-functional teams of developers and QA engineers. DDD addresses this challenge by establishing a shared ubiquitous language, which Tiferet realizes through interdependent object-oriented design patterns and a consistent set of guidelines governing their structure and interaction within an application.
-In DDD, a Domain Event represents a discrete, well-defined operation within the domain — an action that changes or queries domain state in response to a business requirement. Tiferet's `DomainEvent` base class formalizes this concept: each event encapsulates a single operation, receives its dependencies via constructor injection, validates inputs declaratively through the `@DomainEvent.parameters_required` decorator, and enforces domain rules via `verify` calls. Domain Events are composed into feature workflows, where each step in the workflow is itself an event, enabling fine-grained orchestration of business logic.
-This project focuses exclusively on Domain Events, which reside at the heart of every working Tiferet application. As illustrated in the [calculator app](https://github.com/greatstrength/tiferet-calculator-app) example, Domain Events encapsulate operations essential for both core application behavior and feature workflow orchestration, while interacting with infrastructural components to persist, distribute, or transform model state. The Domain Event dialect is defined by a precise syntactic language: artifact comments serve as domain documentation, `DomainEvent` inheritance establishes the service boundary, `execute` methods orchestrate transactional use cases, injected service contracts provide infrastructure abstraction, model factories act as aggregate roots, and error codes form part of the shared domain vocabulary.
-The compiler applies lexical analysis to recognize Tiferet idioms (artifact sections, import groups, validation decorators), syntactic analysis via Python's ast module to extract Domain Event classes and ordered execute snippets, and semantic analysis to resolve dependencies while enforcing DDD architectural rules. The resulting intermediate representation — a single consolidated YAML file capturing parameter contracts, ordered execution flow, and aggregated domain dependencies — serves as a semantically rich context store. This IR enables enhanced, AI-assisted generation of high-quality dependency visualizations in Mermaid and Graphviz DOT formats, where the depth of context significantly improves layout clarity, edge labeling, and relational insight beyond what generic extraction can achieve. The implementation demonstrates core compiler design methodologies — phase separation, domain-specific tokenization, AST-based analysis, semantic resolution, and multi-target code generation — applied to a production DDD framework. A public repository (tiferet-command-parser-edu) documents the process for the Domain Event pattern, serving as an educational artifact while preserving broader extensions for future inquiry.
 
-### Project Overview (1.5–2 page summary)
+In DDD, a Domain Event represents a discrete, well-defined operation within the domain — an action that changes or queries domain state in response to a business requirement. Tiferet's `DomainEvent` base class formalizes this concept: each event encapsulates a single operation, receives its dependencies via constructor injection, validates inputs declaratively through the `@DomainEvent.parameters_required` decorator, and enforces domain rules via `verify` calls. Domain Events are composed into feature workflows, where each step in the workflow is itself an event, enabling fine-grained orchestration of business logic.
+
+This project focuses exclusively on Domain Events, which reside at the heart of every working Tiferet application. The Domain Event dialect is defined by a precise syntactic language: artifact comments serve as domain documentation, `DomainEvent` inheritance establishes the service boundary, `execute` methods orchestrate transactional use cases, injected service contracts provide infrastructure abstraction, model factories act as aggregate roots, and error codes form part of the shared domain vocabulary.
+
+The compiler applies lexical analysis to recognize Tiferet idioms (artifact sections, import groups, validation decorators), syntactic analysis via Python's `ast` module to extract Domain Event classes and ordered execute snippets, and semantic analysis to resolve dependencies while enforcing DDD architectural rules. The resulting intermediate representation — a single consolidated YAML file capturing parameter contracts, ordered execution flow, and aggregated domain dependencies — serves as a semantically rich context store optimized for AI-assisted workflows.
+
+### Project Overview
 
 For the full project narrative — including detailed motivation (DDD & Clean Architecture context), scope, deliverables, compiler pipeline, educational outcomes, and future inquiry — see:
 
@@ -56,17 +59,17 @@ python compiler.py scan event <source_file>
 **Examples:**
 
 ```bash
-# Scan an event file and print tokens to console
-python compiler.py scan event src/events/scan.py
+# Full scan with YAML output
+python compiler.py scan event samples/error_events.py -o results.yaml
 
-# Scan and write output to YAML
-python compiler.py scan event src/events/scan.py -o results.yaml
+# JSON output
+python compiler.py scan event samples/error_events.py -o results.json --format json
 
-# Scan only specific artifacts with metrics
-python compiler.py scan event src/events/scan.py -x extract_text,emit_scan_result --with-metrics
+# Summary with metrics only (no token list)
+python compiler.py scan event samples/error_events.py --summary-only true --with-metrics true
 
-# Summary-only mode (no token list)
-python compiler.py scan event src/events/scan.py --summary-only
+# Extract specific artifacts (imports are always included)
+python compiler.py scan event samples/error_events.py -x add_error,get_error
 ```
 
 #### Token Categories
@@ -89,10 +92,7 @@ The test suite validates every token type, non-matching/unknown tokens, and the 
 
 ```bash
 # Run all tests
-python -m pytest
-
-# Run with verbose output
-python -m pytest -v
+python -m pytest src/ -v
 
 # Run only lexer tests (37 tests)
 python -m pytest src/utils/tests/test_lexer.py -v
@@ -101,24 +101,42 @@ python -m pytest src/utils/tests/test_lexer.py -v
 python -m pytest src/events/tests/test_scan.py -v
 ```
 
-**Lexer tests** (`src/utils/tests/test_lexer.py`) cover:
-- All artifact comment types (imports start, start, import group, section, member)
-- Docstrings (single-line and multiline)
-- Line comments
-- All structural keywords (class, def, init, execute, return, self)
-- All domain idioms (parameters_required, verify, service_call, factory_call, const_ref)
-- Python keywords, identifiers, string/number literals
-- All punctuation and delimiters
-- Line and column tracking
-- Non-matching / unknown tokens (`@`, `$`, `` ` ``, `~`, `!`, `%`, `^`, `&`)
-- Full Tiferet Domain Event snippet integration test
-- Edge cases (empty input, whitespace-only input)
+**Total: 54 tests** (37 lexer + 17 events)
 
-**Event tests** (`src/events/tests/test_scan.py`) cover:
-- `ExtractText` — success, extract filter, missing param, file not found, no matching blocks
-- `LexerInitialized` — success, missing param, empty blocks, empty text
-- `PerformLexicalAnalysis` — success with mocked lexer service, missing param
-- `EmitScanResult` — default, summary-only, with-metrics, no analysis, YAML output, JSON output
+### Project Structure
+
+```
+compiler.py              — Entry point: loads Tiferet CLI app from config.yml
+config.yml               — Tiferet app configuration (attrs, features, errors, cli, interfaces)
+pyproject.toml           — Project metadata, dependencies (tiferet, ply, pyyaml)
+samples/
+  error_events.py        — Sample input: Tiferet error event source file
+
+src/
+  __init__.py            — Package exports and version (0.1.0)
+  domain/
+    __init__.py          — Reserved for future domain objects
+  events/
+    settings.py          — Re-exports DomainEvent, TiferetError, a from tiferet.events
+    scan.py              — Scanner domain events: ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult
+    __init__.py          — Events package exports
+    tests/
+      test_scan.py       — 17 tests for all scanner events (DomainEvent.handle pattern)
+  interfaces/
+    lexer.py             — LexerService abstract interface (extends tiferet Service)
+    __init__.py          — Interfaces package exports
+  utils/
+    lexer.py             — TiferetLexer: PLY-based lexer implementing LexerService with 35 token types
+    __init__.py          — Utils package exports
+    tests/
+      test_lexer.py      — 37 tests for all lexer token rules
+```
+
+### Project Documentation
+- **[PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md)** — ECE 506 course context and educational goals
+- **[PROJECT_PROPOSAL.md](./PROJECT_PROPOSAL.md)** — Completed ECE 506 initial project definition template
+- **[LEXICAL_SPEC.md](./LEXICAL_SPEC.md)** — Formal lexical specification for all token types
+- **[AGENTS.md](./AGENTS.md)** — AI agent codebase index
 
 ### Development Status
 

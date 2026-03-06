@@ -12,12 +12,7 @@ from tiferet.events import TiferetError
 
 # ** app
 from ..settings import DomainEvent
-from ..scan import (
-    ExtractText,
-    LexerInitialized,
-    PerformLexicalAnalysis,
-    EmitScanResult,
-)
+from ..scan import ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult
 from ...interfaces import LexerService
 
 # *** fixtures
@@ -60,7 +55,6 @@ class AnotherEvent(DomainEvent):
     file_path.write_text(content)
     return str(file_path)
 
-
 # ** fixture: sample_text_blocks
 @pytest.fixture
 def sample_text_blocks() -> list:
@@ -81,7 +75,6 @@ def sample_text_blocks() -> list:
         },
     ]
 
-
 # ** fixture: mock_lexer_service
 @pytest.fixture
 def mock_lexer_service() -> LexerService:
@@ -93,7 +86,6 @@ def mock_lexer_service() -> LexerService:
     '''
 
     return mock.Mock(spec=LexerService)
-
 
 # ** fixture: sample_analysis_result
 @pytest.fixture
