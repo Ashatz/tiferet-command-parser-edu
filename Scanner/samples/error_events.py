@@ -1,4 +1,4 @@
-"""Tiferet Error Commands"""
+"""Tiferet Error Domain Events."""
 
 # *** imports
 
@@ -38,13 +38,7 @@ class AddError(DomainEvent):
 
     # * method: execute
     @DomainEvent.parameters_required(['id', 'name', 'message'])
-    def execute(self,
-            id: str,
-            name: str,
-            message: str, 
-            lang: str = 'en_US', 
-            additional_messages: List[Dict[str, Any]] = []
-        ) -> None:
+    def execute(self,id: str, name: str, message: str, lang: str = 'en_US', additional_messages: List[Dict[str, Any]] = []) -> None:
         """
         Add a new Error to the app.
 
