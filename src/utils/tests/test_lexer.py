@@ -358,13 +358,72 @@ def test_newline(lexer: TiferetLexer) -> None:
     assert 'NEWLINE' in types
 
 
+# ** test: operators_arithmetic
+def test_operators_arithmetic(lexer: TiferetLexer) -> None:
+    '''
+    Test that arithmetic operators are recognized correctly.
+    '''
+
+    cases = {
+        '+': 'PLUS',
+        '-': 'MINUS',
+        '*': 'STAR',
+        '/': 'SLASH',
+        '**': 'DOUBLESTAR',
+        '//': 'DOUBLESLASH',
+        '%': 'PERCENT',
+        '@': 'AT',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
+
+
+# ** test: operators_comparison
+def test_operators_comparison(lexer: TiferetLexer) -> None:
+    '''
+    Test that comparison operators are recognized correctly.
+    '''
+
+    cases = {
+        '==': 'EQEQ',
+        '!=': 'NOTEQ',
+        '<': 'LT',
+        '>': 'GT',
+        '<=': 'LTEQ',
+        '>=': 'GTEQ',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
+
+
+# ** test: operators_bitwise
+def test_operators_bitwise(lexer: TiferetLexer) -> None:
+    '''
+    Test that bitwise operators are recognized correctly.
+    '''
+
+    cases = {
+        '|': 'PIPE',
+        '&': 'AMPERSAND',
+        '~': 'TILDE',
+        '^': 'CARET',
+        '<<': 'LSHIFT',
+        '>>': 'RSHIFT',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
+
+
 # ** test: unknown_token
 def test_unknown_token(lexer: TiferetLexer) -> None:
     '''
     Test that unrecognized characters produce UNKNOWN tokens.
     '''
 
-    tok = first_token(lexer, '@')
+    tok = first_token(lexer, '$')
     assert tok['type'] == 'UNKNOWN'
 
 
@@ -374,7 +433,7 @@ def test_unknown_tokens_various(lexer: TiferetLexer) -> None:
     Test that various unrecognized characters produce UNKNOWN tokens.
     '''
 
-    for char in ['@', '$', '`', '~', '!', '%', '^', '&']:
+    for char in ['$', '`']:
         tok = first_token(lexer, char)
         assert tok['type'] == 'UNKNOWN', f'{char!r} should be UNKNOWN, got {tok["type"]}'
 
@@ -440,6 +499,68 @@ class AddError(DomainEvent):
     assert 'FACTORY_CALL' in types
     assert 'CONST_REF' in types
     assert 'RETURN' in types
+
+
+# ** test: invalid_class_name_digit_prefix
+def test_invalid_class_name_digit_prefix(lexer: TiferetLexer) -> None:
+    '''
+    Test that a class with a digit-prefixed name (e.g. 123AddError)
+    is emitted as CLASS UNKNOWN LPAREN rather than splitting the
+    invalid identifier into separate tokens.
+    '''
+
+    # Tokenize a class declaration with an invalid identifier.
+    tokens = lexer.tokenize('class 123AddError(DomainEvent):')
+    types = [t['type'] for t in tokens]
+    values = [t['value'] for t in tokens]
+
+    # Assert the token sequence: CLASS UNKNOWN LPAREN IDENTIFIER RPAREN COLON.
+    assert types[0] == 'CLASS'
+    assert types[1] == 'UNKNOWN'
+    assert values[1] == '123AddError'
+    assert types[2] == 'LPAREN'
+    assert len(types) == 6
+
+
+# ** test: invalid_method_name_digit_prefix
+def test_invalid_method_name_digit_prefix(lexer: TiferetLexer) -> None:
+    '''
+    Test that a method with a digit-prefixed name (e.g. 123execute)
+    is emitted as DEF UNKNOWN LPAREN rather than splitting the
+    invalid name into separate tokens.
+    '''
+
+    # Tokenize a def statement with an invalid method name.
+    tokens = lexer.tokenize('def 123execute(self):')
+    types = [t['type'] for t in tokens]
+    values = [t['value'] for t in tokens]
+
+    # Assert the token sequence: DEF UNKNOWN LPAREN SELF RPAREN COLON.
+    assert types[0] == 'DEF'
+    assert types[1] == 'UNKNOWN'
+    assert values[1] == '123execute'
+    assert types[2] == 'LPAREN'
+
+
+# ** test: invalid_attribute_name_digit_prefix
+def test_invalid_attribute_name_digit_prefix(lexer: TiferetLexer) -> None:
+    '''
+    Test that a digit-prefixed attribute (e.g. self.123service)
+    emits SELF DOT UNKNOWN instead of splitting into
+    SELF DOT NUMBER_LITERAL IDENTIFIER.
+    '''
+
+    # Tokenize an attribute access with an invalid name.
+    tokens = lexer.tokenize('self.123service')
+    types = [t['type'] for t in tokens]
+    values = [t['value'] for t in tokens]
+
+    # Assert the token sequence: SELF DOT UNKNOWN.
+    assert types[0] == 'SELF'
+    assert types[1] == 'DOT'
+    assert types[2] == 'UNKNOWN'
+    assert values[2] == '123service'
+    assert len(types) == 3
 
 
 # ** test: empty_input

@@ -70,6 +70,28 @@ class TiferetLexer(LexerService):
         'STRING_LITERAL',
         'NUMBER_LITERAL',
 
+        # Operators
+        'DOUBLESTAR',
+        'PLUS',
+        'MINUS',
+        'STAR',
+        'SLASH',
+        'DOUBLESLASH',
+        'PERCENT',
+        'PIPE',
+        'AMPERSAND',
+        'TILDE',
+        'CARET',
+        'LSHIFT',
+        'RSHIFT',
+        'EQEQ',
+        'NOTEQ',
+        'LTEQ',
+        'GTEQ',
+        'LT',
+        'GT',
+        'AT',
+
         # Punctuation & delimiters
         'LPAREN',
         'RPAREN',
@@ -185,7 +207,12 @@ class TiferetLexer(LexerService):
 
     # * rule: number_literal
     def t_NUMBER_LITERAL(self, t):
-        r'[0-9]+(\.[0-9]+)?'
+        r'[0-9]+(\.[0-9]+)?([a-zA-Z_][a-zA-Z0-9_]*)?'
+
+        # If trailing identifier characters are present, emit as UNKNOWN.
+        if re.search(r'[a-zA-Z_]', t.value):
+            t.type = 'UNKNOWN'
+
         return t
 
     # -- Identifier and keyword resolution
@@ -211,6 +238,28 @@ class TiferetLexer(LexerService):
             t.type = 'PYTHON_KEYWORD'
 
         return t
+
+    # -- Operators (longest match first)
+    t_DOUBLESTAR = r'\*\*'
+    t_DOUBLESLASH = r'//'
+    t_LSHIFT = r'<<'
+    t_RSHIFT = r'>>'
+    t_EQEQ = r'=='
+    t_NOTEQ = r'!='
+    t_LTEQ = r'<='
+    t_GTEQ = r'>='
+    t_PLUS = r'\+'
+    t_MINUS = r'-'
+    t_STAR = r'\*'
+    t_SLASH = r'/'
+    t_PERCENT = r'%'
+    t_PIPE = r'\|'
+    t_AMPERSAND = r'&'
+    t_TILDE = r'~'
+    t_CARET = r'\^'
+    t_LT = r'<'
+    t_GT = r'>'
+    t_AT = r'@'
 
     # -- Punctuation & delimiters (simple string rules)
     t_LPAREN = r'\('
