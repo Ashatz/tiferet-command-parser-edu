@@ -41,20 +41,39 @@ src/
     __init__.py          — Interfaces package exports
   utils/
     lexer.py             — TiferetLexer: PLY-based lexer implementing LexerService with 35 token types
+    parser.py            — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
+    output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
     __init__.py          — Utils package exports
     tests/
       test_lexer.py      — 37 tests for all lexer token rules
+      test_parser.py     — 13 tests for artifact block parser utility
+      test_output.py     — 11 tests for scan output writer utility
 ```
 
 ## Key Files
 
 ### `src/events/scan.py`
-All scanner domain events. Each event follows the Tiferet pattern: `@DomainEvent.parameters_required` for validation, `self.verify()` for domain rules, service injection via constructor.
+All scanner domain events. Each event follows the Tiferet pattern: `@DomainEvent.parameters_required` for validation, `self.verify()` for domain rules, service injection via constructor. Parsing and output concerns are delegated to utility classes (`ArtifactBlockParser`, `ScanOutputWriter`).
 
-- **ExtractText** — Parses source files for `# *** imports` and `# ** <group_type>:` blocks. The imports block (`__imports__`) is always included, even with `-x` extract filtering.
+- **ExtractText** — Reads source file, delegates artifact extraction to `ArtifactBlockParser`. The imports block (`__imports__`) is always included, even with `-x` extract filtering.
 - **LexerInitialized** — Validates block content is non-empty.
 - **PerformLexicalAnalysis** — Injects `LexerService`, tokenizes blocks, computes metrics via `Counter`.
-- **EmitScanResult** — Builds output payload. Includes `extracted_artifacts` list when `-x` is used. Supports `--summary-only` and `--with-metrics` flags.
+- **EmitScanResult** — Builds output payload. Delegates file writing to `ScanOutputWriter`. Supports `--summary-only` and `--with-metrics` flags.
+
+### `src/utils/parser.py`
+Artifact block parser (`ArtifactBlockParser`) with static methods for:
+
+- **`parse_extract_filter`** — Converts comma-separated extract string to a set of names.
+- **`extract_imports_block`** — Locates and extracts the `# *** imports` section from source lines.
+- **`extract_artifact_blocks`** — Walks source lines to extract all blocks matching a group type (e.g. `event`, `model`).
+- **`filter_blocks`** — Applies an optional name filter to a list of blocks.
+
+### `src/utils/output.py`
+Scan output writer (`ScanOutputWriter`) with static methods for:
+
+- **`detect_format`** — Resolves output format from explicit value or file extension auto-detection.
+- **`write`** — Writes a result payload to file as YAML or JSON.
+- **`parse_extract_names`** — Converts comma-separated extract string to a list for payload inclusion.
 
 ### `src/utils/lexer.py`
 PLY-based lexer (`TiferetLexer`) with token types organized by category:
@@ -95,10 +114,10 @@ python compiler.py scan event <source_file> -o output.yaml -x add_error,get_erro
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 54 tests (37 lexer + 17 events)
+python -m pytest src/ -v    # 78 tests (37 lexer + 13 parser + 11 output + 17 events)
 ```
 
-Tests use `DomainEvent.handle` for event invocation and mock `LexerService` for isolation.
+Tests use `DomainEvent.handle` for event invocation and mock `LexerService` for isolation. Utility tests validate parsing and output logic independently of domain events.
 
 ## Dependencies
 
