@@ -4,18 +4,14 @@
 
 # ** core
 import os
-import re
-import json
 from collections import Counter
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 
-# ** infra
-import yaml
-
 # ** app
 from .settings import DomainEvent, a
 from ..interfaces import LexerService
+from ..utils import ArtifactBlockParser, ScanOutputWriter
 
 # *** events
 
@@ -61,77 +57,17 @@ class ExtractText(DomainEvent):
         with open(source_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
-        # Build patterns for the given group type and imports section.
-        section_pattern = re.compile(
-            rf'^\s*#\s*\*\*\s+{re.escape(group_type)}:\s+(\S+)'
-        )
-        imports_start_pattern = re.compile(r'^\s*#\s*\*{3}\s+imports\s*$')
-        top_level_pattern = re.compile(r'^\s*#\s*\*{3}\s+\S+')
-
         # Parse optional extract filter into a set.
-        extract_ids = None
-        if extract:
-            extract_ids = set(name.strip() for name in extract.split(','))
+        extract_ids = ArtifactBlockParser.parse_extract_filter(extract)
 
-        # Locate the imports section (from # *** imports to next # *** section).
-        imports_block = None
-        imports_start = None
+        # Extract the imports block.
+        imports_block = ArtifactBlockParser.extract_imports_block(lines)
 
-        for i, line in enumerate(lines):
-            if imports_start is None:
-                if imports_start_pattern.match(line):
-                    imports_start = i
-            elif top_level_pattern.match(line):
-                imports_block = {
-                    'name': '__imports__',
-                    'line_start': imports_start,
-                    'line_end': i,
-                    'text': ''.join(lines[imports_start:i]),
-                    'length_chars': 0,
-                }
-                imports_block['length_chars'] = len(imports_block['text'])
-                break
-
-        # Walk lines to find matching artifact blocks.
-        blocks = []
-        current_block = None
-
-        for i, line in enumerate(lines):
-            match = section_pattern.match(line)
-
-            if match:
-
-                # Close the previous block if open.
-                if current_block is not None:
-                    current_block['line_end'] = i
-                    current_block['text'] = ''.join(
-                        lines[current_block['line_start']:i]
-                    )
-                    current_block['length_chars'] = len(current_block['text'])
-                    blocks.append(current_block)
-
-                # Start a new block.
-                name = match.group(1)
-                current_block = {
-                    'name': name,
-                    'line_start': i,
-                    'line_end': None,
-                    'text': None,
-                    'length_chars': 0,
-                }
-
-        # Close the last block.
-        if current_block is not None:
-            current_block['line_end'] = len(lines)
-            current_block['text'] = ''.join(
-                lines[current_block['line_start']:]
-            )
-            current_block['length_chars'] = len(current_block['text'])
-            blocks.append(current_block)
+        # Extract artifact blocks for the given group type.
+        blocks = ArtifactBlockParser.extract_artifact_blocks(lines, group_type)
 
         # Apply extract filter if specified (imports are always included).
-        if extract_ids:
-            blocks = [b for b in blocks if b['name'] in extract_ids]
+        blocks = ArtifactBlockParser.filter_blocks(blocks, extract_ids)
 
         # Prepend the imports block if found.
         if imports_block:
@@ -323,10 +259,9 @@ class EmitScanResult(DomainEvent):
         }
 
         # Include extracted artifact names if -x was used.
-        if extract:
-            result['extracted_artifacts'] = [
-                name.strip() for name in extract.split(',')
-            ]
+        extracted_names = ScanOutputWriter.parse_extract_names(extract)
+        if extracted_names:
+            result['extracted_artifacts'] = extracted_names
 
         # Include metrics if requested.
         if with_metrics or summary_only:
@@ -338,35 +273,7 @@ class EmitScanResult(DomainEvent):
 
         # Write to file if output path specified.
         if output:
-            self._write_output(result, output, output_format)
+            ScanOutputWriter.write(result, output, output_format)
 
         # Return the result payload.
         return result
-
-    # * method: _write_output
-    def _write_output(self, result: Dict[str, Any], output_path: str, output_format: str) -> None:
-        '''
-        Write the result payload to a file.
-
-        :param result: The result payload to write.
-        :type result: Dict[str, Any]
-        :param output_path: The file path to write to.
-        :type output_path: str
-        :param output_format: The output format (yaml, json, or auto).
-        :type output_format: str
-        '''
-
-        # Auto-detect format from file extension.
-        if output_format == 'auto':
-            ext = os.path.splitext(output_path)[1].lower()
-            if ext == '.json':
-                output_format = 'json'
-            else:
-                output_format = 'yaml'
-
-        # Write the output file.
-        with open(output_path, 'w', encoding='utf-8') as f:
-            if output_format == 'json':
-                json.dump(result, f, indent=2, default=str)
-            else:
-                yaml.dump(result, f, default_flow_style=False, sort_keys=False)

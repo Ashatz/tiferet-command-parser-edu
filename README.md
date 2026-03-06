@@ -97,11 +97,17 @@ python -m pytest src/ -v
 # Run only lexer tests (37 tests)
 python -m pytest src/utils/tests/test_lexer.py -v
 
+# Run only parser utility tests (13 tests)
+python -m pytest src/utils/tests/test_parser.py -v
+
+# Run only output utility tests (11 tests)
+python -m pytest src/utils/tests/test_output.py -v
+
 # Run only event tests (17 tests)
 python -m pytest src/events/tests/test_scan.py -v
 ```
 
-**Total: 54 tests** (37 lexer + 17 events)
+**Total: 78 tests** (37 lexer + 13 parser + 11 output + 17 events)
 
 ### Project Structure
 
@@ -127,9 +133,13 @@ src/
     __init__.py          — Interfaces package exports
   utils/
     lexer.py             — TiferetLexer: PLY-based lexer implementing LexerService with 35 token types
+    parser.py            — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
+    output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
     __init__.py          — Utils package exports
     tests/
       test_lexer.py      — 37 tests for all lexer token rules
+      test_parser.py     — 13 tests for artifact block parser utility
+      test_output.py     — 11 tests for scan output writer utility
 ```
 
 ### Project Documentation
