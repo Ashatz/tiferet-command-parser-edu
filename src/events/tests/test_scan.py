@@ -107,10 +107,7 @@ def sample_analysis_result() -> dict:
         'metrics': {
             'commands_detected': 1,
             'execute_methods_found': 0,
-            'verify_calls': 0,
-            'service_calls': 0,
-            'factory_calls': 0,
-            'constants_referenced': 0,
+            'parameters_required_decorators': 0,
             'docstrings_found': 0,
             'top_token_types': {'CLASS': 1, 'ARTIFACT_SECTION': 1, 'IDENTIFIER': 1},
         },

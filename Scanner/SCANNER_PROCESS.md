@@ -96,11 +96,7 @@ This is the **core analytical stage**. It is the only event in the pipeline that
 
    - `commands_detected` — count of `CLASS` tokens (each class declaration = one event/command)
    - `execute_methods_found` — count of `EXECUTE` tokens (entry points)
-   - `verify_calls` — count of `VERIFY` tokens (domain rule enforcement)
    - `parameters_required_decorators` — count of `PARAMETERS_REQUIRED` tokens
-   - `service_calls` — count of `SERVICE_CALL` tokens (injected service usage)
-   - `factory_calls` — count of `FACTORY_CALL` tokens (aggregate/domain object creation)
-   - `constants_referenced` — count of `CONST_REF` tokens (error code references)
    - `docstrings_found` — count of `DOCSTRING` tokens
    - `top_token_types` — the 10 most frequent token types
 
@@ -140,7 +136,7 @@ PLY works by scanning the input text left-to-right and matching regular expressi
 
 ### 4.2 Token Categories
 
-The lexer defines **35+ token types** organized into categories:
+The lexer defines **49 token types** organized into categories:
 
 #### Artifact Comments (Tiferet-specific)
 These tokens recognize the structured comment hierarchy that organizes Tiferet source code:
@@ -152,21 +148,18 @@ These tokens recognize the structured comment hierarchy that organizes Tiferet s
 | `ARTIFACT_START` | `# *** <section>` | Any top-level section (events, models, etc.) |
 | `ARTIFACT_SECTION` | `# ** <category>: <name>` | Mid-level component header |
 | `ARTIFACT_MEMBER` | `# * <component>` | Low-level member (attribute, method, init) |
+| `OBSOLETE` | `# -- obsolete` or `# --- obsolete` | Marks artifact sections or members as obsolete |
 
 These are defined as **function rules** (not string rules) because PLY gives function rules higher priority. Since artifact comments are specializations of general comments, they must match first.
 
 #### Domain Idioms (Tiferet-specific)
-These tokens capture patterns unique to Tiferet's Domain Event programming model:
+This token captures the declarative validation pattern unique to Tiferet's Domain Event programming model:
 
 | Token | Pattern | Meaning |
 |---|---|---|
-| `PARAMETERS_REQUIRED` | `@DomainEvent.parameters_required(` | Declarative input validation decorator |
-| `VERIFY` | `self.verify(` | Domain rule enforcement call |
-| `SERVICE_CALL` | `self.<name>_service.<method>(` | Injected service method invocation |
-| `FACTORY_CALL` | `<Type>.new(` | Domain object or aggregate factory call |
-| `CONST_REF` | `a.const.<CONSTANT>` | Reference to a framework constant |
+| `PARAMETERS_REQUIRED` | `@DomainEvent.parameters_required` | Declarative input validation decorator |
 
-These rules are placed **before** the generic `IDENTIFIER` rule to ensure they are matched preferentially. PLY matches function-based rules in definition order, so more specific patterns take precedence.
+This rule is placed **before** the generic `IDENTIFIER` rule to ensure it is matched preferentially. The trailing `(` is emitted separately as `LPAREN`.
 
 #### Structural Keywords
 | Token | Pattern | Meaning |
@@ -218,7 +211,7 @@ When called:
 
 1. **Reset** — The lexer's line counter is reset to 1 and the input text is fed to PLY via `self.lexer.input(text)`.
 2. **Iterate** — PLY's internal generator yields one token at a time. For each token, the method records:
-   - `type` — the token type string (e.g. `"CLASS"`, `"VERIFY"`, `"IDENTIFIER"`)
+   - `type` — the token type string (e.g. `"CLASS"`, `"PARAMETERS_REQUIRED"`, `"IDENTIFIER"`)
    - `value` — the matched text
    - `line` — the 1-based line number
    - `column` — the 0-based column offset, computed by `_find_column()` which locates the last newline before the token's position
@@ -229,7 +222,7 @@ When called:
 PLY is a well-established tool for compiler coursework because it mirrors the `lex`/`yacc` workflow taught in compiler design classes. Key advantages for this project:
 
 - **Declarative rules** — Token patterns are defined as regex strings or functions with regex docstrings, making the lexical specification easy to read and extend.
-- **Priority control** — Function rules match before string rules, and among function rules, definition order determines priority. This gives fine-grained control over how overlapping patterns (e.g. `self.verify(` vs. `self`) resolve.
+- **Priority control** — Function rules match before string rules, and among function rules, definition order determines priority. This gives fine-grained control over how overlapping patterns (e.g. `@DomainEvent.parameters_required` vs. a plain `@` `IDENTIFIER` sequence) resolve.
 - **Error recovery** — The `t_error` handler allows the lexer to emit `UNKNOWN` tokens and continue scanning rather than aborting on unrecognized input.
 
 ## 5. How PerformLexicalAnalysis and TiferetLexer Interact
@@ -254,15 +247,11 @@ The metrics produced by `PerformLexicalAnalysis` serve as a **structural fingerp
 |---|---|---|
 | `commands_detected` | `CLASS` | Number of domain event / command classes defined |
 | `execute_methods_found` | `EXECUTE` | Number of entry-point methods (should match class count) |
-| `verify_calls` | `VERIFY` | Intensity of domain rule enforcement |
 | `parameters_required_decorators` | `PARAMETERS_REQUIRED` | Use of declarative input validation |
-| `service_calls` | `SERVICE_CALL` | Degree of service dependency usage |
-| `factory_calls` | `FACTORY_CALL` | Domain object / aggregate creation patterns |
-| `constants_referenced` | `CONST_REF` | References to framework error codes / constants |
 | `docstrings_found` | `DOCSTRING` | Documentation coverage |
 | `top_token_types` | All types | Overall token distribution (top 10) |
 
-These metrics let a developer (or a course grader) quickly assess whether a source file follows Tiferet conventions — e.g., every class should have an `execute` method, validation-heavy events should show `VERIFY` calls, and well-documented code should have docstrings proportional to class count.
+These metrics let a developer (or a course grader) quickly assess whether a source file follows Tiferet conventions — e.g., every class should have an `execute` method, events using declarative validation should show `PARAMETERS_REQUIRED` decorators, and well-documented code should have docstrings proportional to class count.
 
 ## 7. File Reference
 
@@ -270,14 +259,14 @@ The following files are included in this `Scanner/` directory as reference copie
 
 | File | Source | Role |
 |---|---|---|
-| `scan.py` | `src/events/scan.py` | All four domain events composing the scan pipeline |
-| `lexer.py` | `src/utils/lexer.py` | PLY-based lexer implementing the `LexerService` interface |
+| `scan.py` | [`src/events/scan.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/events/scan.py) | All four domain events composing the scan pipeline |
+| `lexer.py` | [`src/utils/lexer.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/lexer.py) | PLY-based lexer implementing the `LexerService` interface |
 
 ### Supporting modules (not copied, located in `src/`):
 
 | File | Role |
 |---|---|
-| `src/utils/parser.py` | `ArtifactBlockParser` — extracts imports and artifact blocks from source lines |
-| `src/utils/output.py` | `ScanOutputWriter` — writes result payloads to YAML/JSON files |
-| `src/interfaces/lexer.py` | `LexerService` — abstract interface for tokenization |
-| `config.yml` | Tiferet YAML configuration wiring the pipeline, errors, CLI, and interfaces |
+| [`src/utils/parser.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/parser.py) | `ArtifactBlockParser` — extracts imports and artifact blocks from source lines |
+| [`src/utils/output.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/output.py) | `ScanOutputWriter` — writes result payloads to YAML/JSON files |
+| [`src/interfaces/lexer.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/interfaces/lexer.py) | `LexerService` — abstract interface for tokenization |
+| [`config.yml`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/config.yml) | Tiferet YAML configuration wiring the pipeline, errors, CLI, and interfaces |

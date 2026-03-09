@@ -79,7 +79,7 @@ The scanner recognizes the following token families (see [LEXICAL_SPEC.md](./LEX
 - **Artifact Comments** — `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`
 - **Documentation** — `DOCSTRING`, `LINE_COMMENT`
 - **Structural Keywords** — `CLASS`, `DEF`, `EXECUTE`, `INIT`, `RETURN`, `SELF`
-- **Domain Idioms** — `PARAMETERS_REQUIRED`, `VERIFY`, `SERVICE_CALL`, `FACTORY_CALL`, `CONST_REF`
+- **Domain Idioms** — `PARAMETERS_REQUIRED`
 - **Generic Python** — `PYTHON_KEYWORD`, `IDENTIFIER`, `STRING_LITERAL`, `NUMBER_LITERAL`
 - **Operators** — `DOUBLESTAR`, `PLUS`, `MINUS`, `STAR`, `SLASH`, `DOUBLESLASH`, `PERCENT`, `PIPE`, `AMPERSAND`, `TILDE`, `CARET`, `LSHIFT`, `RSHIFT`, `EQEQ`, `NOTEQ`, `LTEQ`, `GTEQ`, `LT`, `GT`, `AT`
 - **Punctuation** — `LPAREN`, `RPAREN`, `LBRACK`, `RBRACK`, `LBRACE`, `RBRACE`, `COMMA`, `COLON`, `ARROW`, `DOT`, `EQUALS`

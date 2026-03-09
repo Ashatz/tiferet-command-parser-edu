@@ -182,11 +182,7 @@ class PerformLexicalAnalysis(DomainEvent):
         metrics = {
             'commands_detected': type_counts.get('CLASS', 0),
             'execute_methods_found': type_counts.get('EXECUTE', 0),
-            'verify_calls': type_counts.get('VERIFY', 0),
             'parameters_required_decorators': type_counts.get('PARAMETERS_REQUIRED', 0),
-            'service_calls': type_counts.get('SERVICE_CALL', 0),
-            'factory_calls': type_counts.get('FACTORY_CALL', 0),
-            'constants_referenced': type_counts.get('CONST_REF', 0),
             'docstrings_found': type_counts.get('DOCSTRING', 0),
             'top_token_types': dict(type_counts.most_common(10)),
         }

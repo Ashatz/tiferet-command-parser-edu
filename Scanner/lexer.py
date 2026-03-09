@@ -42,6 +42,7 @@ class TiferetLexer(LexerService):
         'ARTIFACT_START',
         'ARTIFACT_SECTION',
         'ARTIFACT_MEMBER',
+        'OBSOLETE',
 
         # Documentation & comments
         'DOCSTRING',
@@ -49,10 +50,6 @@ class TiferetLexer(LexerService):
 
         # Domain idioms (must precede generic tokens)
         'PARAMETERS_REQUIRED',
-        'VERIFY',
-        'SERVICE_CALL',
-        'FACTORY_CALL',
-        'CONST_REF',
 
         # Structural keywords
         'CLASS',
@@ -149,6 +146,11 @@ class TiferetLexer(LexerService):
         r'\#\s*\*\s+.*'
         return t
 
+    # * rule: obsolete
+    def t_OBSOLETE(self, t):
+        r'\#\s*-{2,3}\s+obsolete\b.*'
+        return t
+
     # -- Documentation & comments
 
     # * rule: docstring (triple-quoted strings)
@@ -166,27 +168,7 @@ class TiferetLexer(LexerService):
 
     # * rule: parameters_required
     def t_PARAMETERS_REQUIRED(self, t):
-        r'@DomainEvent\.parameters_required\('
-        return t
-
-    # * rule: verify
-    def t_VERIFY(self, t):
-        r'self\.verify\('
-        return t
-
-    # * rule: service_call
-    def t_SERVICE_CALL(self, t):
-        r'self\.[a-zA-Z_][a-zA-Z0-9_]*_service\.[a-zA-Z_][a-zA-Z0-9_]*\('
-        return t
-
-    # * rule: factory_call
-    def t_FACTORY_CALL(self, t):
-        r'[a-zA-Z_][a-zA-Z0-9_]*\.new\('
-        return t
-
-    # * rule: const_ref
-    def t_CONST_REF(self, t):
-        r'a\.const\.[A-Z_][A-Z0-9_]*'
+        r'@DomainEvent\.parameters_required'
         return t
 
     # -- String literal (single/double quoted, before IDENTIFIER)

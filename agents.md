@@ -86,7 +86,7 @@ Scan output writer (`ScanOutputWriter`) with static methods for:
 PLY-based lexer (`TiferetLexer`) with token types organized by category:
 
 - **Artifact comments:** `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`, `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`
-- **Domain idioms:** `PARAMETERS_REQUIRED`, `VERIFY`, `SERVICE_CALL`, `FACTORY_CALL`, `CONST_REF`
+- **Domain idioms:** `PARAMETERS_REQUIRED`
 - **Structural:** `CLASS`, `DEF`, `INIT`, `EXECUTE`, `RETURN`, `SELF`
 - **Generic:** `PYTHON_KEYWORD`, `IDENTIFIER`, `STRING_LITERAL`, `NUMBER_LITERAL`, `DOCSTRING`, `LINE_COMMENT`
 - **Punctuation/Layout:** `LPAREN`, `RPAREN`, `LBRACK`, `RBRACK`, `LBRACE`, `RBRACE`, `COMMA`, `COLON`, `ARROW`, `DOT`, `EQUALS`, `NEWLINE`, `UNKNOWN`

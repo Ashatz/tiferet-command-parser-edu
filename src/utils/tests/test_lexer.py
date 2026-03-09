@@ -200,54 +200,46 @@ def test_self_reference(lexer: TiferetLexer) -> None:
     assert tok['type'] == 'SELF'
 
 
+# ** test: obsolete_double_dash
+def test_obsolete_double_dash(lexer: TiferetLexer) -> None:
+    '''
+    Test that # -- obsolete is recognized as OBSOLETE.
+    '''
+
+    tok = first_token(lexer, '# -- obsolete')
+    assert tok['type'] == 'OBSOLETE'
+
+
+# ** test: obsolete_triple_dash
+def test_obsolete_triple_dash(lexer: TiferetLexer) -> None:
+    '''
+    Test that # --- obsolete is recognized as OBSOLETE.
+    '''
+
+    tok = first_token(lexer, '# --- obsolete')
+    assert tok['type'] == 'OBSOLETE'
+
+
+# ** test: obsolete_with_trailing_text
+def test_obsolete_with_trailing_text(lexer: TiferetLexer) -> None:
+    '''
+    Test that # -- obsolete with trailing text is recognized as OBSOLETE.
+    '''
+
+    tok = first_token(lexer, '# -- obsolete: replaced by new_method')
+    assert tok['type'] == 'OBSOLETE'
+
+
 # ** test: parameters_required
 def test_parameters_required(lexer: TiferetLexer) -> None:
     '''
-    Test that @DomainEvent.parameters_required( is recognized as PARAMETERS_REQUIRED.
+    Test that @DomainEvent.parameters_required is recognized as PARAMETERS_REQUIRED.
+    The trailing ( is emitted separately as LPAREN.
     '''
 
-    tok = first_token(lexer, '@DomainEvent.parameters_required(')
-    assert tok['type'] == 'PARAMETERS_REQUIRED'
-
-
-# ** test: verify_call
-def test_verify_call(lexer: TiferetLexer) -> None:
-    '''
-    Test that self.verify( is recognized as VERIFY.
-    '''
-
-    tok = first_token(lexer, 'self.verify(')
-    assert tok['type'] == 'VERIFY'
-
-
-# ** test: service_call
-def test_service_call(lexer: TiferetLexer) -> None:
-    '''
-    Test that self.error_service.save( is recognized as SERVICE_CALL.
-    '''
-
-    tok = first_token(lexer, 'self.error_service.save(')
-    assert tok['type'] == 'SERVICE_CALL'
-
-
-# ** test: factory_call
-def test_factory_call(lexer: TiferetLexer) -> None:
-    '''
-    Test that Error.new( is recognized as FACTORY_CALL.
-    '''
-
-    tok = first_token(lexer, 'Error.new(')
-    assert tok['type'] == 'FACTORY_CALL'
-
-
-# ** test: const_ref
-def test_const_ref(lexer: TiferetLexer) -> None:
-    '''
-    Test that a.const.ERROR_ALREADY_EXISTS_ID is recognized as CONST_REF.
-    '''
-
-    tok = first_token(lexer, 'a.const.ERROR_ALREADY_EXISTS_ID')
-    assert tok['type'] == 'CONST_REF'
+    tokens = lexer.tokenize('@DomainEvent.parameters_required(')
+    assert tokens[0]['type'] == 'PARAMETERS_REQUIRED'
+    assert tokens[1]['type'] == 'LPAREN'
 
 
 # ** test: python_keywords
@@ -494,10 +486,6 @@ class AddError(DomainEvent):
     assert 'INIT' in types
     assert 'EXECUTE' in types
     assert 'PARAMETERS_REQUIRED' in types
-    assert 'VERIFY' in types
-    assert 'SERVICE_CALL' in types
-    assert 'FACTORY_CALL' in types
-    assert 'CONST_REF' in types
     assert 'RETURN' in types
 
 

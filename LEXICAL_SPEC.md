@@ -12,7 +12,6 @@ The dialect is characterized by:
 - Dependency injection via `__init__`
 - A single `execute` method containing ordered business logic
 - Declarative parameter validation via `@DomainEvent.parameters_required([...])`
-- Ubiquitous use of `self.verify(...)`, `self.*_service.*(...)`, domain object factories `*.new(...)`, and domain constants `a.const.*`
 - Standard Python syntax for function signatures, type annotations, calls, lists, dicts, etc.
 
 The scanner is **not** a complete Python lexer — it recognizes only the tokens necessary to identify domain structure, validation patterns, service interactions, and execution flow for later AST-based extraction.
@@ -27,6 +26,7 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - ARTIFACT_START         `# *** …`     (major sections: imports, events, etc.)
 - ARTIFACT_SECTION       `# ** …`      (subsections: event names, import groups)
 - ARTIFACT_MEMBER        `# * …`       (members: method: execute, attribute: xxx_service)
+- OBSOLETE               `# -- obsolete` or `# --- obsolete`  (marks artifact sections/members as obsolete)
 
 ### Documentation & Conventional Comments
 
@@ -47,11 +47,7 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 
 ### Domain Idioms & Patterns (core semantic carriers)
 
-- PARAMETERS_REQUIRED    `@DomainEvent.parameters_required(`  (declarative parameter validation decorator)
-- VERIFY                 `self.verify(`
-- SERVICE_CALL           `self.<ident>_service.<ident>(`   (service method invocation)
-- FACTORY_CALL           `<ident>.new(`                    (domain factory invocation)
-- CONST_REF              `a.const.<ident>`
+- PARAMETERS_REQUIRED    `@DomainEvent.parameters_required`  (declarative parameter validation decorator)
 
 ### Generic Python Structural Tokens
 
@@ -114,6 +110,7 @@ ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra)\b.*
 ARTIFACT_START          #\s*\*{3}\s+.*
 ARTIFACT_SECTION        #\s*\*{2}\s+.*
 ARTIFACT_MEMBER         #\s*\*\s+.*
+OBSOLETE                #\s*-{2,3}\s+obsolete\b.*
 ```
 
 ### Documentation & Comments
@@ -128,11 +125,7 @@ CLASS                   class
 DEF                     def
 INIT                    __init__
 RETURN                  return
-PARAMETERS_REQUIRED     @DomainEvent\.parameters_required\(
-VERIFY                  self\.verify\(
-SERVICE_CALL            self\.[a-zA-Z_][a-zA-Z0-9_]*_service\.[a-zA-Z_][a-zA-Z0-9_]*\(
-FACTORY_CALL            [a-zA-Z_][a-zA-Z0-9_]*\.new\(
-CONST_REF               a\.const\.[A-Z_][A-Z0-9_]*
+PARAMETERS_REQUIRED     @DomainEvent\.parameters_required
 SELF                    self
 ```
 
@@ -193,7 +186,7 @@ UNKNOWN                 .
 
 **Ignored characters:** spaces and tabs (`t_ignore = ' \t'`).
 
-**Note:** The lexer uses longest-match-first priority and prefers domain-specific patterns (PARAMETERS_REQUIRED, SERVICE_CALL, etc.) over generic IDENTIFIER or PYTHON_KEYWORD.
+**Note:** The lexer uses longest-match-first priority and prefers domain-specific patterns (e.g. PARAMETERS_REQUIRED) over generic IDENTIFIER or PYTHON_KEYWORD.
 
 ### Keyword Resolution Rules
 
