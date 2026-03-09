@@ -3,13 +3,14 @@
 # *** imports
 
 # ** core
-import re
+from types import MethodType
 from typing import List, Dict, Any
 
 # ** infra
 import ply.lex as lex
 
 # ** app
+from ..events import a
 from ..interfaces import LexerService
 
 # *** utils
@@ -31,237 +32,21 @@ class TiferetLexer(LexerService):
         Initialize the TiferetLexer and build the PLY lexer instance.
         '''
 
+        # Load rules dynamically from the assets mapping.
+        for name, rule in a.lexer.RULES.items():
+            if callable(rule):
+                setattr(self, name, MethodType(rule, self))
+            else:
+                setattr(self, name, rule)
+
         # Build the PLY lexer from this module's token rules.
         self.lexer = lex.lex(module=self)
 
-    # -- PLY token list (order matters for longest-match priority)
-    tokens = (
-        # Artifact comments
-        'ARTIFACT_IMPORTS_START',
-        'ARTIFACT_IMPORT_GROUP',
-        'ARTIFACT_START',
-        'ARTIFACT_SECTION',
-        'ARTIFACT_MEMBER',
-        'OBSOLETE',
-
-        # Documentation & comments
-        'DOCSTRING',
-        'LINE_COMMENT',
-
-        # Domain idioms (must precede generic tokens)
-        'PARAMETERS_REQUIRED',
-
-        # Structural keywords
-        'CLASS',
-        'DEF',
-        'INIT',
-        'EXECUTE',
-        'RETURN',
-
-        # Self reference
-        'SELF',
-
-        # Generic tokens
-        'PYTHON_KEYWORD',
-        'IDENTIFIER',
-        'STRING_LITERAL',
-        'NUMBER_LITERAL',
-
-        # Operators
-        'DOUBLESTAR',
-        'PLUS',
-        'MINUS',
-        'STAR',
-        'SLASH',
-        'DOUBLESLASH',
-        'PERCENT',
-        'PIPE',
-        'AMPERSAND',
-        'TILDE',
-        'CARET',
-        'LSHIFT',
-        'RSHIFT',
-        'EQEQ',
-        'NOTEQ',
-        'LTEQ',
-        'GTEQ',
-        'LT',
-        'GT',
-        'AT',
-
-        # Punctuation & delimiters
-        'LPAREN',
-        'RPAREN',
-        'LBRACK',
-        'RBRACK',
-        'LBRACE',
-        'RBRACE',
-        'COMMA',
-        'COLON',
-        'ARROW',
-        'DOT',
-        'EQUALS',
-
-        # Layout
-        'NEWLINE',
-        'UNKNOWN',
-    )
-
-    # -- Python reserved words for keyword detection
-    _python_keywords = {
-        'and', 'as', 'assert', 'break', 'continue', 'del',
-        'elif', 'else', 'except', 'False', 'finally', 'for',
-        'from', 'global', 'if', 'import', 'in', 'is', 'lambda',
-        'None', 'nonlocal', 'not', 'or', 'pass', 'raise',
-        'True', 'try', 'while', 'with', 'yield',
-    }
+    # -- PLY token list (sourced from assets)
+    tokens = a.lexer.TOKENS
 
     # -- Ignored characters (spaces and tabs)
     t_ignore = ' \t'
-
-    # -- Artifact comment rules (longest match first, functions > strings)
-
-    # * rule: artifact_imports_start
-    def t_ARTIFACT_IMPORTS_START(self, t):
-        r'\#\s*\*{3}\s+imports\s*'
-        return t
-
-    # * rule: artifact_import_group
-    def t_ARTIFACT_IMPORT_GROUP(self, t):
-        r'\#\s*\*{2}\s+(core|app|infra)\b.*'
-        return t
-
-    # * rule: artifact_start
-    def t_ARTIFACT_START(self, t):
-        r'\#\s*\*{3}\s+.*'
-        return t
-
-    # * rule: artifact_section
-    def t_ARTIFACT_SECTION(self, t):
-        r'\#\s*\*{2}\s+.*'
-        return t
-
-    # * rule: artifact_member
-    def t_ARTIFACT_MEMBER(self, t):
-        r'\#\s*\*\s+.*'
-        return t
-
-    # * rule: obsolete
-    def t_OBSOLETE(self, t):
-        r'\#\s*-{2,3}\s+obsolete\b.*'
-        return t
-
-    # -- Documentation & comments
-
-    # * rule: docstring (triple-quoted strings)
-    def t_DOCSTRING(self, t):
-        r'(\"\"\"[\s\S]*?\"\"\"|\'\'\'[\s\S]*?\'\'\')'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    # * rule: line_comment (non-artifact)
-    def t_LINE_COMMENT(self, t):
-        r'\#[^*\n].*'
-        return t
-
-    # -- Domain idiom rules (must precede IDENTIFIER)
-
-    # * rule: parameters_required
-    def t_PARAMETERS_REQUIRED(self, t):
-        r'@DomainEvent\.parameters_required'
-        return t
-
-    # -- String literal (single/double quoted, before IDENTIFIER)
-
-    # * rule: string_literal
-    def t_STRING_LITERAL(self, t):
-        r'(\"([^\"\\]|\\.)*\"|\'([^\'\\]|\\.)*\')'
-        return t
-
-    # -- Arrow (before EQUALS and DOT)
-
-    # * rule: arrow
-    def t_ARROW(self, t):
-        r'->'
-        return t
-
-    # -- Number literal (before DOT to avoid conflict)
-
-    # * rule: number_literal
-    def t_NUMBER_LITERAL(self, t):
-        r'[0-9]+(\.[0-9]+)?([a-zA-Z_][a-zA-Z0-9_]*)?'
-
-        # If trailing identifier characters are present, emit as UNKNOWN.
-        if re.search(r'[a-zA-Z_]', t.value):
-            t.type = 'UNKNOWN'
-
-        return t
-
-    # -- Identifier and keyword resolution
-
-    # * rule: identifier
-    def t_IDENTIFIER(self, t):
-        r'[a-zA-Z_][a-zA-Z0-9_]*'
-
-        # Check for structural keywords first.
-        if t.value == 'class':
-            t.type = 'CLASS'
-        elif t.value == 'def':
-            t.type = 'DEF'
-        elif t.value == '__init__':
-            t.type = 'INIT'
-        elif t.value == 'execute':
-            t.type = 'EXECUTE'
-        elif t.value == 'return':
-            t.type = 'RETURN'
-        elif t.value == 'self':
-            t.type = 'SELF'
-        elif t.value in self._python_keywords:
-            t.type = 'PYTHON_KEYWORD'
-
-        return t
-
-    # -- Operators (longest match first)
-    t_DOUBLESTAR = r'\*\*'
-    t_DOUBLESLASH = r'//'
-    t_LSHIFT = r'<<'
-    t_RSHIFT = r'>>'
-    t_EQEQ = r'=='
-    t_NOTEQ = r'!='
-    t_LTEQ = r'<='
-    t_GTEQ = r'>='
-    t_PLUS = r'\+'
-    t_MINUS = r'-'
-    t_STAR = r'\*'
-    t_SLASH = r'/'
-    t_PERCENT = r'%'
-    t_PIPE = r'\|'
-    t_AMPERSAND = r'&'
-    t_TILDE = r'~'
-    t_CARET = r'\^'
-    t_LT = r'<'
-    t_GT = r'>'
-    t_AT = r'@'
-
-    # -- Punctuation & delimiters (simple string rules)
-    t_LPAREN = r'\('
-    t_RPAREN = r'\)'
-    t_LBRACK = r'\['
-    t_RBRACK = r'\]'
-    t_LBRACE = r'\{'
-    t_RBRACE = r'\}'
-    t_COMMA = r','
-    t_COLON = r':'
-    t_DOT = r'\.'
-    t_EQUALS = r'='
-
-    # -- Layout
-
-    # * rule: newline
-    def t_NEWLINE(self, t):
-        r'\n+'
-        t.lexer.lineno += len(t.value)
-        return t
 
     # * rule: unknown
     def t_error(self, t):
