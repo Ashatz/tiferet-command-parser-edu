@@ -3,4 +3,7 @@
 # *** imports
 
 # ** infra
-from tiferet.events import DomainEvent, TiferetError, a
+from tiferet.events import DomainEvent, TiferetError
+
+# ** app
+from .. import assets as a

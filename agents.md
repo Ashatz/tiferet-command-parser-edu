@@ -32,22 +32,24 @@ samples/
   invalid_member_names_event.py      — Digit-prefixed attribute/method names (failure case)
   remove_error_message_event.py      — RemoveErrorMessage event (success case)
 
-Scanner/
+src/
   __init__.py            — Package exports and version (0.1.0)
-  assets/                — Reserved for future scanner assets
+  assets/
+    __init__.py          — Assets package exports (imports lexer module)
+    lexer.py             — Token constants, rule handlers (functions/regexes), RULES mapping dict
   domain/
     __init__.py          — Reserved for future domain objects
   events/
-    settings.py          — Re-exports DomainEvent, TiferetError, a from tiferet.events
+    settings.py          — Re-exports DomainEvent, TiferetError; imports local assets as `a`
     scan.py              — Scanner domain events: ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult
-    __init__.py          — Events package exports
+    __init__.py          — Events package exports (DomainEvent, TiferetError, a, all events)
     tests/
       test_scan.py       — 17 tests for all scanner events (DomainEvent.handle pattern)
   interfaces/
     lexer.py             — LexerService abstract interface (extends tiferet Service)
     __init__.py          — Interfaces package exports
   utils/
-    lexer.py             — TiferetLexer: PLY-based lexer implementing LexerService with 35 token types
+    lexer.py             — TiferetLexer: generic PLY host that loads tokens and rules dynamically from assets
     parser.py            — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
     __init__.py          — Utils package exports
@@ -59,7 +61,7 @@ Scanner/
 
 ## Key Files
 
-### `Scanner/events/scan.py`
+### `src/events/scan.py`
 All scanner domain events. Each event follows the Tiferet pattern: `@DomainEvent.parameters_required` for validation, `self.verify()` for domain rules, service injection via constructor. Parsing and output concerns are delegated to utility classes (`ArtifactBlockParser`, `ScanOutputWriter`).
 
 - **ExtractText** — Reads source file, delegates artifact extraction to `ArtifactBlockParser`. The imports block (`__imports__`) is always included, even with `-x` extract filtering.
@@ -67,7 +69,7 @@ All scanner domain events. Each event follows the Tiferet pattern: `@DomainEvent
 - **PerformLexicalAnalysis** — Injects `LexerService`, tokenizes blocks, computes metrics via `Counter`.
 - **EmitScanResult** — Builds output payload. Delegates file writing to `ScanOutputWriter`. Supports `--summary-only` and `--with-metrics` flags.
 
-### `Scanner/utils/parser.py`
+### `src/utils/parser.py`
 Artifact block parser (`ArtifactBlockParser`) with static methods for:
 
 - **`parse_extract_filter`** — Converts comma-separated extract string to a set of names.
@@ -75,23 +77,28 @@ Artifact block parser (`ArtifactBlockParser`) with static methods for:
 - **`extract_artifact_blocks`** — Walks source lines to extract all blocks matching a group type (e.g. `event`, `model`).
 - **`filter_blocks`** — Applies an optional name filter to a list of blocks.
 
-### `Scanner/utils/output.py`
+### `src/utils/output.py`
 Scan output writer (`ScanOutputWriter`) with static methods for:
 
 - **`detect_format`** — Resolves output format from explicit value or file extension auto-detection.
 - **`write`** — Writes a result payload to file as YAML or JSON.
 - **`parse_extract_names`** — Converts comma-separated extract string to a list for payload inclusion.
 
-### `Scanner/utils/lexer.py`
-PLY-based lexer (`TiferetLexer`) with token types organized by category:
+### `src/assets/lexer.py`
+Lexer assets module containing all token constants, rule handlers, and the composable `RULES` mapping. Organized under `# *** constants`:
 
-- **Artifact comments:** `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`, `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`
-- **Domain idioms:** `PARAMETERS_REQUIRED`
-- **Structural:** `CLASS`, `DEF`, `INIT`, `EXECUTE`, `RETURN`, `SELF`
-- **Generic:** `PYTHON_KEYWORD`, `IDENTIFIER`, `STRING_LITERAL`, `NUMBER_LITERAL`, `DOCSTRING`, `LINE_COMMENT`
-- **Punctuation/Layout:** `LPAREN`, `RPAREN`, `LBRACK`, `RBRACK`, `LBRACE`, `RBRACE`, `COMMA`, `COLON`, `ARROW`, `DOT`, `EQUALS`, `NEWLINE`, `UNKNOWN`
+- **Token name constants** — Individual string constants (e.g., `ARTIFACT_IMPORTS_START = 'ARTIFACT_IMPORTS_START'`) for composing `TOKENS` tuples.
+- **`TOKENS`** — Ordered tuple of all token names, sourced from individual constants.
+- **`_python_keywords`** — Set of Python reserved words for keyword detection in the identifier rule.
+- **Rule handlers** — Functions (e.g., `ARTIFACT_IMPORTS_START(self, t)` with docstring regex) and regex strings (e.g., `DOUBLESTAR = r'\*\*'`) that define lexer behavior. Named without any lexer-specific prefix; the `t_` PLY convention exists only in `RULES` keys.
+- **`RULES`** — Dict mapping PLY `t_`-prefixed names to their handler constants. This is the composable unit for dynamic lexer configuration — different lexer variants assemble different `RULES` dicts from the same building blocks.
 
-### `Scanner/interfaces/lexer.py`
+The assets module is accessed throughout the project via `a.lexer` (where `a` is the local `src.assets` package, imported through the events chain).
+
+### `src/utils/lexer.py`
+Generic PLY lexer host (`TiferetLexer`) implementing `LexerService`. Loads `TOKENS` and `RULES` dynamically from `a.lexer` (assets) at init time. Function rules are bound via `MethodType`; string rules are set directly. Only PLY infrastructure (`t_ignore`, `t_error`) and the public `tokenize`/`_find_column` methods remain on the class.
+
+### `src/interfaces/lexer.py`
 Abstract `LexerService(Service)` with single method `tokenize(text) -> List[Dict]`.
 
 ### `config.yml`
@@ -121,7 +128,7 @@ python compiler.py scan event <source_file> -o output.yaml -x add_error,get_erro
 ## Testing
 
 ```bash
-python -m pytest Scanner/ -v    # 84 tests (43 lexer + 13 parser + 11 output + 17 events)
+python -m pytest src/ -v    # 83 tests (42 lexer + 13 parser + 11 output + 17 events)
 ```
 
 Tests use `DomainEvent.handle` for event invocation and mock `LexerService` for isolation. Utility tests validate parsing and output logic independently of domain events.

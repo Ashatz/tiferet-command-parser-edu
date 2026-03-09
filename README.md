@@ -114,22 +114,22 @@ The test suite validates every token type, non-matching/unknown tokens, and the 
 
 ```bash
 # Run all tests
-python -m pytest Scanner/ -v
+python -m pytest src/ -v
 
-# Run only lexer tests (43 tests)
-python -m pytest Scanner/utils/tests/test_lexer.py -v
+# Run only lexer tests (42 tests)
+python -m pytest src/utils/tests/test_lexer.py -v
 
 # Run only parser utility tests (13 tests)
-python -m pytest Scanner/utils/tests/test_parser.py -v
+python -m pytest src/utils/tests/test_parser.py -v
 
 # Run only output utility tests (11 tests)
-python -m pytest Scanner/utils/tests/test_output.py -v
+python -m pytest src/utils/tests/test_output.py -v
 
 # Run only event tests (17 tests)
-python -m pytest Scanner/events/tests/test_scan.py -v
+python -m pytest src/events/tests/test_scan.py -v
 ```
 
-**Total: 84 tests** (43 lexer + 13 parser + 11 output + 17 events)
+**Total: 83 tests** (42 lexer + 13 parser + 11 output + 17 events)
 
 ### Project Structure
 
@@ -146,27 +146,29 @@ samples/
   invalid_member_names_event.py      — Digit-prefixed attribute/method names (failure case)
   remove_error_message_event.py      — RemoveErrorMessage event (success case)
 
-Scanner/
+src/
   __init__.py            — Package exports and version (0.1.0)
-  assets/                — Reserved for future scanner assets
+  assets/
+    __init__.py          — Assets package exports (imports lexer module)
+    lexer.py             — Token constants, rule handlers (functions/regexes), RULES mapping dict
   domain/
     __init__.py          — Reserved for future domain objects
   events/
-    settings.py          — Re-exports DomainEvent, TiferetError, a from tiferet.events
+    settings.py          — Re-exports DomainEvent, TiferetError; imports local assets as `a`
     scan.py              — Scanner domain events: ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult
-    __init__.py          — Events package exports
+    __init__.py          — Events package exports (DomainEvent, TiferetError, a, all events)
     tests/
       test_scan.py       — 17 tests for all scanner events (DomainEvent.handle pattern)
   interfaces/
     lexer.py             — LexerService abstract interface (extends tiferet Service)
     __init__.py          — Interfaces package exports
   utils/
-    lexer.py             — TiferetLexer: PLY-based lexer implementing LexerService with 35 token types
+    lexer.py             — TiferetLexer: generic PLY host that loads tokens and rules dynamically from assets
     parser.py            — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
     __init__.py          — Utils package exports
     tests/
-      test_lexer.py      — 43 tests for all lexer token rules
+      test_lexer.py      — 42 tests for all lexer token rules
       test_parser.py     — 13 tests for artifact block parser utility
       test_output.py     — 11 tests for scan output writer utility
 ```
@@ -176,6 +178,9 @@ Scanner/
 - **[PROJECT_PROPOSAL.md](./PROJECT_PROPOSAL.md)** — Completed ECE 506 initial project definition template
 - **[LEXICAL_SPEC.md](./LEXICAL_SPEC.md)** — Formal lexical specification for all token types
 - **[AGENTS.md](./AGENTS.md)** — AI agent codebase index
+
+**Guides:**
+- **[Dynamic PLY Lexer](./docs/guides/utils/lexer.md)** — Architecture guide for the dynamic lexer pattern (assets, import chain, rule composition)
 
 ### Development Status
 
