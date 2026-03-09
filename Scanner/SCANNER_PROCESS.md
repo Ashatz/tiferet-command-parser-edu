@@ -1,26 +1,27 @@
 # Lexical Analysis — Scanner Design and Implementation  
-**Tiferet Command Parser (Educational Compiler Front-End)**  
+**Tiferet Event Parser (Educational Compiler Front-End)**  
 **ECE 506 — Compiler Design**  
 **University of Arizona**  
 **Spring 2026**  
 **Authors:** Andrew Shatz, Lojain Syed  
-**Documentation contribution:** Oz (oz-agent@warp.dev)
+**Documentation Author & Technical Editor:** Grok (built by xAI)  
+**Role performed:** Full rewrite, structural reorganization, academic tone enhancement, replacement of “command” → “event” terminology throughout, consistency polishing, table formatting, and clarity improvements for final project submission.
 
 ## 1. Purpose of the Scanner
 
-The scanner is the **lexical analysis** phase of the Tiferet Command Parser — the first stage of the compiler front-end. Its primary responsibilities are:
+The scanner performs the **lexical analysis** phase — the first stage of the compiler front-end — for Python source files written in the Tiferet Event dialect. Its main responsibilities are:
 
-- Reading Python source files written in the Tiferet Command dialect
-- Identifying and extracting structured **artifact comment blocks** that organize domain logic
-- Tokenizing the source text into a stream of classified tokens that carry domain-specific meaning
-- Computing lightweight structural and domain-specific metrics
-- Producing a structured result suitable for later syntactic and semantic analysis phases
+- Reading `.py` files structured according to Tiferet conventions
+- Identifying and extracting semantically meaningful **artifact comment blocks**
+- Tokenizing source text into a classified token stream that preserves domain-specific meaning
+- Computing lightweight structural and domain-oriented metrics
+- Producing structured output suitable for downstream syntactic and semantic phases
 
-This document describes the complete scanning pipeline, the interaction between domain-level orchestration (`scan.py`) and the low-level lexer (`lexer.py`), the token categories defined for the Tiferet dialect, and the rationale behind major design decisions.
+This document explains the complete scanning pipeline, the division of responsibilities between the domain-level orchestration (`scan.py`) and the low-level PLY-based lexer (`lexer.py`), the token categories tailored to the Tiferet Event dialect, and the major design decisions.
 
 ## 2. Scanning Pipeline Overview
 
-The scanner is structured as a **four-stage pipeline** orchestrated by the Tiferet domain-event runner and declared in `config.yml` under the `scan.command` feature.
+The scanner is implemented as a **four-stage pipeline** orchestrated by the Tiferet domain-event runner and configured in `config.yml` under the `scan.event` feature.
 
 ```
 Source File (.py)
@@ -46,7 +47,7 @@ Source File (.py)
 └────────────────────┘
 ```
 
-Each stage is implemented as a self-contained **Tiferet Domain Event**. Output from one stage is passed to the next via named `data_key` bindings managed by the framework.
+Each stage is a self-contained **Tiferet Domain Event**. Outputs are passed forward using named `data_key` bindings managed by the framework.
 
 ## 3. Detailed Stage Descriptions
 
@@ -54,14 +55,14 @@ Each stage is implemented as a self-contained **Tiferet Domain Event**. Output f
 
 **Location:** `src/events/scan.py` — class `ExtractText`  
 **Purpose:** Locate and extract artifact comment blocks from raw source  
-**Input:** source file path, optional group type (default: `"command"`), optional extract filter (`-x`)  
+**Input:** source file path, optional group type (default: `"event"`), optional extract filter (`-x`)  
 **Output key:** `text_blocks`
 
 **Steps:**
 1. Verify source file exists
 2. Read all lines
 3. Extract the `# *** imports` block (always included)
-4. Identify artifact blocks starting with `# ** command: <name>`
+4. Identify artifact blocks beginning with `# ** event: <name>`
 5. Capture each block’s full text, line range, and name
 6. Apply optional name filter from `-x` argument
 7. Prepend imports block to the list
@@ -81,15 +82,15 @@ Each stage is implemented as a self-contained **Tiferet Domain Event**. Output f
 ### 3.2 LexerInitialized
 
 **Location:** `src/events/scan.py` — class `LexerInitialized`  
-**Purpose:** Input validation gate before tokenization  
+**Purpose:** Validation gate before tokenization  
 **Input key:** `text_blocks`  
 **Output key:** `validated_blocks`
 
-**Checks performed:**
+**Checks:**
 - List is non-empty
 - Every block has non-empty `text` after stripping whitespace
 
-Raises domain error `TEXT_EXTRACTION_FAILED` on violation.
+Raises `TEXT_EXTRACTION_FAILED` on violation.
 
 ### 3.3 PerformLexicalAnalysis
 
@@ -99,11 +100,11 @@ Raises domain error `TEXT_EXTRACTION_FAILED` on violation.
 **Output key:** `analysis_result`
 
 **Core logic:**
-1. Tokenize each block using `lexer_service.tokenize(block["text"])`
-2. Accumulate all tokens into a single ordered list
-3. Compute frequency count of every token type
+1. Tokenize each block via `lexer_service.tokenize(block["text"])`
+2. Accumulate all tokens into one ordered list
+3. Compute frequency of every token type
 4. Derive domain-specific metrics:
-   - `commands_detected` (# of `CLASS` tokens)
+   - `events_detected` (# of `CLASS` tokens)
    - `execute_methods_found` (# of `EXECUTE` tokens)
    - `parameters_required_decorators` (# of `PARAMETERS_REQUIRED`)
    - `docstrings_found` (# of `DOCSTRING`)
@@ -112,7 +113,7 @@ Raises domain error `TEXT_EXTRACTION_FAILED` on violation.
 **Output structure:**
 ```python
 {
-    "tokens": List[Dict],           # full token stream
+    "tokens": List[Dict],
     "token_count": int,
     "metrics": Dict[str, Any]
 }
@@ -121,12 +122,12 @@ Raises domain error `TEXT_EXTRACTION_FAILED` on violation.
 ### 3.4 EmitScanResult
 
 **Location:** `src/events/scan.py` — class `EmitScanResult`  
-**Purpose:** Final formatting and output  
-**Conditional fields (based on CLI flags):**
+**Purpose:** Final formatting and output delivery  
+**Conditional fields (CLI-controlled):**
 - `--with-metrics` / `--summary-only` → include `metrics`
 - `--summary-only` → exclude full `tokens` list
 - `-x` → include `extracted_artifacts` list
-- `-o <path>` → write to file (YAML/JSON auto-detected by extension)
+- `-o <path>` → write YAML or JSON (extension-based auto-detection)
 
 **Always included:**
 - `event_type`: `"TokensScanned"`
@@ -137,28 +138,27 @@ Raises domain error `TEXT_EXTRACTION_FAILED` on violation.
 ## 4. Lexer Implementation — TiferetLexer
 
 **Location:** `src/utils/lexer.py`  
-**Technology:** PLY (`ply.lex`) — only the lexer portion is used  
-**Interface implemented:** `LexerService` (`tokenize(text: str) → List[Dict]`)
+**Technology:** PLY (`ply.lex`) — lexer module only  
+**Interface:** Implements `LexerService` (`tokenize(text: str) → List[Dict]`)
 
-### 4.1 Token Categories — Tiferet Command Dialect
+### 4.1 Token Categories — Tiferet Event Dialect
 
 | Category                     | Example Token Types                          | Priority / Matching Style          | Purpose / Notes                                                                 |
 |------------------------------|----------------------------------------------|-------------------------------------|---------------------------------------------------------------------------------|
-| Artifact comment hierarchy   | `ARTIFACT_IMPORTS_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `OBSOLETE` | Function rules (highest priority)   | Recognize `# ***`, `# **`, `# *` structured documentation                       |
+| Artifact comment hierarchy   | `ARTIFACT_IMPORTS_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `OBSOLETE` | Function rules (highest)           | Recognize `# ***`, `# **`, `# *` structured documentation                       |
 | Domain-specific idioms       | `PARAMETERS_REQUIRED`                        | Function rule before `IDENTIFIER`   | `@DomainEvent.parameters_required` decorator                                    |
-| Structural Python keywords   | `CLASS`, `DEF`, `INIT`, `EXECUTE`, `RETURN`, `SELF` | Reclassification inside `t_IDENTIFIER` | Domain-relevant method/class names                                             |
-| Generic Python keywords      | `PYTHON_KEYWORD`                             | Reclassification inside `t_IDENTIFIER` | All other Python reserved words                                                |
-| Literals                     | `STRING_LITERAL`, `NUMBER_LITERAL`, `DOCSTRING` | Standard regex rules               | `DOCSTRING` = triple-quoted only                                               |
-| Operators & punctuation      | `+`, `==`, `<=`, `@`, `(`, `->`, `.`, etc.   | Longest-match ordering             | Multi-char operators defined before single-char versions                        |
-| Layout & error               | `NEWLINE`, `UNKNOWN`                         | Built-in + `t_error` handler       | `UNKNOWN` emitted on unrecognized characters; scanning continues               |
+| Structural Python keywords   | `CLASS`, `DEF`, `INIT`, `EXECUTE`, `RETURN`, `SELF` | Reclassification in `t_IDENTIFIER` | Domain-relevant names                                                          |
+| Generic Python keywords      | `PYTHON_KEYWORD`                             | Reclassification in `t_IDENTIFIER` | Remaining Python reserved words                                                |
+| Literals                     | `STRING_LITERAL`, `NUMBER_LITERAL`, `DOCSTRING` | Standard regex                     | `DOCSTRING` = triple-quoted only                                               |
+| Operators & punctuation      | `+`, `==`, `<=`, `@`, `(`, `->`, `.`, etc.   | Longest-match ordering             | Multi-char before single-char operators                                        |
+| Layout & error               | `NEWLINE`, `UNKNOWN`                         | Built-in + `t_error`               | `UNKNOWN` emitted on unrecognized input; scanning continues                    |
 
 ### 4.2 Token Dictionary Format
 
-Each token is returned as:
 ```python
 {
     "type":   str,     # e.g. "CLASS", "EXECUTE", "STRING_LITERAL", "UNKNOWN"
-    "value":  str,     # exact matched text
+    "value":  str,     # matched text
     "line":   int,     # 1-based
     "column": int      # 0-based offset from line start
 }
@@ -166,17 +166,10 @@ Each token is returned as:
 
 ## 5. Design Rationale — Key Decisions
 
-- **Why PLY?**  
-  Mirrors classic `lex` workflow taught in ECE 506, provides declarative rules, priority control via function/string rule ordering, and graceful error recovery.
-
-- **Why separate event layer and lexer?**  
-  Dependency injection + interface separation allows swapping lexer implementations (hand-written, re2c, etc.) without changing domain logic.
-
-- **Why artifact block extraction first?**  
-  Tiferet code is organized into semantically meaningful chunks via comment headers → tokenizing whole file loses this structure.
-
-- **Why domain-specific metrics?**  
-  Quick structural validation of Tiferet conventions (every command class has `execute`, documentation coverage, validation style).
+- **PLY chosen** because it closely follows the `lex` model taught in ECE 506, offers declarative rules, priority ordering, and error recovery.
+- **Event layer ↔ lexer separation** via dependency injection preserves modularity — lexer is a pure utility; domain logic lives in events.
+- **Block extraction first** preserves Tiferet’s semantic organization via comment headers.
+- **Domain metrics** enable quick validation of Tiferet conventions (e.g., every event class has an `execute` method).
 
 ## 6. Primary Source Files (Reference)
 
@@ -184,10 +177,6 @@ Each token is returned as:
 |-------------------------------|----------------------------------------------------------------------------------------------------------|-------------------------------------------|
 | `src/events/scan.py`          | https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/events/scan.py          | Pipeline orchestration (four domain events) |
 | `src/utils/lexer.py`          | https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/lexer.py          | PLY-based lexer implementation            |
-| `src/utils/parser.py`         | …/src/utils/parser.py                                                                                   | Artifact block extraction logic           |
-| `src/interfaces/lexer.py`     | …/src/interfaces/lexer.py                                                                               | `LexerService` abstract interface         |
-| `config.yml`                  | …/config.yml                                                                                            | Pipeline wiring & dependency registration |
-
-This scanner forms a clean, well-separated lexical foundation for the rest of the Tiferet Command Parser pipeline.
-
-Feedback and suggestions for improvement are welcome.
+| `src/utils/parser.py`         | …/src/utils/parser.py                                                                                   | Artifact block extraction                 |
+| `src/interfaces/lexer.py`     | …/src/interfaces/lexer.py                                                                               | `LexerService` interface                  |
+| `config.yml`                  | …/config.yml                                                                                            | Pipeline & dependency configuration       |
