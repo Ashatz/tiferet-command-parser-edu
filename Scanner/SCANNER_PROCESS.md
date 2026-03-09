@@ -136,7 +136,7 @@ If `-o` was specified, the payload is written to file via `ScanOutputWriter.writ
 **Lexer assets:** `src/assets/lexer.py` (token constants, rule handlers, `TOKENS`, `RULES`)  
 **Implements:** `LexerService` (abstract interface in `src/interfaces/lexer.py`)
 
-`TiferetLexer` is a **generic PLY (Python Lex-Yacc) based lexer host** that implements the `LexerService` contract. PLY is a Python implementation of the classic `lex` and `yacc` tools from compiler construction. In this project, only the lexer (`ply.lex`) is used.
+`TiferetLexer` is a **generic PLY (Python Lex-Yacc) based lexer host** that implements the `LexerService` contract. PLY is a Python implementation of the classic `lex` and `yacc` tools from compiler construction. In this part of the project, only the lexer (`ply.lex`) is used.
 
 PLY works by scanning the input text left-to-right and matching regular expression patterns to produce tokens. However, unlike a conventional PLY lexer where patterns are defined inline on the class, `TiferetLexer` uses a **dynamic lexer architecture** that separates grammar from infrastructure.
 
