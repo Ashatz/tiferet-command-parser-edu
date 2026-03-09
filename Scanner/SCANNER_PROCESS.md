@@ -132,12 +132,42 @@ If `-o` was specified, the payload is written to file via `ScanOutputWriter.writ
 
 ### 4.1 Architecture
 
-**File:** `src/utils/lexer.py` (class `TiferetLexer`)  
+**Lexer host:** `src/utils/lexer.py` (class `TiferetLexer`)  
+**Lexer assets:** `src/assets/lexer.py` (token constants, rule handlers, `TOKENS`, `RULES`)  
 **Implements:** `LexerService` (abstract interface in `src/interfaces/lexer.py`)
 
-`TiferetLexer` is a **PLY (Python Lex-Yacc) based lexer** that implements the `LexerService` contract. PLY is a Python implementation of the classic `lex` and `yacc` tools from compiler construction. In this project, only the lexer (`ply.lex`) is used.
+`TiferetLexer` is a **generic PLY (Python Lex-Yacc) based lexer host** that implements the `LexerService` contract. PLY is a Python implementation of the classic `lex` and `yacc` tools from compiler construction. In this project, only the lexer (`ply.lex`) is used.
 
-PLY works by scanning the input text left-to-right and matching regular expression patterns to produce tokens. The `TiferetLexer` class defines these patterns as methods (for complex rules) and string attributes (for simple rules), following PLY's naming convention (`t_TOKEN_NAME`).
+PLY works by scanning the input text left-to-right and matching regular expression patterns to produce tokens. However, unlike a conventional PLY lexer where patterns are defined inline on the class, `TiferetLexer` uses a **dynamic lexer architecture** that separates grammar from infrastructure.
+
+#### Dynamic Lexer Architecture
+
+The lexer's entire grammar — token names, regex patterns, and function handlers — lives in a centralized assets module (`src/assets/lexer.py`) as composable constants. The lexer class itself contains no grammar; it loads everything at init time.
+
+The architecture has three layers:
+
+1. **Assets** (`src/assets/lexer.py`) — Grammar as data. Contains:
+   - **Token name constants** — Individual string constants (e.g., `ARTIFACT_IMPORTS_START = 'ARTIFACT_IMPORTS_START'`) that can be composed into different `TOKENS` tuples.
+   - **`TOKENS` tuple** — The ordered master token list, referencing the individual constants.
+   - **Rule handler constants** — Functions (with PLY docstring regex) and regex strings that define lexer behavior. Named without any lexer-specific prefix.
+   - **`RULES` dict** — Maps PLY `t_`-prefixed names to their handler constants. This is the composable unit for dynamic lexer configuration.
+
+2. **Import chain** — The assets module reaches the lexer via the Tiferet `a` convention:
+   ```
+   src/assets/__init__.py    →  from . import lexer
+   src/events/settings.py    →  from .. import assets as a
+   src/events/__init__.py    →  re-exports a
+   src/utils/lexer.py        →  from ..events import a  →  a.lexer.TOKENS / a.lexer.RULES
+   ```
+
+3. **Host** (`src/utils/lexer.py`) — The `TiferetLexer.__init__` method iterates `a.lexer.RULES` and dynamically sets each rule on the instance:
+   - **Function rules** are bound via `MethodType(rule, self)` — necessary because PLY calls `func(t)` but the function signature is `(self, t)`, and Python's descriptor protocol does not auto-bind `self` for instance attributes.
+   - **String rules** are set directly as instance attributes.
+   - After loading, `lex.lex(module=self)` builds the PLY lexer, discovering both class attributes (`tokens`, `t_ignore`, `t_error`) and the dynamically loaded rules.
+
+Only PLY infrastructure remains on the class: `tokens` (sourced from `a.lexer.TOKENS`), `t_ignore` (whitespace handling), and `t_error` (unknown character fallback).
+
+This design means new lexer dialects can be assembled by composing different `TOKENS` tuples and `RULES` dicts from the same pool of constants — without subclassing or modifying the lexer class.
 
 ### 4.2 Token Categories
 
@@ -155,7 +185,7 @@ These tokens recognize the structured comment hierarchy that organizes Tiferet s
 | `ARTIFACT_MEMBER`        | `# * <component>`                | Low-level member (attribute, method, init)   |
 | `OBSOLETE`               | `# -- obsolete` or `# --- obsolete` | Marks artifact sections or members as obsolete |
 
-These are defined as **function rules** (not string rules) because PLY gives function rules higher priority. Since artifact comments are specializations of general comments, they must match first.
+These are defined as **function rules** (not string rules) in the assets module because PLY gives function rules higher priority. Since artifact comments are specializations of general comments, they must match first.
 
 #### Domain Idioms (Tiferet-specific)
 This token captures the declarative validation pattern unique to Tiferet's Domain Event programming model:
@@ -176,10 +206,10 @@ This rule is placed **before** the generic `IDENTIFIER` rule to ensure it is mat
 | `RETURN`  | `return`  | Return statement            |
 | `SELF`    | `self`    | Instance self-reference     |
 
-These are resolved **inside** the `t_IDENTIFIER` rule. When PLY matches a generic identifier pattern `[a-zA-Z_][a-zA-Z0-9_]*`, the rule function checks the matched value against the structural keyword list and reassigns the token type accordingly.
+These are resolved **inside** the `IDENTIFIER` rule handler (defined in `src/assets/lexer.py`). When PLY matches a generic identifier pattern `[a-zA-Z_][a-zA-Z0-9_]*`, the rule function checks the matched value against the structural keyword list and reassigns the token type accordingly.
 
 #### Python Keywords
-All remaining Python reserved words (`if`, `else`, `for`, `import`, `from`, `raise`, `try`, `with`, etc.) are classified as `PYTHON_KEYWORD` via a lookup set inside `t_IDENTIFIER`.
+All remaining Python reserved words (`if`, `else`, `for`, `import`, `from`, `raise`, `try`, `with`, etc.) are classified as `PYTHON_KEYWORD` via the `_python_keywords` lookup set inside the `IDENTIFIER` rule handler.
 
 #### Literals
 | Token            | Pattern                     | Meaning                  |
@@ -260,12 +290,13 @@ These metrics let a developer (or a course grader) quickly assess whether a sour
 
 ## 7. File Reference
 
-The following files are included in this `Scanner/` directory as reference copies of the scanner's two central modules:
+The following files are included in this `Scanner/` directory as reference copies of the scanner's central modules:
 
-| File       | Source                                                                                                   | Role                                           |
-|------------|----------------------------------------------------------------------------------------------------------|------------------------------------------------|
-| `scan.py`  | [`src/events/scan.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/events/scan.py) | All four domain events composing the scan pipeline |
-| `lexer.py` | [`src/utils/lexer.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/lexer.py) | PLY-based lexer implementing the `LexerService` interface |
+| File               | Source                                                                                                   | Role                                           |
+|--------------------|----------------------------------------------------------------------------------------------------------|------------------------------------------------|
+| `scan.py`          | [`src/events/scan.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/events/scan.py) | All four domain events composing the scan pipeline |
+| `lexer.py`         | [`src/utils/lexer.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/lexer.py) | Generic PLY lexer host — loads tokens and rules dynamically from assets |
+| `lexer_assets.py`  | [`src/assets/lexer.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/assets/lexer.py) | Token constants, rule handlers (functions/regexes), `TOKENS` tuple, and `RULES` mapping dict |
 
 ### Supporting modules (not copied, located in `src/`):
 
@@ -275,3 +306,9 @@ The following files are included in this `Scanner/` directory as reference copie
 | [`src/utils/output.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/output.py) | `ScanOutputWriter` — writes result payloads to YAML/JSON files       |
 | [`src/interfaces/lexer.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/interfaces/lexer.py) | `LexerService` — abstract interface for tokenization                 |
 | [`config.yml`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/config.yml) | Tiferet YAML configuration wiring the pipeline, errors, CLI, and interfaces |
+
+### Architecture guide:
+
+| File                        | Role                                                                 |
+|-----------------------------|----------------------------------------------------------------------|
+| [`docs/guides/utils/lexer.md`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/docs/guides/utils/lexer.md) | Full guide to the dynamic PLY lexer architecture — assets, import chain, rule composition |
