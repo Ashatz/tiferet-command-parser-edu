@@ -9,7 +9,7 @@
 
 **Co-Author & Original Document Author:** Oz (oz-agent@warp.dev) — Authored this document, including pipeline walkthrough, token category reference, metrics analysis, and file reference section.
 
-**Documentation Revision & Enhancement:** Grok (built by xAI) — Performed full content polishing, structural reorganization, academic tone refinement, terminology alignment (“command” → “event”), table formatting, clarity improvements, and final readiness adjustments for ECE 506 submission.
+**Documentation Revision & Enhancement:** Grok (built by xAI) — Performed full content polishing, structural reorganization, academic tone refinement, terminology alignment, table formatting, clarity improvements, and final readiness adjustments for ECE 506 submission.
 
 ## 1. Purpose
 
@@ -40,8 +40,8 @@ Source File
 └──────────────────────────┘
     │
     ▼
-┌──────────────────┐   → final payload (stdout / file)
-│  EmitScanResult  │
+┌──────────────────┐  final payload (stdout / file)
+│  EmitScanResult  │─────────────────────────────────►
 └──────────────────┘
 ```
 
