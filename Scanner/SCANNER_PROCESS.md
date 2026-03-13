@@ -330,3 +330,28 @@ The following files are included in this `Scanner/` directory as reference copie
 | File                        | Role                                                                 |
 |-----------------------------|----------------------------------------------------------------------|
 | [`docs/guides/utils/lexer.md`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/docs/guides/utils/lexer.md) | Full guide to the dynamic PLY lexer architecture — assets, import chain, rule composition |
+
+## 8. Sample Files
+
+Scanner sample files live in `Scanner/samples/`. Each file is a Tiferet Domain Event source file designed to exercise specific scanner behaviors. Five are well-formed success cases; two are intentional failure cases.
+
+### Passing Samples
+
+These files are valid Tiferet source and should tokenize without `UNKNOWN` tokens (except where structurally expected).
+
+| File | Description |
+|------|-------------|
+| `pass_empty_events.py` | Imports section with no event definitions — baseline success case for import-only scanning. |
+| `pass_single_event.py` | Single `AddError` event with service injection, aggregate factory, multi-line calls, and `@parameters_required` decorator. |
+| `pass_multi_event.py` | Multi-event module with 7 events (`AddError`, `GetError`, `ListErrors`, `RenameError`, `SetErrorMessage`, `RemoveErrorMessage`, `RemoveError`) — exercises the full token vocabulary across varied patterns. |
+| `pass_obsolete_annotation.py` | `RenameError` event with `OBSOLETE` annotations at section and member levels — tests `OBSOLETE` token recognition with `# --` and `# -` prefixes. |
+| `pass_todo_annotation.py` | `GetError` event with `TODO` annotations at section and member levels — tests `TODO` token recognition with `# ++` and `# +` prefixes. |
+
+### Failing Samples
+
+These files contain intentional lexical errors that the scanner should detect via `UNKNOWN` tokens or misclassified token types.
+
+| File | Violation | Expected Behavior |
+|------|-----------|-------------------|
+| `fail_invalid_identifiers.py` | Digit-prefixed class name (`123AddError`), attribute name (`456error_service`), and method name (`789execute`). | Lexer emits `UNKNOWN` for the leading digit sequence; the trailing identifier portion is tokenized separately. |
+| `fail_malformed_annotations.py` | `OBSOLETE` and `TODO` comments missing the required `colon: description` format (`# -- obsolete` instead of `# -- obsolete: ...`). | Lexer emits `LINE_COMMENT` instead of `OBSOLETE`/`TODO` — the annotation pattern does not match without the colon and description. |
