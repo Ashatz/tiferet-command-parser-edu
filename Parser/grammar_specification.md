@@ -201,21 +201,308 @@ Note: Terminals like `CLASS`, `DEF`, `INIT`, `SELF`, `RETURN`, `AT`, `COLON`, `C
 
 ## LR(1) Automaton
 
-*(Phase 2 — to be constructed from the grammar above)*
+The LR(1) automaton is constructed from a **core subset** of the full grammar, capturing the three-tier artifact comment hierarchy. This subset uses 10 production rules and 5 terminals, producing 17 canonical LR(1) states.
+
+### Core Subset Grammar
+
+The following subset extracts the structural skeleton of the full grammar — groups contain sections, sections contain members:
+
+```ebnf
+(0)  S'          --> Module
+(1)  Module      --> GroupList
+(2)  GroupList   --> Group
+(3)  GroupList   --> GroupList Group
+(4)  Group       --> ARTIFACT_START NEWLINE SectionList
+(5)  SectionList --> Section
+(6)  SectionList --> SectionList Section
+(7)  Section     --> ARTIFACT_SECTION NEWLINE MemberList
+(8)  MemberList  --> Member
+(9)  MemberList  --> MemberList Member
+(10) Member      --> ARTIFACT_MEMBER NEWLINE
+```
+
+**Terminals:** `{ ARTIFACT_START, ARTIFACT_SECTION, ARTIFACT_MEMBER, NEWLINE, $ }`
+**Non-terminals:** `{ Module, GroupList, Group, SectionList, Section, MemberList, Member }`
+
+Abbreviations used below: **AS** = ARTIFACT_START, **ASEC** = ARTIFACT_SECTION, **AM** = ARTIFACT_MEMBER, **NL** = NEWLINE.
+
+### FIRST and FOLLOW Sets
+
+```
+FIRST(Module)      = { AS }
+FIRST(GroupList)   = { AS }
+FIRST(Group)       = { AS }
+FIRST(SectionList) = { ASEC }
+FIRST(Section)     = { ASEC }
+FIRST(MemberList)  = { AM }
+FIRST(Member)      = { AM }
+
+FOLLOW(Module)      = { $ }
+FOLLOW(GroupList)   = { $, AS }
+FOLLOW(Group)       = { $, AS }
+FOLLOW(SectionList) = { $, AS, ASEC }
+FOLLOW(Section)     = { $, AS, ASEC }
+FOLLOW(MemberList)  = { $, AS, ASEC, AM }
+FOLLOW(Member)      = { $, AS, ASEC, AM }
+```
+
+### Canonical LR(1) Item Sets
+
+**State I0** — Initial state
+```
+[S' → • Module, $]
+[Module → • GroupList, $]
+[GroupList → • Group, {$, AS}]
+[GroupList → • GroupList Group, {$, AS}]
+[Group → • AS NL SectionList, {$, AS}]
+```
+Transitions: Module → I1, GroupList → I2, Group → I3, AS → I4
+
+**State I1** — Accept
+```
+[S' → Module •, $]
+```
+Action: **accept** on $
+
+**State I2** — GroupList complete or continuing
+```
+[Module → GroupList •, $]
+[GroupList → GroupList • Group, {$, AS}]
+[Group → • AS NL SectionList, {$, AS}]
+```
+Transitions: AS → I4, Group → I14
+
+**State I3** — Single Group reduced
+```
+[GroupList → Group •, {$, AS}]
+```
+Action: reduce (2) on {$, AS}
+
+**State I4** — Shifted ARTIFACT_START
+```
+[Group → AS • NL SectionList, {$, AS}]
+```
+Transitions: NL → I5
+
+**State I5** — Inside Group, expecting SectionList
+```
+[Group → AS NL • SectionList, {$, AS}]
+[SectionList → • Section, {$, AS, ASEC}]
+[SectionList → • SectionList Section, {$, AS, ASEC}]
+[Section → • ASEC NL MemberList, {$, AS, ASEC}]
+```
+Transitions: SectionList → I6, Section → I7, ASEC → I8
+
+**State I6** — SectionList complete or continuing
+```
+[Group → AS NL SectionList •, {$, AS}]
+[SectionList → SectionList • Section, {$, AS, ASEC}]
+[Section → • ASEC NL MemberList, {$, AS, ASEC}]
+```
+Transitions: ASEC → I8, Section → I15
+
+**State I7** — Single Section reduced
+```
+[SectionList → Section •, {$, AS, ASEC}]
+```
+Action: reduce (5) on {$, AS, ASEC}
+
+**State I8** — Shifted ARTIFACT_SECTION
+```
+[Section → ASEC • NL MemberList, {$, AS, ASEC}]
+```
+Transitions: NL → I9
+
+**State I9** — Inside Section, expecting MemberList
+```
+[Section → ASEC NL • MemberList, {$, AS, ASEC}]
+[MemberList → • Member, {$, AS, ASEC, AM}]
+[MemberList → • MemberList Member, {$, AS, ASEC, AM}]
+[Member → • AM NL, {$, AS, ASEC, AM}]
+```
+Transitions: MemberList → I10, Member → I11, AM → I12
+
+**State I10** — MemberList complete or continuing
+```
+[Section → ASEC NL MemberList •, {$, AS, ASEC}]
+[MemberList → MemberList • Member, {$, AS, ASEC, AM}]
+[Member → • AM NL, {$, AS, ASEC, AM}]
+```
+Transitions: AM → I12, Member → I16
+
+**State I11** — Single Member reduced
+```
+[MemberList → Member •, {$, AS, ASEC, AM}]
+```
+Action: reduce (8) on {$, AS, ASEC, AM}
+
+**State I12** — Shifted ARTIFACT_MEMBER
+```
+[Member → AM • NL, {$, AS, ASEC, AM}]
+```
+Transitions: NL → I13
+
+**State I13** — Member complete
+```
+[Member → AM NL •, {$, AS, ASEC, AM}]
+```
+Action: reduce (10) on {$, AS, ASEC, AM}
+
+**State I14** — GroupList extended by Group
+```
+[GroupList → GroupList Group •, {$, AS}]
+```
+Action: reduce (3) on {$, AS}
+
+**State I15** — SectionList extended by Section
+```
+[SectionList → SectionList Section •, {$, AS, ASEC}]
+```
+Action: reduce (6) on {$, AS, ASEC}
+
+**State I16** — MemberList extended by Member
+```
+[MemberList → MemberList Member •, {$, AS, ASEC, AM}]
+```
+Action: reduce (9) on {$, AS, ASEC, AM}
+
+### State Transition Diagram
+
+```
+                    Module        GroupList         Group
+          I0 ──────────► I1    I0 ──────────► I2    I0 ─────► I3
+                (accept)        │                   (r2)
+                                │ AS
+          ┌─────────────────────┼──────────────────────────────┐
+          │                     ▼                              │
+          │                    I4 ──NL──► I5                   │
+          │                                │                   │
+          │               SectionList      │ Section    ASEC   │
+          │              ┌─► I6 ◄──────────┼──► I7    ──► I8   │
+          │              │   │             │   (r5)       │    │
+          │              │   │ ASEC        │              NL   │
+          │              │   ├─────────► I8 ◄─────────────┘    │
+          │              │   │ Section     │                   │
+          │              │   └──► I15      │                   │
+          │              │       (r6)      │                   │
+          │              │                 │                   │
+          │              │         NL      ▼                   │
+          │              │       I8 ────► I9                   │
+          │              │                 │                   │
+          │              │    MemberList   │ Member     AM     │
+          │              │   ┌─► I10 ◄─────┼──► I11   ──► I12  │
+          │              │   │   │         │   (r8)       │    │
+          │              │   │   │ AM      │              NL   │
+          │              │   │   └──► I12 ◄───────────────┘    │
+          │              │   │   │ Member  │                   │
+          │              │   │   └──► I16  │                   │
+          │              │   │       (r9)  │                   │
+          │              │   │             │                   │
+          │              │   │         NL  ▼                   │
+          │              │   │       I12 ─► I13                │
+          │              │   │             (r10)               │
+          │              │                                     │
+          │  Group       │                                     │
+          I2 ─────────► I14                                    │
+          │             (r3)                                   │
+          │ AS                                                 │
+          └────────────────────────────────────────────────────┘
+                              (shared I4)
+```
 
 
 ## LALR Verification
 
 ### Item Sets:
 
-*(Phase 3 — states that can be merged)*
+To merge LR(1) states into LALR states, we look for states with **identical cores** (same items ignoring lookaheads) but **different lookahead sets**.
+
+Examining all 17 states:
+
+| State | Core (dot position) | Lookaheads |
+|-------|---------------------|------------|
+| I0 | S' → • Module; Module → • GroupList; ... | {$}, {$}, {$,AS}, ... |
+| I1 | S' → Module • | {$} |
+| I2 | Module → GroupList •; GroupList → GroupList • Group; ... | {$}, {$,AS}, ... |
+| I3 | GroupList → Group • | {$, AS} |
+| I4 | Group → AS • NL SectionList | {$, AS} |
+| I5 | Group → AS NL • SectionList; ... | {$,AS}, ... |
+| I6 | Group → AS NL SectionList •; ... | {$,AS}, ... |
+| I7 | SectionList → Section • | {$, AS, ASEC} |
+| I8 | Section → ASEC • NL MemberList | {$, AS, ASEC} |
+| I9 | Section → ASEC NL • MemberList; ... | {$,AS,ASEC}, ... |
+| I10 | Section → ASEC NL MemberList •; ... | {$,AS,ASEC}, ... |
+| I11 | MemberList → Member • | {$, AS, ASEC, AM} |
+| I12 | Member → AM • NL | {$, AS, ASEC, AM} |
+| I13 | Member → AM NL • | {$, AS, ASEC, AM} |
+| I14 | GroupList → GroupList Group • | {$, AS} |
+| I15 | SectionList → SectionList Section • | {$, AS, ASEC} |
+| I16 | MemberList → MemberList Member • | {$, AS, ASEC, AM} |
+
+**Result: All 17 states have unique cores.** No two states share the same core with different lookaheads.
+
+This is a consequence of the grammar's clean hierarchical structure — each tier (Group, Section, Member) uses distinct terminal tokens (`ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`), so the parser never reaches the same dot position from different contexts that would produce mergeable states.
+
+**No states can be merged. The LALR automaton is identical to the LR(1) automaton (17 states).**
 
 
 ### Parse Table and Conflict Check
 
-*(Phase 3 — LALR parse table and shift-reduce conflict analysis)*
+**Action Table** (shift `sN` = shift and go to state N; reduce `rN` = reduce by rule N; `acc` = accept):
+
+```
+State │  AS    ASEC    AM     NL     $
+──────┼──────────────────────────────────
+ I0   │  s4     —      —      —      —
+ I1   │  —      —      —      —     acc
+ I2   │  s4     —      —      —     r1
+ I3   │  r2     —      —      —     r2
+ I4   │  —      —      —     s5      —
+ I5   │  —     s8      —      —      —
+ I6   │  r4    s8      —      —     r4
+ I7   │  r5    r5      —      —     r5
+ I8   │  —      —      —     s9      —
+ I9   │  —      —     s12     —      —
+ I10  │  r7    r7     s12     —     r7
+ I11  │  r8    r8     r8      —     r8
+ I12  │  —      —      —     s13     —
+ I13  │ r10   r10    r10      —    r10
+ I14  │  r3     —      —      —     r3
+ I15  │  r6    r6      —      —     r6
+ I16  │  r9    r9     r9      —     r9
+```
+
+**Goto Table** (state transitions on non-terminals):
+
+```
+State │ Module  GroupList  Group  SectionList  Section  MemberList  Member
+──────┼─────────────────────────────────────────────────────────────────────
+ I0   │   1        2        3         —          —          —         —
+ I2   │   —        —       14         —          —          —         —
+ I5   │   —        —        —         6          7          —         —
+ I6   │   —        —        —         —         15          —         —
+ I9   │   —        —        —         —          —         10        11
+ I10  │   —        —        —         —          —          —        16
+```
+
+(All other Goto entries are blank / error.)
+
+**Conflict Check:**
+
+Every cell in the Action table contains **at most one action**. There are:
+- **No shift-reduce conflicts** — no cell contains both a shift and a reduce.
+- **No reduce-reduce conflicts** — no cell contains two different reduce actions.
+
+The key decisions that could have caused conflicts are cleanly resolved by LR(1) lookaheads:
+- **I2** on `AS`: shift (start new Group) vs. reduce (Module → GroupList). Resolved: shift on `AS`, reduce on `$`.
+- **I6** on `ASEC`: shift (start new Section) vs. reduce (Group complete). Resolved: shift on `ASEC`, reduce on `{$, AS}`.
+- **I10** on `AM`: shift (start new Member) vs. reduce (Section complete). Resolved: shift on `AM`, reduce on `{$, AS, ASEC}`.
+
+This pattern reflects the grammar's design: at each tier boundary, the **next-tier token** triggers a shift (deeper nesting), while **same-tier or parent-tier tokens** trigger a reduce (close the current structure).
+
+**The grammar is LALR(1) with zero conflicts.**
 
 
 ### LALR Automaton
 
-*(Phase 3 — LR(1) automaton after merging states)*
+Since no states were merged (all 17 LR(1) states have unique cores), the **LALR automaton is identical to the LR(1) automaton** shown above. The 17-state diagram and parse table apply without modification.
