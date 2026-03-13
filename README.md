@@ -74,7 +74,7 @@ python compiler.py scan event samples/error_events.py -x add_error,get_error
 
 #### Token Categories
 
-The scanner recognizes the following token families (see [LEXICAL_SPEC.md](./LEXICAL_SPEC.md) for the complete formal specification):
+The scanner recognizes the following token families (see [lexical_spec.md](./docs/guides/lexical_spec.md) for the complete formal specification):
 
 - **Artifact Comments** — `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`, `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `OBSOLETE`, `TODO`
 - **Documentation** — `DOCSTRING`, `LINE_COMMENT`
@@ -180,7 +180,7 @@ src/
 ### Project Documentation
 - **[PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md)** — ECE 506 course context and educational goals
 - **[PROJECT_PROPOSAL.md](./PROJECT_PROPOSAL.md)** — Completed ECE 506 initial project definition template
-- **[LEXICAL_SPEC.md](./LEXICAL_SPEC.md)** — Formal lexical specification for all token types
+- **[lexical_spec.md](./docs/guides/lexical_spec.md)** — Formal lexical specification for all token types
 - **[AGENTS.md](./AGENTS.md)** — AI agent codebase index
 
 **Guides:**
