@@ -286,7 +286,7 @@ def test_perform_lexical_analysis_success(
     mock_lexer_service.tokenize.return_value = [
         {'type': 'CLASS', 'value': 'class', 'line': 1, 'column': 0},
         {'type': 'IDENTIFIER', 'value': 'SampleEvent', 'line': 1, 'column': 6},
-        {'type': 'EXECUTE', 'value': 'execute', 'line': 3, 'column': 8},
+        {'type': 'IDENTIFIER', 'value': 'execute', 'line': 3, 'column': 8},
     ]
 
     # Execute via DomainEvent.handle with injected dependency.
@@ -302,7 +302,8 @@ def test_perform_lexical_analysis_success(
     assert 'metrics' in result
     assert result['token_count'] == 3
     assert result['metrics']['commands_detected'] == 1
-    assert result['metrics']['execute_methods_found'] == 1
+    assert result['metrics']['indent_count'] == 0
+    assert result['metrics']['dedent_count'] == 0
 
     # Verify the lexer service was called.
     mock_lexer_service.tokenize.assert_called_once_with(sample_text_blocks[0]['text'])

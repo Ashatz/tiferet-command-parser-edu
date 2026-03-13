@@ -11,7 +11,7 @@ from typing import List, Dict, Any
 # ** app
 from .settings import DomainEvent, a
 from ..interfaces import LexerService
-from ..utils import ArtifactBlockParser, ScanOutputWriter
+from ..utils import ArtifactBlockParser, ScanOutputWriter, IndentInjector
 
 # *** events
 
@@ -175,15 +175,18 @@ class PerformLexicalAnalysis(DomainEvent):
             block_tokens = self.lexer_service.tokenize(block['text'])
             all_tokens.extend(block_tokens)
 
-        # Count token types for metrics computation.
+        # Inject INDENT/DEDENT tokens within method and init bodies.
+        all_tokens = IndentInjector.inject(all_tokens)
+
+        # Count token types for metrics computation (post-injection).
         type_counts = Counter(t['type'] for t in all_tokens)
 
         # Compute domain metrics from token type counts.
         metrics = {
             'commands_detected': type_counts.get('CLASS', 0),
-            'execute_methods_found': type_counts.get('EXECUTE', 0),
-            'parameters_required_decorators': type_counts.get('PARAMETERS_REQUIRED', 0),
             'docstrings_found': type_counts.get('DOCSTRING', 0),
+            'indent_count': type_counts.get('INDENT', 0),
+            'dedent_count': type_counts.get('DEDENT', 0),
             'top_token_types': dict(type_counts.most_common(10)),
         }
 
