@@ -709,6 +709,7 @@ These files conform to the grammar and should be accepted without errors.
 | `pass_multi_member_event.py` | Event class with attribute, init, and decorated method. Exercises AttrDecl, MethodDef with INIT, Decorator, ParamTail, RetAnnot, multi-line Enclosed calls, and multiple Snippets. |
 | `pass_standalone_function.py` | FuncDef at the section level (no class, no SELF). Exercises the FuncDef / ParamBody productions and compound Stmt (if-block with INDENT/DEDENT). |
 | `pass_annotated_event.py` | OBSOLETE annotation on a section header, TODO annotation on a member header. Exercises the Annots / Annot productions at both tiers. |
+| `pass_multi_section_event.py` | Two event sections (`get_error`, `list_errors`) each with attribute, init, and method members. Exercises SectionList and MemberList repetition (rules 8, 29) across multiple classes within a single group. |
 
 ### Failing Samples
 
