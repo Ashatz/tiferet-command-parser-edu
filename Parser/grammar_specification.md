@@ -24,10 +24,155 @@ V = { Module, GroupList, Group, GroupHeader,
 ```
 
 **36 non-terminals** organized into four layers:
-- **Tier 1 (Module/Groups):** Module, GroupList, Group, GroupHeader
-- **Tier 2 (Sections):** SectionList, Section, SectionHeader, Annots, Annot, SectionBody, ImportBlock, ImportStmt
-- **Tier 3 (Members):** MemberList, Member, MemberBody, AttrDecl, MethodDef, MethodName, Decorator, FuncDef
-- **Body/Snippet/Token:** Body, SnippetList, Snippet, StmtList, Stmt, TokenSeq, TokenItem, Enclosed, Inner, InnerItem, Token
+
+| Non-terminal | Layer | Description |
+|---|---|---|
+| Module | Tier 1 | Root of the parse tree; represents an entire source file. |
+| GroupList | Tier 1 | One or more top-level artifact groups. |
+| Group | Tier 1 | A single `# ***` artifact group with its header and child sections. |
+| GroupHeader | Tier 1 | The opening marker of a group (`ARTIFACT_IMPORTS_START` or `ARTIFACT_START`). |
+| SectionList | Tier 2 | One or more artifact sections within a group. |
+| Section | Tier 2 | A single `# **` artifact section with optional annotations, header, and body. |
+| SectionHeader | Tier 2 | The opening marker of a section (`ARTIFACT_SECTION` or `ARTIFACT_IMPORT_GROUP`). |
+| Annots | Tier 2 | One or more annotation prefixes (`OBSOLETE`/`TODO`) attached to a section or member. |
+| Annot | Tier 2 | A single annotation marker — either `OBSOLETE` or `TODO`. |
+| SectionBody | Tier 2 | The content of a section: a class definition, function definition, or import block. |
+| ImportBlock | Tier 2 | One or more import statements within an import-group section. |
+| ImportStmt | Tier 2 | A single `import` or `from … import` statement. |
+| ClassDef | Tier 3 | A class definition with inheritance list, optional docstring, and member list. |
+| ClassBody | Tier 3 | The interior of a class: optional docstring followed by artifact members. |
+| NameList | Tier 3 | Comma-separated identifier list (used for base class names in inheritance). |
+| MemberList | Tier 3 | One or more `# *` artifact members within a class body. |
+| Member | Tier 3 | A single artifact member with optional annotations and its body. |
+| MemberBody | Tier 3 | The content of a member: an attribute declaration or a method definition. |
+| AttrDecl | Tier 3 | A typed attribute declaration (`name : type_annotation`). |
+| MethodDef | Tier 3 | A method definition inside a class; parameter list must begin with `SELF`. |
+| MethodName | Tier 3 | The name token of a method: an `IDENTIFIER` or the `INIT` keyword. |
+| ParamTail | Tier 3 | Optional additional parameters after `SELF` in a method signature. |
+| RetAnnot | Tier 3 | Optional return-type annotation (`-> type`). |
+| Decorator | Tier 3 | A decorator line (`@` followed by a token sequence). |
+| FuncDef | Tier 3 | A standalone function definition at the section level; no `SELF` requirement. |
+| ParamBody | Tier 3 | The full parameter list of a standalone function (may be empty). |
+| Body | Body | The interior of a method or function: optional docstring followed by snippets. |
+| SnippetList | Body | One or more code snippets within a method/function body. |
+| Snippet | Body | A logical code unit: an optional `LINE_COMMENT` header followed by statements. |
+| StmtList | Body | One or more statements within a snippet or compound block. |
+| Stmt | Body | A single statement; optionally followed by an `INDENT`-delimited sub-block. |
+| TokenSeq | Token | A flat sequence of token items — the generic content consumer. |
+| TokenItem | Token | A single element in a token sequence: a plain token or an enclosed bracket group. |
+| Enclosed | Token | A matched bracket group (`()`, `[]`, or `{}`) with arbitrary inner content. |
+| Inner | Token | Zero or more items inside a bracket group, including newlines. |
+| InnerItem | Token | A single element inside brackets: a token item or a `NEWLINE`. |
+| Token | Token | Catch-all for content terminals (identifiers, keywords, operators, literals). |
+
+#### Non-terminal Examples
+
+The following examples are drawn from `Scanner/samples/add_error_event.py` and related sample files. Each group illustrates what the non-terminals match in real Tiferet source code.
+
+**Tier 1 — Module / Groups**
+
+A source file is a **Module** containing a **GroupList** of two **Groups**, each opened by a **GroupHeader**:
+
+```python path=null start=null
+# *** imports          ← GroupHeader (ARTIFACT_IMPORTS_START), begins Group 1
+  ...sections...
+# *** events           ← GroupHeader (ARTIFACT_START), begins Group 2
+  ...sections...
+```
+
+The entire file from the first `# ***` to EOF is the Module.
+
+**Tier 2 — Sections / Imports / Annotations**
+
+Within the `# *** imports` group, each import category is a **Section** opened by a **SectionHeader**. Its **SectionBody** is an **ImportBlock** of one or more **ImportStmts**:
+
+```python path=null start=null
+# ** core              ← SectionHeader (ARTIFACT_IMPORT_GROUP)
+from typing import (   ← ImportStmt: PYTHON_KEYWORD TokenSeq NEWLINE
+    List,              ←   (NEWLINE inside brackets is consumed by Enclosed/Inner)
+    Dict,
+    Any
+)
+
+# ** app               ← SectionHeader (ARTIFACT_IMPORT_GROUP)
+from .settings import DomainEvent, a   ← ImportStmt
+from ..domain import Error             ← ImportStmt
+```
+
+Annotations (**Annots** / **Annot**) prefix a section or member header. From `obsolete_rename_error_event.py`:
+
+```python path=null start=null
+# -- obsolete: superseded by ErrorAggregate.rename()   ← Annot (OBSOLETE NEWLINE)
+# ** event: rename_error                               ← SectionHeader
+```
+
+From `todo_get_error_event.py`:
+
+```python path=null start=null
+# ++ todo: add CacheService injection   ← Annot (TODO NEWLINE)
+# ** event: get_error                    ← SectionHeader
+```
+
+**Tier 3 — Class / Members / Methods**
+
+Inside the `# *** events` group, a **Section** whose body is a **ClassDef**. The **NameList** captures base classes. The **ClassBody** contains a **DOCSTRING** followed by a **MemberList**:
+
+```python path=null start=null
+# ** event: add_error                              ← Section header
+class AddError(DomainEvent):                       ← ClassDef (NameList = [DomainEvent])
+    """Command to add a new Error..."""            ← DOCSTRING (part of ClassBody)
+
+    # * attribute: error_service                   ← Member header (ARTIFACT_MEMBER)
+    error_service: ErrorService                    ← MemberBody → AttrDecl
+
+    # * init                                       ← Member header
+    def __init__(self, error_service: ErrorService):  ← MemberBody → MethodDef
+        ...                                              MethodName = INIT, ParamTail present
+
+    # * method: execute                            ← Member header
+    @DomainEvent.parameters_required(...)          ← Decorator (AT TokenSeq NEWLINE)
+    def execute(self, id: str, ...) -> None:       ← MethodDef with RetAnnot
+        ...                                              MethodName = IDENTIFIER("execute")
+```
+
+Note: **MethodDef** requires `SELF` as the first parameter (rule 35–36). A **FuncDef** (rules 44–45) would appear directly under a section body without a class, and has no `SELF` requirement.
+
+**Body / Snippets**
+
+Inside the `execute` method, the **Body** begins with a **DOCSTRING** followed by a **SnippetList**. Each **Snippet** is an optional **LINE_COMMENT** header and a **StmtList**:
+
+```python path=null start=null
+        """Add a new Error to the app..."""       ← DOCSTRING (part of Body)
+
+        # Check if an error with the same ID already exists.   ← LINE_COMMENT (Snippet header)
+        exists = self.error_service.exists(id)                 ← Stmt (TokenSeq NEWLINE)
+        self.verify(                                           ← Stmt (compound via Enclosed)
+            expression=exists is False,
+            error_code=a.const.ERROR_ALREADY_EXISTS_ID,
+            message=f'An error with ID {id} already exists.',
+            id=id
+        )
+
+        # Create the Error aggregate.              ← LINE_COMMENT (next Snippet header)
+        error_messages = [{'lang': lang, ...}]     ← Stmt
+        new_error = Aggregate.new(                 ← Stmt (multi-line via Enclosed)
+            ErrorAggregate,
+            id=id,
+            name=name,
+            message=error_messages
+        )
+```
+
+**Token Layer**
+
+A single statement like `exists = self.error_service.exists(id)` decomposes into a **TokenSeq** of **TokenItems**:
+
+```
+TokenSeq = IDENTIFIER("exists") EQUALS SELF DOT IDENTIFIER("error_service")
+           DOT IDENTIFIER("exists") Enclosed( LPAREN IDENTIFIER("id") RPAREN )
+```
+
+Each element is a **Token** (catch-all terminal) except the parenthesized call arguments, which form an **Enclosed** group. Inside the brackets, **Inner** permits **NEWLINE** tokens — this is how multi-line calls like `self.verify(\n  expression=...,\n  ...\n)` are consumed without prematurely terminating the **Stmt**.
 
 ### Σ (Terminals):
 
@@ -542,9 +687,37 @@ Parser actions should build a lightweight tree:
 
 ### Acceptance Criteria
 
-1. Parser accepts all 7 sample files (`Scanner/samples/`) without syntax errors
-2. Rejects clearly malformed artifact nesting (e.g., `ARTIFACT_MEMBER` outside a section)
+1. Parser accepts all scanner sample files (`Scanner/samples/`) and all parser pass samples without syntax errors
+2. Parser rejects all parser fail samples with appropriate syntax errors
 3. Correctly distinguishes `MethodDef` (with `SELF`) from `FuncDef` (without)
 4. Identifies code snippets within method bodies — comment-headed statement groups
 5. Handles multi-line parenthesized expressions without premature statement termination
 6. Compound statements (if-blocks) correctly nest via `INDENT`/`DEDENT` within snippet bodies
+
+
+## Sample Files
+
+Parser-specific sample files live in `Parser/samples/`. Each file is a minimal, focused test case for a single grammar scenario.
+
+### Passing Samples
+
+These files conform to the grammar and should be accepted without errors.
+
+| File | Description |
+|---|---|
+| `pass_minimal_event.py` | Simplest valid file: one import group, one event class with a single method. Exercises the core three-tier hierarchy (Group → Section → Member). |
+| `pass_multi_member_event.py` | Event class with attribute, init, and decorated method. Exercises AttrDecl, MethodDef with INIT, Decorator, ParamTail, RetAnnot, multi-line Enclosed calls, and multiple Snippets. |
+| `pass_standalone_function.py` | FuncDef at the section level (no class, no SELF). Exercises the FuncDef / ParamBody productions and compound Stmt (if-block with INDENT/DEDENT). |
+| `pass_annotated_event.py` | OBSOLETE annotation on a section header, TODO annotation on a member header. Exercises the Annots / Annot productions at both tiers. |
+
+### Failing Samples
+
+These files violate the artifact hierarchy and should produce parse errors. Each targets a specific structural rule.
+
+| File | Violation | Expected Error |
+|---|---|---|
+| `fail_import_no_group.py` | `from` statements appear directly under `# *** imports` with no `# **` import group header. | SectionList expects ARTIFACT_SECTION or ARTIFACT_IMPORT_GROUP; receives PYTHON_KEYWORD (`from`). |
+| `fail_bare_function.py` | `def` appears directly under `# *** utils` with no `# **` section header. | SectionList expects ARTIFACT_SECTION; receives DEF. |
+| `fail_class_no_section.py` | `class` appears directly under `# *** events` with no `# **` section header. | SectionList expects ARTIFACT_SECTION; receives CLASS. |
+| `fail_class_bare_attribute.py` | Typed attribute (`error_service: ErrorService`) inside a class with no `# *` member header. | ClassBody / MemberList expects ARTIFACT_MEMBER; receives IDENTIFIER. |
+| `fail_class_bare_method.py` | `def execute(self, ...)` inside a class with no `# *` member header. | ClassBody / MemberList expects ARTIFACT_MEMBER; receives DEF. |
