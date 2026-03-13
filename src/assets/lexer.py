@@ -157,6 +157,12 @@ EQUALS = 'EQUALS'
 # ** constant: newline
 NEWLINE = 'NEWLINE'
 
+# ** constant: indent
+INDENT = 'INDENT'
+
+# ** constant: dedent
+DEDENT = 'DEDENT'
+
 # ** constant: unknown
 UNKNOWN = 'UNKNOWN'
 
@@ -228,6 +234,10 @@ TOKENS = (
     # Layout
     NEWLINE,
     UNKNOWN,
+
+    # Indentation
+    INDENT,
+    DEDENT,
 )
 
 # ** constant: _python_keywords
