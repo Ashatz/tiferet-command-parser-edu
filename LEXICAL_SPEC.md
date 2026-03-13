@@ -26,7 +26,8 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - ARTIFACT_START         `# *** …`     (major sections: imports, events, etc.)
 - ARTIFACT_SECTION       `# ** …`      (subsections: event names, import groups)
 - ARTIFACT_MEMBER        `# * …`       (members: method: execute, attribute: xxx_service)
-- OBSOLETE               `# -- obsolete` or `# --- obsolete`  (marks artifact sections/members as obsolete)
+- OBSOLETE               `# - obsolete: …` or `# -- obsolete: …`  (marks artifact members as obsolete; requires colon and description)
+- TODO                   `# + todo: …` or `# ++ todo: …`  (marks artifact members with a pending task; requires colon and description)
 
 ### Documentation & Conventional Comments
 
@@ -38,16 +39,11 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - CLASS                  `class`
 - DEF                    `def`
 - INIT                   `__init__`     (dependency injection point)
-- EXECUTE                `execute`     (the core business method)
 - RETURN                 `return`
 
 ### Self Reference
 
 - SELF                   `self`
-
-### Domain Idioms & Patterns (core semantic carriers)
-
-- PARAMETERS_REQUIRED    `@DomainEvent.parameters_required`  (declarative parameter validation decorator)
 
 ### Generic Python Structural Tokens
 
@@ -97,6 +93,10 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 
 - NEWLINE                `\n`
 - UNKNOWN                Any unmatched character or sequence (for error reporting)
+- INDENT                 Synthetic token injected before the first deeper line in a method body
+- DEDENT                 Synthetic token injected when indentation returns to a shallower level or the body ends
+
+`INDENT` and `DEDENT` are not emitted by the PLY lexer; they are injected into the token stream by `IndentInjector` after tokenization.
 
 
 ## Formal Specification
@@ -110,7 +110,8 @@ ARTIFACT_IMPORT_GROUP   #\s*\*{2}\s+(core|app|infra)\b.*
 ARTIFACT_START          #\s*\*{3}\s+.*
 ARTIFACT_SECTION        #\s*\*{2}\s+.*
 ARTIFACT_MEMBER         #\s*\*\s+.*
-OBSOLETE                #\s*-{2,3}\s+obsolete\b.*
+OBSOLETE                #\s*-{1,2}\s+obsolete:[^\n]+
+TODO                    #\s*\+{1,2}\s+todo:[^\n]+
 ```
 
 ### Documentation & Comments
@@ -119,13 +120,12 @@ DOCSTRING               (""".*?""")
 LINE_COMMENT            #.*$                        (not starting with * after #)
 ```
 
-### Structural & Domain Keywords (longest match first)
+### Structural Keywords (longest match first)
 ```
 CLASS                   class
 DEF                     def
 INIT                    __init__
 RETURN                  return
-PARAMETERS_REQUIRED     @DomainEvent\.parameters_required
 SELF                    self
 ```
 
@@ -186,6 +186,12 @@ UNKNOWN                 .
 
 **Ignored characters:** spaces and tabs (`t_ignore = ' \t'`).
 
+### Indentation (synthetic — injected post-tokenization)
+```
+INDENT                  (no PLY rule; injected by IndentInjector before first deeper body line)
+DEDENT                  (no PLY rule; injected by IndentInjector on shallower line or body exit)
+```
+
 **Note:** The lexer uses longest-match-first priority and prefers domain-specific patterns (e.g. PARAMETERS_REQUIRED) over generic IDENTIFIER or PYTHON_KEYWORD.
 
 ### Keyword Resolution Rules
@@ -195,7 +201,6 @@ When the lexer matches an `IDENTIFIER` pattern (`[a-zA-Z_][a-zA-Z0-9_]*`), it ch
 - `class` → `CLASS`
 - `def` → `DEF`
 - `__init__` → `INIT`
-- `execute` → `EXECUTE`
 - `return` → `RETURN`
 - `self` → `SELF`
 - Any Python reserved word (`from`, `import`, `if`, `else`, `for`, `True`, `False`, `None`, `is`, `not`, `in`, `and`, `or`, `as`, `with`, `yield`, etc.) → `PYTHON_KEYWORD`
