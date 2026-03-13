@@ -98,14 +98,15 @@ This is the **core analytical stage**. It is the only event in the pipeline that
 **What happens:**
 
 1. **Tokenization loop** — For each validated block, the event calls `self.lexer_service.tokenize(block['text'])`. The lexer returns a list of token dicts. All tokens from all blocks are accumulated into a single flat list (`all_tokens`).
-2. **Metrics computation** — A `Counter` tallies every token's `type` field. From these counts, the event derives domain-meaningful metrics:
+2. **Indent injection** — After all blocks are tokenized, `IndentInjector.inject(all_tokens)` (`src/utils/indent.py`) performs a second pass over the flat stream. It enters body mode on any `ARTIFACT_MEMBER` whose value matches `# * method:` or `# * init`, tracks parenthesis depth to skip indentation changes inside multi-line function signatures, and manages a column stack to emit `INDENT` before a first deeper line and `DEDENT` when indentation returns to a shallower level or the next structural artifact comment is reached. The enriched stream replaces `all_tokens`.
+3. **Metrics computation** — A `Counter` tallies every token's `type` field (including the injected `INDENT`/`DEDENT` tokens). From these counts, the event derives domain-meaningful metrics:
 
-   - `events_detected` — count of `CLASS` tokens (each class declaration = one event)
-   - `execute_methods_found` — count of `EXECUTE` tokens (entry points)
-   - `parameters_required_decorators` — count of `PARAMETERS_REQUIRED` tokens
+   - `commands_detected` — count of `CLASS` tokens (each class declaration = one event)
    - `docstrings_found` — count of `DOCSTRING` tokens
+   - `indent_count` — count of `INDENT` tokens (method-body indent transitions)
+   - `dedent_count` — count of `DEDENT` tokens (method-body dedent transitions)
    - `top_token_types` — the 10 most frequent token types
-3. **Return** — The event returns a dict with `tokens` (the full token list), `token_count`, and `metrics`.
+4. **Return** — The event returns a dict with `tokens` (the full token list, including injected layout tokens), `token_count`, and `metrics`.
 
 ### 3.4 Stage 4 — EmitScanResult
 
@@ -171,7 +172,7 @@ This design means new lexer dialects can be assembled by composing different `TO
 
 ### 4.2 Token Categories
 
-The lexer defines **49 token types** organized into categories:
+The lexer defines **53 token types** organized into categories:
 
 #### Artifact Comments (Tiferet-specific)
 These tokens recognize the structured comment hierarchy that organizes Tiferet source code:
@@ -183,28 +184,19 @@ These tokens recognize the structured comment hierarchy that organizes Tiferet s
 | `ARTIFACT_START`         | `# *** <section>`                | Any top-level section (events, models, etc.) |
 | `ARTIFACT_SECTION`       | `# ** <category>: <name>`        | Mid-level component header                   |
 | `ARTIFACT_MEMBER`        | `# * <component>`                | Low-level member (attribute, method, init)   |
-| `OBSOLETE`               | `# -- obsolete` or `# --- obsolete` | Marks artifact sections or members as obsolete |
+| `OBSOLETE`               | `# - obsolete: <desc>` or `# -- obsolete: <desc>` | Marks artifact members as obsolete; requires colon and description |
+| `TODO`                   | `# + todo: <desc>` or `# ++ todo: <desc>` | Marks artifact members with a pending task; requires colon and description |
 
 These are defined as **function rules** (not string rules) in the assets module because PLY gives function rules higher priority. Since artifact comments are specializations of general comments, they must match first.
 
-#### Domain Idioms (Tiferet-specific)
-This token captures the declarative validation pattern unique to Tiferet's Domain Event programming model:
-
-| Token                 | Pattern                                | Meaning                                      |
-|-----------------------|----------------------------------------|----------------------------------------------|
-| `PARAMETERS_REQUIRED` | `@DomainEvent.parameters_required`     | Declarative input validation decorator       |
-
-This rule is placed **before** the generic `IDENTIFIER` rule to ensure it is matched preferentially. The trailing `(` is emitted separately as `LPAREN`.
-
 #### Structural Keywords
-| Token     | Pattern   | Meaning                     |
-|-----------|-----------|-----------------------------|
-| `CLASS`   | `class`   | Class declaration           |
-| `DEF`     | `def`     | Function/method declaration |
-| `INIT`    | `__init__`| Constructor                 |
-| `EXECUTE` | `execute` | Domain event entry point    |
-| `RETURN`  | `return`  | Return statement            |
-| `SELF`    | `self`    | Instance self-reference     |
+| Token     | Pattern    | Meaning                     |
+|-----------|------------|---------------------------------|
+| `CLASS`   | `class`    | Class declaration               |
+| `DEF`     | `def`      | Function/method declaration     |
+| `INIT`    | `__init__` | Constructor / injection point   |
+| `RETURN`  | `return`   | Return statement                |
+| `SELF`    | `self`     | Instance self-reference         |
 
 These are resolved **inside** the `IDENTIFIER` rule handler (defined in `src/assets/lexer.py`). When PLY matches a generic identifier pattern `[a-zA-Z_][a-zA-Z0-9_]*`, the rule function checks the matched value against the structural keyword list and reassigns the token type accordingly.
 
@@ -229,10 +221,18 @@ Multi-character operators (`**`, `//`, `==`, `!=`, `<=`, `>=`, `<<`, `>>`) are d
 `(`, `)`, `[`, `]`, `{`, `}`, `,`, `:`, `->`, `.`, `=`
 
 #### Layout and Error Handling
-| Token    | Meaning                                           |
-|----------|---------------------------------------------------|
-| `NEWLINE`| Line breaks (also updates PLY's line counter)     |
-| `UNKNOWN`| Any unrecognized character (via the `t_error` handler) |
+| Token     | Meaning                                                  |
+|-----------|----------------------------------------------------------|
+| `NEWLINE` | Line breaks (also updates PLY's line counter)            |
+| `UNKNOWN` | Any unrecognized character (via the `t_error` handler)   |
+
+#### Indentation (Synthetic)
+These tokens are **not** emitted by the PLY lexer. They are injected into the token stream by `IndentInjector` after tokenization:
+
+| Token    | Meaning                                                         |
+|----------|-----------------------------------------------------------------|
+| `INDENT` | Injected before the first line that is deeper than the method-member column |
+| `DEDENT` | Injected when indentation returns to a shallower level, or when the next structural artifact comment exits the body |
 
 ### 4.3 The `tokenize()` Method
 
@@ -260,6 +260,23 @@ PLY is a well-established tool for compiler coursework because it mirrors the `l
 - **Priority control** — Function rules match before string rules, and among function rules, definition order determines priority. This gives fine-grained control over how overlapping patterns (e.g. `@DomainEvent.parameters_required` vs. a plain `@` `IDENTIFIER` sequence) resolve.
 - **Error recovery** — The `t_error` handler allows the lexer to emit `UNKNOWN` tokens and continue scanning rather than aborting on unrecognized input.
 
+## 4.5 Indent Injection — IndentInjector
+
+**File:** `src/utils/indent.py` (class `IndentInjector`, static method `inject`)
+
+After the PLY lexer produces a flat token stream, `IndentInjector.inject(tokens)` performs a single left-to-right pass to insert `INDENT` and `DEDENT` tokens at method-body boundaries. This is a post-tokenization phase — PLY has no rules for these tokens; they are constructed and inserted directly into the stream.
+
+**Algorithm:**
+1. An `ARTIFACT_MEMBER` token whose value matches `# * method:` or `# * init` opens body mode and records `member_col` (the column of the comment).
+2. Inside body mode, `LPAREN`/`LBRACK`/`LBRACE` increments `paren_depth`; `RPAREN`/`RBRACK`/`RBRACE` decrements it. While `paren_depth > 0`, newlines are passed through unchanged (multi-line function signatures are ignored).
+3. On each `NEWLINE` with `paren_depth == 0`, the injector peeks at the next non-newline token:
+   - If the next token is in the `exits_body` set (`ARTIFACT_MEMBER`, `ARTIFACT_SECTION`, `ARTIFACT_START`, etc.) → flush all pending `DEDENT`s and exit body mode.
+   - If `next_col > member_col` and the column is deeper than the current stack top → push to stack and inject `INDENT`.
+   - If `next_col < stack_top` → pop and inject `DEDENT` for each popped level.
+4. At end-of-stream, any remaining stack entries produce trailing `DEDENT`s.
+
+The enriched stream is then passed to metrics computation and returned as the final `tokens` list.
+
 ## 5. How PerformLexicalAnalysis and TiferetLexer Interact
 
 The connection between the domain event layer and the lexer utility follows the **Dependency Injection** pattern central to Tiferet:
@@ -278,15 +295,15 @@ This separation means:
 
 The metrics produced by `PerformLexicalAnalysis` serve as a **structural fingerprint** of a Tiferet source file:
 
-| Metric                          | Token Source          | What It Reveals                                                                 |
-|---------------------------------|-----------------------|---------------------------------------------------------------------------------|
-| `events_detected`               | `CLASS`               | Number of domain event classes defined                                          |
-| `execute_methods_found`         | `EXECUTE`             | Number of entry-point methods (should match class count)                        |
-| `parameters_required_decorators`| `PARAMETERS_REQUIRED` | Use of declarative input validation                                             |
-| `docstrings_found`              | `DOCSTRING`           | Documentation coverage                                                          |
-| `top_token_types`               | All types             | Overall token distribution (top 10)                                             |
+| Metric              | Token Source | What It Reveals                                                      |
+|---------------------|--------------|----------------------------------------------------------------------|
+| `commands_detected` | `CLASS`      | Number of domain event classes defined                               |
+| `docstrings_found`  | `DOCSTRING`  | Documentation coverage                                               |
+| `indent_count`      | `INDENT`     | Method-body indentation open transitions (structural depth measure)  |
+| `dedent_count`      | `DEDENT`     | Method-body indentation close transitions                            |
+| `top_token_types`   | All types    | Overall token distribution (top 10)                                  |
 
-These metrics let a developer (or a course grader) quickly assess whether a source file follows Tiferet conventions — e.g., every class should have an `execute` method, events using declarative validation should show `PARAMETERS_REQUIRED` decorators, and well-documented code should have docstrings proportional to class count.
+These metrics let a developer (or a course grader) quickly assess structural properties of a source file — e.g., `commands_detected` identifies how many domain event classes are present, `docstrings_found` reflects documentation coverage, and `indent_count`/`dedent_count` quantify the depth and breadth of method-body logic.
 
 ## 7. File Reference
 
@@ -304,6 +321,7 @@ The following files are included in this `Scanner/` directory as reference copie
 |-----------------------------|----------------------------------------------------------------------|
 | [`src/utils/parser.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/parser.py) | `ArtifactBlockParser` — extracts imports and artifact blocks from source lines |
 | [`src/utils/output.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/output.py) | `ScanOutputWriter` — writes result payloads to YAML/JSON files       |
+| [`src/utils/indent.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/utils/indent.py) | `IndentInjector` — post-tokenization INDENT/DEDENT injection for method bodies |
 | [`src/interfaces/lexer.py`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/src/interfaces/lexer.py) | `LexerService` — abstract interface for tokenization                 |
 | [`config.yml`](https://github.com/Ashatz/tiferet-command-parser-edu/blob/ece-506-submission/config.yml) | Tiferet YAML configuration wiring the pipeline, errors, CLI, and interfaces |
 
