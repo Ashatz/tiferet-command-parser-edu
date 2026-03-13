@@ -173,11 +173,11 @@ def test_init_keyword(lexer: TiferetLexer) -> None:
 # ** test: execute_keyword
 def test_execute_keyword(lexer: TiferetLexer) -> None:
     '''
-    Test that execute is recognized as EXECUTE.
+    Test that execute is recognized as IDENTIFIER (not a reserved structural keyword).
     '''
 
     tok = first_token(lexer, 'execute')
-    assert tok['type'] == 'EXECUTE'
+    assert tok['type'] == 'IDENTIFIER'
 
 
 # ** test: return_keyword
@@ -203,20 +203,20 @@ def test_self_reference(lexer: TiferetLexer) -> None:
 # ** test: obsolete_double_dash
 def test_obsolete_double_dash(lexer: TiferetLexer) -> None:
     '''
-    Test that # -- obsolete is recognized as OBSOLETE.
+    Test that # -- obsolete:<description> is recognized as OBSOLETE.
     '''
 
-    tok = first_token(lexer, '# -- obsolete')
+    tok = first_token(lexer, '# -- obsolete: replaced by new method')
     assert tok['type'] == 'OBSOLETE'
 
 
-# ** test: obsolete_triple_dash
-def test_obsolete_triple_dash(lexer: TiferetLexer) -> None:
+# ** test: obsolete_single_dash
+def test_obsolete_single_dash(lexer: TiferetLexer) -> None:
     '''
-    Test that # --- obsolete is recognized as OBSOLETE.
+    Test that # - obsolete:<description> is recognized as OBSOLETE.
     '''
 
-    tok = first_token(lexer, '# --- obsolete')
+    tok = first_token(lexer, '# - obsolete: replaced by new method')
     assert tok['type'] == 'OBSOLETE'
 
 
@@ -230,16 +230,24 @@ def test_obsolete_with_trailing_text(lexer: TiferetLexer) -> None:
     assert tok['type'] == 'OBSOLETE'
 
 
-# ** test: parameters_required
-def test_parameters_required(lexer: TiferetLexer) -> None:
+# ** test: todo_single_plus
+def test_todo_single_plus(lexer: TiferetLexer) -> None:
     '''
-    Test that @DomainEvent.parameters_required is recognized as PARAMETERS_REQUIRED.
-    The trailing ( is emitted separately as LPAREN.
+    Test that # + todo:<description> is recognized as TODO.
     '''
 
-    tokens = lexer.tokenize('@DomainEvent.parameters_required(')
-    assert tokens[0]['type'] == 'PARAMETERS_REQUIRED'
-    assert tokens[1]['type'] == 'LPAREN'
+    tok = first_token(lexer, '# + todo: add caching support')
+    assert tok['type'] == 'TODO'
+
+
+# ** test: todo_double_plus
+def test_todo_double_plus(lexer: TiferetLexer) -> None:
+    '''
+    Test that # ++ todo:<description> is recognized as TODO.
+    '''
+
+    tok = first_token(lexer, '# ++ todo: add CacheService injection')
+    assert tok['type'] == 'TODO'
 
 
 # ** test: python_keywords
@@ -484,8 +492,6 @@ class AddError(DomainEvent):
     assert 'ARTIFACT_SECTION' in types
     assert 'CLASS' in types
     assert 'INIT' in types
-    assert 'EXECUTE' in types
-    assert 'PARAMETERS_REQUIRED' in types
     assert 'RETURN' in types
 
 
