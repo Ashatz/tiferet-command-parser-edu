@@ -506,3 +506,45 @@ This pattern reflects the grammar's design: at each tier boundary, the **next-ti
 ### LALR Automaton
 
 Since no states were merged (all 17 LR(1) states have unique cores), the **LALR automaton is identical to the LR(1) automaton** shown above. The 17-state diagram and parse table apply without modification.
+
+
+## Implementation Notes
+
+Practical guidance for translating this grammar into a PLY `yacc` parser.
+
+### PLY Adaptation
+
+- **Empty list productions** — PLY idiom uses `GroupList → ε | GroupList Group` rather than the formal grammar's non-empty `GroupList → Group | GroupList Group`. Convert all list non-terminals (`GroupList`, `SectionList`, `MemberList`, `SnippetList`, `StmtList`) to use empty base cases for cleaner PLY rule functions.
+- **Token catch-all** — Rule 69 (`Token`) expands to 36 alternatives. In PLY, implement as a single `p_token` function matching a tuple of terminal names.
+- **Enclosed / Inner** — Rules 62–68 handle matched brackets with NEWLINE inside. In PLY, these translate to recursive `p_enclosed` and `p_inner` rules naturally.
+
+### Precedence Declaration
+
+To prevent shift-reduce ambiguity at structural boundaries, declare artifact tokens with `nonassoc` precedence:
+
+```python
+precedence = (
+    ('nonassoc', 'ARTIFACT_START', 'ARTIFACT_SECTION', 'ARTIFACT_MEMBER',
+                 'OBSOLETE', 'TODO', 'DEDENT'),
+)
+```
+
+This ensures the parser prefers shifting on structural tokens over reducing generic content, preventing false reductions in `TokenSeq`, `Payload`, and `LineContent` contexts.
+
+### Semantic Value Structure
+
+Parser actions should build a lightweight tree:
+- `{ "type": "Module", "groups": [...] }`
+- `{ "type": "Group", "header": "...", "sections": [...] }`
+- `{ "type": "Section", "header": "...", "annotations": [...], "members": [...] }`
+- `{ "type": "Member", "kind": "attribute" | "method" | "init", "annotations": [...], "body": {...} }`
+- `{ "type": "Snippet", "comment": "..." | None, "statements": [...] }`
+
+### Acceptance Criteria
+
+1. Parser accepts all 7 sample files (`Scanner/samples/`) without syntax errors
+2. Rejects clearly malformed artifact nesting (e.g., `ARTIFACT_MEMBER` outside a section)
+3. Correctly distinguishes `MethodDef` (with `SELF`) from `FuncDef` (without)
+4. Identifies code snippets within method bodies — comment-headed statement groups
+5. Handles multi-line parenthesized expressions without premature statement termination
+6. Compound statements (if-blocks) correctly nest via `INDENT`/`DEDENT` within snippet bodies
