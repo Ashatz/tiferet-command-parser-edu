@@ -1,4 +1,4 @@
-"""Tiferet Invalid Class Name Sample — digit-prefixed event identifier"""
+"""Tiferet Invalid Identifier Names Sample — digit-prefixed class, attribute, and method names"""
 
 # *** imports
 
@@ -34,15 +34,12 @@ class 123AddError(DomainEvent):
         self.error_service = error_service
 
     # * method: execute
-    @DomainEvent.parameters_required(['id', 'name'])
-    def execute(self, id: str, name: str, **kwargs) -> None:
+    def execute(self, id: str, **kwargs) -> None:
         '''
         Attempt to add an error.
 
         :param id: The error identifier.
         :type id: str
-        :param name: The error name.
-        :type name: str
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
         '''
@@ -55,4 +52,41 @@ class 123AddError(DomainEvent):
         )
 
         # Save the error.
-        self.error_service.save(id=id, name=name)
+        self.error_service.save(id=id)
+
+
+# ** event: bad_members
+class BadMembers(DomainEvent):
+    '''
+    An event with intentionally malformed attribute and method names.
+    The lexer should emit UNKNOWN tokens for digit-prefixed members.
+    '''
+
+    # * attribute: 456error_service
+    456error_service: ErrorService
+
+    # * init
+    def __init__(self, error_service: ErrorService):
+        '''
+        Initialize the event.
+
+        :param error_service: The error service.
+        :type error_service: ErrorService
+        '''
+
+        # Set the attribute with a digit-prefixed name.
+        self.456error_service = error_service
+
+    # * method: 789execute
+    def 789execute(self, id: str, **kwargs) -> None:
+        '''
+        A method with a digit-prefixed name.
+
+        :param id: The identifier.
+        :type id: str
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: dict
+        '''
+
+        # Attempt to use the malformed attribute.
+        self.456error_service.exists(id)
