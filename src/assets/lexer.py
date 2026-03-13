@@ -25,14 +25,14 @@ ARTIFACT_MEMBER = 'ARTIFACT_MEMBER'
 # ** constant: obsolete
 OBSOLETE = 'OBSOLETE'
 
+# ** constant: todo
+TODO = 'TODO'
+
 # ** constant: docstring
 DOCSTRING = 'DOCSTRING'
 
 # ** constant: line_comment
 LINE_COMMENT = 'LINE_COMMENT'
-
-# ** constant: parameters_required
-PARAMETERS_REQUIRED = 'PARAMETERS_REQUIRED'
 
 # ** constant: class
 CLASS = 'CLASS'
@@ -42,9 +42,6 @@ DEF = 'DEF'
 
 # ** constant: init
 INIT = 'INIT'
-
-# ** constant: execute
-EXECUTE = 'EXECUTE'
 
 # ** constant: return
 RETURN = 'RETURN'
@@ -172,19 +169,16 @@ TOKENS = (
     ARTIFACT_SECTION,
     ARTIFACT_MEMBER,
     OBSOLETE,
+    TODO,
 
     # Documentation & comments
     DOCSTRING,
     LINE_COMMENT,
 
-    # Domain idioms
-    PARAMETERS_REQUIRED,
-
     # Structural keywords
     CLASS,
     DEF,
     INIT,
-    EXECUTE,
     RETURN,
 
     # Self reference
@@ -272,7 +266,12 @@ def ARTIFACT_MEMBER(self, t):
 
 # ** constant: obsolete
 def OBSOLETE(self, t):
-    r'\#\s*-{2,3}\s+obsolete\b.*'
+    r'\#\s*-{1,2}\s+obsolete:[^\n]+'
+    return t
+
+# ** constant: todo
+def TODO(self, t):
+    r'\#\s*\+{1,2}\s+todo:[^\n]+'
     return t
 
 # ** constant: docstring
@@ -284,11 +283,6 @@ def DOCSTRING(self, t):
 # ** constant: line_comment
 def LINE_COMMENT(self, t):
     r'\#[^*\n].*'
-    return t
-
-# ** constant: parameters_required
-def PARAMETERS_REQUIRED(self, t):
-    r'@DomainEvent\.parameters_required'
     return t
 
 # ** constant: string_literal
@@ -322,8 +316,6 @@ def IDENTIFIER(self, t):
         t.type = 'DEF'
     elif t.value == '__init__':
         t.type = 'INIT'
-    elif t.value == 'execute':
-        t.type = 'EXECUTE'
     elif t.value == 'return':
         t.type = 'RETURN'
     elif t.value == 'self':
@@ -437,9 +429,9 @@ RULES = {
     't_ARTIFACT_SECTION': ARTIFACT_SECTION,
     't_ARTIFACT_MEMBER': ARTIFACT_MEMBER,
     't_OBSOLETE': OBSOLETE,
+    't_TODO': TODO,
     't_DOCSTRING': DOCSTRING,
     't_LINE_COMMENT': LINE_COMMENT,
-    't_PARAMETERS_REQUIRED': PARAMETERS_REQUIRED,
     't_STRING_LITERAL': STRING_LITERAL,
     't_ARROW': ARROW,
     't_NUMBER_LITERAL': NUMBER_LITERAL,
