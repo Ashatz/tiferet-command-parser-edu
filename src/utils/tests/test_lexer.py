@@ -173,11 +173,11 @@ def test_init_keyword(lexer: TiferetLexer) -> None:
 # ** test: execute_keyword
 def test_execute_keyword(lexer: TiferetLexer) -> None:
     '''
-    Test that execute is recognized as EXECUTE.
+    Test that execute is recognized as IDENTIFIER (not a reserved structural keyword).
     '''
 
     tok = first_token(lexer, 'execute')
-    assert tok['type'] == 'EXECUTE'
+    assert tok['type'] == 'IDENTIFIER'
 
 
 # ** test: return_keyword
@@ -198,56 +198,6 @@ def test_self_reference(lexer: TiferetLexer) -> None:
 
     tok = first_token(lexer, 'self')
     assert tok['type'] == 'SELF'
-
-
-# ** test: parameters_required
-def test_parameters_required(lexer: TiferetLexer) -> None:
-    '''
-    Test that @DomainEvent.parameters_required( is recognized as PARAMETERS_REQUIRED.
-    '''
-
-    tok = first_token(lexer, '@DomainEvent.parameters_required(')
-    assert tok['type'] == 'PARAMETERS_REQUIRED'
-
-
-# ** test: verify_call
-def test_verify_call(lexer: TiferetLexer) -> None:
-    '''
-    Test that self.verify( is recognized as VERIFY.
-    '''
-
-    tok = first_token(lexer, 'self.verify(')
-    assert tok['type'] == 'VERIFY'
-
-
-# ** test: service_call
-def test_service_call(lexer: TiferetLexer) -> None:
-    '''
-    Test that self.error_service.save( is recognized as SERVICE_CALL.
-    '''
-
-    tok = first_token(lexer, 'self.error_service.save(')
-    assert tok['type'] == 'SERVICE_CALL'
-
-
-# ** test: factory_call
-def test_factory_call(lexer: TiferetLexer) -> None:
-    '''
-    Test that Error.new( is recognized as FACTORY_CALL.
-    '''
-
-    tok = first_token(lexer, 'Error.new(')
-    assert tok['type'] == 'FACTORY_CALL'
-
-
-# ** test: const_ref
-def test_const_ref(lexer: TiferetLexer) -> None:
-    '''
-    Test that a.const.ERROR_ALREADY_EXISTS_ID is recognized as CONST_REF.
-    '''
-
-    tok = first_token(lexer, 'a.const.ERROR_ALREADY_EXISTS_ID')
-    assert tok['type'] == 'CONST_REF'
 
 
 # ** test: python_keywords
@@ -364,7 +314,7 @@ def test_unknown_token(lexer: TiferetLexer) -> None:
     Test that unrecognized characters produce UNKNOWN tokens.
     '''
 
-    tok = first_token(lexer, '@')
+    tok = first_token(lexer, '$')
     assert tok['type'] == 'UNKNOWN'
 
 
@@ -374,7 +324,7 @@ def test_unknown_tokens_various(lexer: TiferetLexer) -> None:
     Test that various unrecognized characters produce UNKNOWN tokens.
     '''
 
-    for char in ['@', '$', '`', '~', '!', '%', '^', '&']:
+    for char in ['$', '`']:
         tok = first_token(lexer, char)
         assert tok['type'] == 'UNKNOWN', f'{char!r} should be UNKNOWN, got {tok["type"]}'
 
@@ -433,13 +383,69 @@ class AddError(DomainEvent):
     assert 'ARTIFACT_SECTION' in types
     assert 'CLASS' in types
     assert 'INIT' in types
-    assert 'EXECUTE' in types
-    assert 'PARAMETERS_REQUIRED' in types
-    assert 'VERIFY' in types
-    assert 'SERVICE_CALL' in types
-    assert 'FACTORY_CALL' in types
-    assert 'CONST_REF' in types
     assert 'RETURN' in types
+
+
+# ** test: invalid_class_name_digit_prefix
+def test_invalid_class_name_digit_prefix(lexer: TiferetLexer) -> None:
+    '''
+    Test that a class with a digit-prefixed name (e.g. 123AddError)
+    is emitted as CLASS UNKNOWN LPAREN rather than splitting the
+    invalid identifier into separate tokens.
+    '''
+
+    # Tokenize a class declaration with an invalid identifier.
+    tokens = lexer.tokenize('class 123AddError(DomainEvent):')
+    types = [t['type'] for t in tokens]
+    values = [t['value'] for t in tokens]
+
+    # Assert the token sequence: CLASS UNKNOWN LPAREN IDENTIFIER RPAREN COLON.
+    assert types[0] == 'CLASS'
+    assert types[1] == 'UNKNOWN'
+    assert values[1] == '123AddError'
+    assert types[2] == 'LPAREN'
+    assert len(types) == 6
+
+
+# ** test: invalid_method_name_digit_prefix
+def test_invalid_method_name_digit_prefix(lexer: TiferetLexer) -> None:
+    '''
+    Test that a method with a digit-prefixed name (e.g. 123execute)
+    is emitted as DEF UNKNOWN LPAREN rather than splitting the
+    invalid name into separate tokens.
+    '''
+
+    # Tokenize a def statement with an invalid method name.
+    tokens = lexer.tokenize('def 123execute(self):')
+    types = [t['type'] for t in tokens]
+    values = [t['value'] for t in tokens]
+
+    # Assert the token sequence: DEF UNKNOWN LPAREN SELF RPAREN COLON.
+    assert types[0] == 'DEF'
+    assert types[1] == 'UNKNOWN'
+    assert values[1] == '123execute'
+    assert types[2] == 'LPAREN'
+
+
+# ** test: invalid_attribute_name_digit_prefix
+def test_invalid_attribute_name_digit_prefix(lexer: TiferetLexer) -> None:
+    '''
+    Test that a digit-prefixed attribute (e.g. self.123service)
+    emits SELF DOT UNKNOWN instead of splitting into
+    SELF DOT NUMBER_LITERAL IDENTIFIER.
+    '''
+
+    # Tokenize an attribute access with an invalid name.
+    tokens = lexer.tokenize('self.123service')
+    types = [t['type'] for t in tokens]
+    values = [t['value'] for t in tokens]
+
+    # Assert the token sequence: SELF DOT UNKNOWN.
+    assert types[0] == 'SELF'
+    assert types[1] == 'DOT'
+    assert types[2] == 'UNKNOWN'
+    assert values[2] == '123service'
+    assert len(types) == 3
 
 
 # ** test: empty_input
