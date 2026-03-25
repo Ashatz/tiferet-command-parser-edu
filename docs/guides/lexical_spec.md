@@ -97,6 +97,13 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - NEWLINE                `\n`
 - UNKNOWN                Any unmatched character or sequence (for error reporting)
 
+### Synthetic Tokens (injected post-tokenization)
+
+These tokens are **not** produced by the PLY lexer. They are injected into the token stream by `IndentInjector` after the PLY pass completes.
+
+- INDENT                 Emitted at the first non-blank line deeper than a `# * method:` or `# * init` member column
+- DEDENT                 Emitted when indentation returns to or above the member column, or when the next artifact comment is encountered
+
 
 ## Formal Specification
 
@@ -185,7 +192,13 @@ NEWLINE                 \n
 UNKNOWN                 .
 ```
 
-**Ignored characters:** spaces and tabs (`t_ignore = ' \t'`).
+### Synthetic Tokens (post-tokenization, not in PLY rules)
+```
+INDENT                  (synthetic) injected by IndentInjector at method-body entry
+DEDENT                  (synthetic) injected by IndentInjector at method-body exit
+```
+
+**Ignored characters:**
 
 **Note:** Multi-character operators (`**`, `//`, `<<`, `>>`, `==`, `!=`, `<=`, `>=`) use longest-match-first priority over their single-character counterparts.
 

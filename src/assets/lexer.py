@@ -160,6 +160,12 @@ NEWLINE = 'NEWLINE'
 # ** constant: unknown
 UNKNOWN = 'UNKNOWN'
 
+# ** constant: indent
+INDENT = 'INDENT'
+
+# ** constant: dedent
+DEDENT = 'DEDENT'
+
 # ** constant: tokens
 TOKENS = (
     # Artifact comments
@@ -228,6 +234,10 @@ TOKENS = (
     # Layout
     NEWLINE,
     UNKNOWN,
+
+    # Indentation (synthetic — injected by IndentInjector, not produced by PLY lexer)
+    INDENT,
+    DEDENT,
 )
 
 # ** constant: _python_keywords
