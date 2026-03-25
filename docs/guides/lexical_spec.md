@@ -12,10 +12,9 @@ The dialect is characterized by:
 - Dependency injection via `__init__`
 - A single `execute` method containing ordered business logic
 - Declarative parameter validation via `@DomainEvent.parameters_required([...])`
-- Ubiquitous use of `self.verify(...)`, `self.*_service.*(...)`, domain object factories `*.new(...)`, and domain constants `a.const.*`
 - Standard Python syntax for function signatures, type annotations, calls, lists, dicts, etc.
 
-The scanner is **not** a complete Python lexer — it recognizes only the tokens necessary to identify domain structure, validation patterns, service interactions, and execution flow for later AST-based extraction.
+The scanner is **not** a complete Python lexer — it recognizes only the tokens necessary to identify domain structure, annotation markers, operators, and execution flow for later AST-based extraction.
 
 
 ## Token Categories/Types
@@ -28,37 +27,56 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - ARTIFACT_SECTION       `# ** …`      (subsections: event names, import groups)
 - ARTIFACT_MEMBER        `# * …`       (members: method: execute, attribute: xxx_service)
 
+### Annotation Markers
+
+- OBSOLETE               `# - obsolete: …` or `# -- obsolete: …`  (marks deprecated artifact members)
+- TODO                   `# + todo: …` or `# ++ todo: …`           (marks in-progress artifact members)
+
 ### Documentation & Conventional Comments
 
 - DOCSTRING              Triple-quoted string literals used as class/method docstrings
-- LINE_COMMENT           Single-line `# …` comments not matching artifact patterns
+- LINE_COMMENT           Single-line `# …` comments not matching artifact or annotation patterns
 
-### Control & Structural Keywords (Tiferet-specific high-value names)
+### Control & Structural Keywords
 
 - CLASS                  `class`
 - DEF                    `def`
 - INIT                   `__init__`     (dependency injection point)
-- EXECUTE                `execute`     (the core business method)
 - RETURN                 `return`
 
 ### Self Reference
 
 - SELF                   `self`
 
-### Domain Idioms & Patterns (core semantic carriers)
-
-- PARAMETERS_REQUIRED    `@DomainEvent.parameters_required(`  (declarative parameter validation decorator)
-- VERIFY                 `self.verify(`
-- SERVICE_CALL           `self.<ident>_service.<ident>(`   (service method invocation)
-- FACTORY_CALL           `<ident>.new(`                    (domain factory invocation)
-- CONST_REF              `a.const.<ident>`
-
 ### Generic Python Structural Tokens
 
 - PYTHON_KEYWORD         Python reserved words: `from`, `import`, `if`, `else`, `for`, `True`, `False`, `None`, `is`, `not`, `in`, `and`, `or`, `as`, `with`, etc.
 - IDENTIFIER             Letter/_ followed by letters/digits/_
 - STRING_LITERAL         `'…'`, `"…"`, `'''…'''`, `"""…"""`
-- NUMBER_LITERAL         Integer, float, or simple scientific notation
+- NUMBER_LITERAL         Integer or float
+
+### Operators
+
+- DOUBLESTAR             `**`
+- PLUS                   `+`
+- MINUS                  `-`
+- STAR                   `*`
+- SLASH                  `/`
+- DOUBLESLASH            `//`
+- PERCENT                `%`
+- PIPE                   `|`
+- AMPERSAND              `&`
+- TILDE                  `~`
+- CARET                  `^`
+- LSHIFT                 `<<`
+- RSHIFT                 `>>`
+- EQEQ                   `==`
+- NOTEQ                  `!=`
+- LTEQ                   `<=`
+- GTEQ                   `>=`
+- LT                     `<`
+- GT                     `>`
+- AT                     `@`
 
 ### Punctuation & Delimiters
 
@@ -93,23 +111,24 @@ ARTIFACT_SECTION        #\s*\*{2}\s+.*
 ARTIFACT_MEMBER         #\s*\*\s+.*
 ```
 
+### Annotation Markers
+```
+OBSOLETE                #\s*-{1,2}\s+obsolete:[^\n]+
+TODO                    #\s*\+{1,2}\s+todo:[^\n]+
+```
+
 ### Documentation & Comments
 ```
 DOCSTRING               (""".*?""")
 LINE_COMMENT            #.*$                        (not starting with * after #)
 ```
 
-### Structural & Domain Keywords (longest match first)
+### Structural Keywords
 ```
 CLASS                   class
 DEF                     def
 INIT                    __init__
 RETURN                  return
-PARAMETERS_REQUIRED     @DomainEvent\.parameters_required\(
-VERIFY                  self\.verify\(
-SERVICE_CALL            self\.[a-zA-Z_][a-zA-Z0-9_]*_service\.[a-zA-Z_][a-zA-Z0-9_]*\(
-FACTORY_CALL            [a-zA-Z_][a-zA-Z0-9_]*\.new\(
-CONST_REF               a\.const\.[A-Z_][A-Z_]*
 SELF                    self
 ```
 
@@ -121,7 +140,31 @@ STRING_LITERAL          ("([^"\\]|\\.)*")|('([^'\\]|\\.)*')|('''.*?''')
 NUMBER_LITERAL          [0-9]+(\.[0-9]+)?
 ```
 
-### Punctuation & Delimiters (single characters / short fixed strings)
+### Operators (longest match first)
+```
+DOUBLESTAR              \*\*
+DOUBLESLASH             //
+LSHIFT                  <<
+RSHIFT                  >>
+EQEQ                    ==
+NOTEQ                   !=
+LTEQ                    <=
+GTEQ                    >=
+PLUS                    \+
+MINUS                   -
+STAR                    \*
+SLASH                   /
+PERCENT                 %
+PIPE                    \|
+AMPERSAND               &
+TILDE                   ~
+CARET                   \^
+LT                      <
+GT                      >
+AT                      @
+```
+
+### Punctuation & Delimiters
 ```
 LPAREN                  \(
 RPAREN                  \)
@@ -144,7 +187,7 @@ UNKNOWN                 .
 
 **Ignored characters:** spaces and tabs (`t_ignore = ' \t'`).
 
-**Note:** The lexer uses longest-match-first priority and prefers domain-specific patterns (PARAMETERS_REQUIRED, SERVICE_CALL, etc.) over generic IDENTIFIER or PYTHON_KEYWORD.
+**Note:** Multi-character operators (`**`, `//`, `<<`, `>>`, `==`, `!=`, `<=`, `>=`) use longest-match-first priority over their single-character counterparts.
 
 ### Keyword Resolution Rules
 
@@ -153,7 +196,6 @@ When the lexer matches an `IDENTIFIER` pattern (`[a-zA-Z_][a-zA-Z0-9_]*`), it ch
 - `class` → `CLASS`
 - `def` → `DEF`
 - `__init__` → `INIT`
-- `execute` → `EXECUTE`
 - `return` → `RETURN`
 - `self` → `SELF`
 - Any Python reserved word (`from`, `import`, `if`, `else`, `for`, `True`, `False`, `None`, `is`, `not`, `in`, `and`, `or`, `as`, `with`, `yield`, etc.) → `PYTHON_KEYWORD`
@@ -182,6 +224,17 @@ from ..mappers import ErrorAggregate
 class AddError(DomainEvent):
 ```
 
+### Annotation Markers
+```python
+# -- obsolete: replaced by ErrorAggregate.new in v0.2.0
+def _build_error(self, id, name):
+    ...
+
+# ++ todo: inject CacheService for result caching
+def execute(self, id: str, **kwargs):
+    ...
+```
+
 ### Class & Method Structure
 ```python
 class AddError(DomainEvent):
@@ -190,26 +243,6 @@ class AddError(DomainEvent):
 
     @DomainEvent.parameters_required(['id', 'name', 'message'])
     def execute(self, id: str, name: str, message: str, **kwargs) -> None:
-```
-
-### Domain Idioms & Validation
-```python
-    @DomainEvent.parameters_required(['id', 'name', 'message'])
-    def execute(self, id: str, name: str, message: str, **kwargs):
-
-        exists = self.error_service.exists(id)
-        self.verify(
-            expression=exists is False,
-            error_code=a.const.ERROR_ALREADY_EXISTS_ID,
-            message=f'An error with ID {id} already exists.'
-        )
-```
-
-### Factory & Return
-```python
-        new_error = Aggregate.new(ErrorAggregate, id=id, name=name, message=error_messages)
-        self.error_service.save(new_error)
-        return new_error
 ```
 
 ### Type Annotations & Collections

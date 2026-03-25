@@ -200,6 +200,56 @@ def test_self_reference(lexer: TiferetLexer) -> None:
     assert tok['type'] == 'SELF'
 
 
+# ** test: obsolete_double_dash
+def test_obsolete_double_dash(lexer: TiferetLexer) -> None:
+    '''
+    Test that # -- obsolete:<description> is recognized as OBSOLETE.
+    '''
+
+    tok = first_token(lexer, '# -- obsolete: replaced by new method')
+    assert tok['type'] == 'OBSOLETE'
+
+
+# ** test: obsolete_single_dash
+def test_obsolete_single_dash(lexer: TiferetLexer) -> None:
+    '''
+    Test that # - obsolete:<description> is recognized as OBSOLETE.
+    '''
+
+    tok = first_token(lexer, '# - obsolete: replaced by new method')
+    assert tok['type'] == 'OBSOLETE'
+
+
+# ** test: obsolete_with_trailing_text
+def test_obsolete_with_trailing_text(lexer: TiferetLexer) -> None:
+    '''
+    Test that # -- obsolete with trailing text is recognized as OBSOLETE.
+    '''
+
+    tok = first_token(lexer, '# -- obsolete: replaced by new_method')
+    assert tok['type'] == 'OBSOLETE'
+
+
+# ** test: todo_single_plus
+def test_todo_single_plus(lexer: TiferetLexer) -> None:
+    '''
+    Test that # + todo:<description> is recognized as TODO.
+    '''
+
+    tok = first_token(lexer, '# + todo: add caching support')
+    assert tok['type'] == 'TODO'
+
+
+# ** test: todo_double_plus
+def test_todo_double_plus(lexer: TiferetLexer) -> None:
+    '''
+    Test that # ++ todo:<description> is recognized as TODO.
+    '''
+
+    tok = first_token(lexer, '# ++ todo: add CacheService injection')
+    assert tok['type'] == 'TODO'
+
+
 # ** test: python_keywords
 def test_python_keywords(lexer: TiferetLexer) -> None:
     '''
@@ -263,6 +313,65 @@ def test_number_literal_float(lexer: TiferetLexer) -> None:
     tok = first_token(lexer, '3.14')
     assert tok['type'] == 'NUMBER_LITERAL'
     assert tok['value'] == '3.14'
+
+
+# ** test: operators_arithmetic
+def test_operators_arithmetic(lexer: TiferetLexer) -> None:
+    '''
+    Test that arithmetic operators are recognized correctly.
+    '''
+
+    cases = {
+        '+': 'PLUS',
+        '-': 'MINUS',
+        '*': 'STAR',
+        '/': 'SLASH',
+        '**': 'DOUBLESTAR',
+        '//': 'DOUBLESLASH',
+        '%': 'PERCENT',
+        '@': 'AT',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
+
+
+# ** test: operators_comparison
+def test_operators_comparison(lexer: TiferetLexer) -> None:
+    '''
+    Test that comparison operators are recognized correctly.
+    '''
+
+    cases = {
+        '==': 'EQEQ',
+        '!=': 'NOTEQ',
+        '<': 'LT',
+        '>': 'GT',
+        '<=': 'LTEQ',
+        '>=': 'GTEQ',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
+
+
+# ** test: operators_bitwise
+def test_operators_bitwise(lexer: TiferetLexer) -> None:
+    '''
+    Test that bitwise operators are recognized correctly.
+    '''
+
+    cases = {
+        '|': 'PIPE',
+        '&': 'AMPERSAND',
+        '~': 'TILDE',
+        '^': 'CARET',
+        '<<': 'LSHIFT',
+        '>>': 'RSHIFT',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
 
 
 # ** test: punctuation
