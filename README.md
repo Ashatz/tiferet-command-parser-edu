@@ -60,10 +60,10 @@ python compiler.py scan event <source_file>
 
 ```bash
 # Full scan with YAML output
-python compiler.py scan event samples/error_events.py -o results.yaml
+python compiler.py scan event samples/add_error_event.py -o results.yaml
 
 # JSON output
-python compiler.py scan event samples/error_events.py -o results.json --format json
+python compiler.py scan event samples/add_error_event.py -o results.json --format json
 
 # Summary with metrics only (no token list)
 python compiler.py scan event samples/error_events.py --summary-only true --with-metrics true
@@ -74,17 +74,38 @@ python compiler.py scan event samples/error_events.py -x add_error,get_error
 
 #### Token Categories
 
-The scanner recognizes the following token families (see [LEXICAL_SPEC.md](./LEXICAL_SPEC.md) for the complete formal specification):
+The scanner recognizes the following token families (see [lexical_spec.md](./docs/guides/lexical_spec.md) for the complete formal specification):
 
-- **Artifact Comments** — `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`
+- **Artifact Comments** — `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`, `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `OBSOLETE`, `TODO`
 - **Documentation** — `DOCSTRING`, `LINE_COMMENT`
-- **Structural Keywords** — `CLASS`, `DEF`, `EXECUTE`, `INIT`, `RETURN`, `SELF`
-- **Domain Idioms** — `PARAMETERS_REQUIRED`, `VERIFY`, `SERVICE_CALL`, `FACTORY_CALL`, `CONST_REF`
+- **Structural Keywords** — `CLASS`, `DEF`, `INIT`, `RETURN`, `SELF`
 - **Generic Python** — `PYTHON_KEYWORD`, `IDENTIFIER`, `STRING_LITERAL`, `NUMBER_LITERAL`
+- **Operators** — `DOUBLESTAR`, `PLUS`, `MINUS`, `STAR`, `SLASH`, `DOUBLESLASH`, `PERCENT`, `PIPE`, `AMPERSAND`, `TILDE`, `CARET`, `LSHIFT`, `RSHIFT`, `EQEQ`, `NOTEQ`, `LTEQ`, `GTEQ`, `LT`, `GT`, `AT`
 - **Punctuation** — `LPAREN`, `RPAREN`, `LBRACK`, `RBRACK`, `LBRACE`, `RBRACE`, `COMMA`, `COLON`, `ARROW`, `DOT`, `EQUALS`
-- **Layout** — `NEWLINE`, `UNKNOWN`
+- **Layout & Indentation** — `NEWLINE`, `UNKNOWN`, `INDENT`, `DEDENT`
 
 Unrecognized characters are emitted as `UNKNOWN` tokens for error reporting.
+
+### Sample Files
+
+The `samples/` directory contains 7 Tiferet Domain Event source files for testing the scanner. Five are well-formed success cases; two are intentional failure cases that demonstrate specific token behaviors.
+
+**Success cases:**
+
+| File | Description |
+|------|-------------|
+| `empty_events.py` | Minimal placeholder events module — baseline success case |
+| `add_error_event.py` | Single `AddError` event — error creation with service injection and aggregate factory |
+| `error_events.py` | Multi-event module — `AddError`, `GetError`, `ListErrors`, `RenameError`, and more |
+| `obsolete_rename_error_event.py` | `RenameError` event with `OBSOLETE`-annotated method — tests `OBSOLETE` token recognition |
+| `todo_get_error_event.py` | `GetError` event with `TODO`-annotated method — tests `TODO` token recognition |
+
+**Failure cases:**
+
+| File | Description |
+|------|-------------|
+| `invalid_identifier_names_event.py` | Digit-prefixed class name and member names — lexer emits `UNKNOWN` tokens |
+| `invalid_annotation_event.py` | `OBSOLETE`/`TODO` comments without required `colon: description` — emitted as `LINE_COMMENT` |
 
 ### Running Tests
 
@@ -94,14 +115,23 @@ The test suite validates every token type, non-matching/unknown tokens, and the 
 # Run all tests
 python -m pytest src/ -v
 
-# Run only lexer tests (37 tests)
+# Run only lexer tests (43 tests)
 python -m pytest src/utils/tests/test_lexer.py -v
+
+# Run only parser utility tests (13 tests)
+python -m pytest src/utils/tests/test_parser.py -v
+
+# Run only output utility tests (11 tests)
+python -m pytest src/utils/tests/test_output.py -v
+
+# Run only indent injector tests (12 tests)
+python -m pytest src/utils/tests/test_indent.py -v
 
 # Run only event tests (17 tests)
 python -m pytest src/events/tests/test_scan.py -v
 ```
 
-**Total: 54 tests** (37 lexer + 17 events)
+**Total: 96 tests** (43 lexer + 13 parser + 11 output + 12 indent + 17 events)
 
 ### Project Structure
 
@@ -109,15 +139,27 @@ python -m pytest src/events/tests/test_scan.py -v
 compiler.py              — Entry point: loads Tiferet CLI app from config.yml
 config.yml               — Tiferet app configuration (attrs, features, errors, cli, interfaces)
 pyproject.toml           — Project metadata, dependencies (tiferet, ply, pyyaml)
+docs/
+  guides/
+    lexical_spec.md      — Formal lexical specification for all 53 token types
 samples/
-  error_events.py        — Sample input: Tiferet error event source file
+  empty_events.py                    — Empty placeholder events module (success case)
+  add_error_event.py                 — Single AddError event with service injection (success case)
+  error_events.py                    — Multi-event module: AddError, GetError, ListErrors, RenameError (success case)
+  obsolete_rename_error_event.py     — RenameError with OBSOLETE-annotated method (success case)
+  todo_get_error_event.py            — GetError with TODO-annotated method (success case)
+  invalid_identifier_names_event.py  — Digit-prefixed class and member names (failure case)
+  invalid_annotation_event.py        — Malformed OBSOLETE/TODO annotations (failure case)
 
 src/
-  __init__.py            — Package exports and version (0.1.0)
+  __init__.py            — Package exports and version (0.2.0)
+  assets/
+    __init__.py          — Assets package exports
+    lexer.py             — Token constants (53 types), rule handlers, RULES mapping dict
   domain/
     __init__.py          — Reserved for future domain objects
   events/
-    settings.py          — Re-exports DomainEvent, TiferetError, a from tiferet.events
+    settings.py          — Re-exports DomainEvent, TiferetError; imports local assets as `a`
     scan.py              — Scanner domain events: ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult
     __init__.py          — Events package exports
     tests/
@@ -126,22 +168,28 @@ src/
     lexer.py             — LexerService abstract interface (extends tiferet Service)
     __init__.py          — Interfaces package exports
   utils/
-    lexer.py             — TiferetLexer: PLY-based lexer implementing LexerService with 35 token types
+    lexer.py             — TiferetLexer: generic PLY host that loads tokens and rules dynamically from assets
+    parser.py            — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
+    output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
+    indent.py            — IndentInjector: post-tokenization INDENT/DEDENT injection for method bodies
     __init__.py          — Utils package exports
     tests/
-      test_lexer.py      — 37 tests for all lexer token rules
+      test_lexer.py      — 43 tests for all lexer token rules
+      test_parser.py     — 13 tests for artifact block parser utility
+      test_output.py     — 11 tests for scan output writer utility
+      test_indent.py     — 12 tests for IndentInjector
 ```
 
 ### Project Documentation
 - **[PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md)** — ECE 506 course context and educational goals
 - **[PROJECT_PROPOSAL.md](./PROJECT_PROPOSAL.md)** — Completed ECE 506 initial project definition template
-- **[LEXICAL_SPEC.md](./LEXICAL_SPEC.md)** — Formal lexical specification for all token types
+- **[lexical_spec.md](./docs/guides/lexical_spec.md)** — Formal lexical specification for all token types
 - **[AGENTS.md](./AGENTS.md)** — AI agent codebase index
 
 ### Development Status
 
-- **Current branch**: `master`
-- **Version**: 0.1.0
+- **Current branch**: `v0.2-release`
+- **Version**: 0.2.0
 - **Focus**: Lexical scanner for the Tiferet Domain Event pattern
 - **License**: MIT (educational reuse encouraged)
 
