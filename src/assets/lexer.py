@@ -22,6 +22,12 @@ ARTIFACT_SECTION = 'ARTIFACT_SECTION'
 # ** constant: artifact_member
 ARTIFACT_MEMBER = 'ARTIFACT_MEMBER'
 
+# ** constant: obsolete
+OBSOLETE = 'OBSOLETE'
+
+# ** constant: todo
+TODO = 'TODO'
+
 # ** constant: docstring
 DOCSTRING = 'DOCSTRING'
 
@@ -54,6 +60,66 @@ STRING_LITERAL = 'STRING_LITERAL'
 
 # ** constant: number_literal
 NUMBER_LITERAL = 'NUMBER_LITERAL'
+
+# ** constant: doublestar
+DOUBLESTAR = 'DOUBLESTAR'
+
+# ** constant: plus
+PLUS = 'PLUS'
+
+# ** constant: minus
+MINUS = 'MINUS'
+
+# ** constant: star
+STAR = 'STAR'
+
+# ** constant: slash
+SLASH = 'SLASH'
+
+# ** constant: doubleslash
+DOUBLESLASH = 'DOUBLESLASH'
+
+# ** constant: percent
+PERCENT = 'PERCENT'
+
+# ** constant: pipe
+PIPE = 'PIPE'
+
+# ** constant: ampersand
+AMPERSAND = 'AMPERSAND'
+
+# ** constant: tilde
+TILDE = 'TILDE'
+
+# ** constant: caret
+CARET = 'CARET'
+
+# ** constant: lshift
+LSHIFT = 'LSHIFT'
+
+# ** constant: rshift
+RSHIFT = 'RSHIFT'
+
+# ** constant: eqeq
+EQEQ = 'EQEQ'
+
+# ** constant: noteq
+NOTEQ = 'NOTEQ'
+
+# ** constant: lteq
+LTEQ = 'LTEQ'
+
+# ** constant: gteq
+GTEQ = 'GTEQ'
+
+# ** constant: lt
+LT = 'LT'
+
+# ** constant: gt
+GT = 'GT'
+
+# ** constant: at
+AT = 'AT'
 
 # ** constant: lparen
 LPAREN = 'LPAREN'
@@ -102,6 +168,8 @@ TOKENS = (
     ARTIFACT_START,
     ARTIFACT_SECTION,
     ARTIFACT_MEMBER,
+    OBSOLETE,
+    TODO,
 
     # Documentation & comments
     DOCSTRING,
@@ -121,6 +189,28 @@ TOKENS = (
     IDENTIFIER,
     STRING_LITERAL,
     NUMBER_LITERAL,
+
+    # Operators
+    DOUBLESTAR,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    DOUBLESLASH,
+    PERCENT,
+    PIPE,
+    AMPERSAND,
+    TILDE,
+    CARET,
+    LSHIFT,
+    RSHIFT,
+    EQEQ,
+    NOTEQ,
+    LTEQ,
+    GTEQ,
+    LT,
+    GT,
+    AT,
 
     # Punctuation & delimiters
     LPAREN,
@@ -174,6 +264,16 @@ def ARTIFACT_MEMBER(self, t):
     r'\#\s*\*\s+.*'
     return t
 
+# ** constant: obsolete
+def OBSOLETE(self, t):
+    r'\#\s*-{1,2}\s+obsolete:[^\n]+'
+    return t
+
+# ** constant: todo
+def TODO(self, t):
+    r'\#\s*\+{1,2}\s+todo:[^\n]+'
+    return t
+
 # ** constant: docstring
 def DOCSTRING(self, t):
     r'(\"\"\"[\s\S]*?\"\"\"|\'\'\'[\s\S]*?\'\'\')'
@@ -225,6 +325,66 @@ def IDENTIFIER(self, t):
 
     return t
 
+# ** constant: doublestar
+DOUBLESTAR = r'\*\*'
+
+# ** constant: doubleslash
+DOUBLESLASH = r'//'
+
+# ** constant: lshift
+LSHIFT = r'<<'
+
+# ** constant: rshift
+RSHIFT = r'>>'
+
+# ** constant: eqeq
+EQEQ = r'=='
+
+# ** constant: noteq
+NOTEQ = r'!='
+
+# ** constant: lteq
+LTEQ = r'<='
+
+# ** constant: gteq
+GTEQ = r'>='
+
+# ** constant: plus
+PLUS = r'\+'
+
+# ** constant: minus
+MINUS = r'-'
+
+# ** constant: star
+STAR = r'\*'
+
+# ** constant: slash
+SLASH = r'/'
+
+# ** constant: percent
+PERCENT = r'%'
+
+# ** constant: pipe
+PIPE = r'\|'
+
+# ** constant: ampersand
+AMPERSAND = r'&'
+
+# ** constant: tilde
+TILDE = r'~'
+
+# ** constant: caret
+CARET = r'\^'
+
+# ** constant: lt
+LT = r'<'
+
+# ** constant: gt
+GT = r'>'
+
+# ** constant: at
+AT = r'@'
+
 # ** constant: lparen
 LPAREN = r'\('
 
@@ -268,12 +428,34 @@ RULES = {
     't_ARTIFACT_START': ARTIFACT_START,
     't_ARTIFACT_SECTION': ARTIFACT_SECTION,
     't_ARTIFACT_MEMBER': ARTIFACT_MEMBER,
+    't_OBSOLETE': OBSOLETE,
+    't_TODO': TODO,
     't_DOCSTRING': DOCSTRING,
     't_LINE_COMMENT': LINE_COMMENT,
     't_STRING_LITERAL': STRING_LITERAL,
     't_ARROW': ARROW,
     't_NUMBER_LITERAL': NUMBER_LITERAL,
     't_IDENTIFIER': IDENTIFIER,
+    't_DOUBLESTAR': DOUBLESTAR,
+    't_DOUBLESLASH': DOUBLESLASH,
+    't_LSHIFT': LSHIFT,
+    't_RSHIFT': RSHIFT,
+    't_EQEQ': EQEQ,
+    't_NOTEQ': NOTEQ,
+    't_LTEQ': LTEQ,
+    't_GTEQ': GTEQ,
+    't_PLUS': PLUS,
+    't_MINUS': MINUS,
+    't_STAR': STAR,
+    't_SLASH': SLASH,
+    't_PERCENT': PERCENT,
+    't_PIPE': PIPE,
+    't_AMPERSAND': AMPERSAND,
+    't_TILDE': TILDE,
+    't_CARET': CARET,
+    't_LT': LT,
+    't_GT': GT,
+    't_AT': AT,
     't_LPAREN': LPAREN,
     't_RPAREN': RPAREN,
     't_LBRACK': LBRACK,
