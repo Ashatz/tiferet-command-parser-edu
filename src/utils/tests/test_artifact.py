@@ -6,7 +6,7 @@
 import pytest
 
 # ** app
-from ..parser import ArtifactBlockParser
+from ..artifact import ArtifactBlockParser
 
 # *** fixtures
 
