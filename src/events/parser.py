@@ -3,11 +3,13 @@
 # *** imports
 
 # ** core
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 # ** app
 from .settings import DomainEvent, a
 from ..interfaces import ParserService
+from ..utils import ScanOutputWriter
 
 # *** events
 
@@ -146,3 +148,85 @@ class SyntacticAnalysisCompleted(DomainEvent):
             'ast': ast,
             'group_count': len(ast.get('groups', [])),
         }
+
+
+# ** event: emit_parse_result
+class EmitParseResult(DomainEvent):
+    '''
+    Final event in the parse.event pipeline.
+    Assembles the result payload with syntactic AST and delegates to output writer.
+    '''
+
+    # * method: execute
+    @DomainEvent.parameters_required(['ast'])
+    def execute(self,
+            ast: Dict[str, Any],
+            source_file: str = None,
+            analysis_result: Dict[str, Any] = None,
+            extract: str = None,
+            summary_only: bool = False,
+            with_metrics: bool = False,
+            output_format: str = 'yaml',
+            output: str = None,
+            **kwargs,
+        ) -> Dict[str, Any]:
+        '''
+        Assemble and emit the parse result payload.
+
+        :param ast: The syntactic AST from PerformSyntacticAnalysis.
+        :type ast: Dict[str, Any]
+        :param source_file: Original source file path.
+        :type source_file: str
+        :param analysis_result: Output from PerformLexicalAnalysis.
+        :type analysis_result: Dict[str, Any]
+        :param extract: Original -x filter string.
+        :type extract: str
+        :param summary_only: If truthy, omit tokens and include metrics.
+        :type summary_only: bool
+        :param with_metrics: If truthy, include metrics alongside tokens.
+        :type with_metrics: bool
+        :param output_format: Output format: yaml, json, or auto.
+        :type output_format: str
+        :param output: File path to write output to.
+        :type output: str
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: dict
+        :return: The assembled parse result payload.
+        :rtype: Dict[str, Any]
+        '''
+
+        # Default analysis if missing.
+        analysis = analysis_result or {
+            'tokens': [],
+            'token_count': 0,
+            'metrics': {},
+        }
+
+        # Build base payload with AST.
+        result = {
+            'event_type': 'ParseCompleted',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'source_file': source_file,
+            'token_count': analysis['token_count'],
+            'ast': ast,
+        }
+
+        # Include extracted artifact names if -x was used.
+        extracted_names = ScanOutputWriter.parse_extract_names(extract)
+        if extracted_names:
+            result['extracted_artifacts'] = extracted_names
+
+        # Include metrics if requested.
+        if with_metrics or summary_only:
+            result['metrics'] = analysis['metrics']
+
+        # Include tokens unless summary-only.
+        if not summary_only:
+            result['tokens'] = analysis['tokens']
+
+        # Write to file if output path specified.
+        if output:
+            ScanOutputWriter.write(result, output, output_format)
+
+        # Return the result payload.
+        return result
