@@ -69,11 +69,6 @@ class IndentInjector:
         paren_depth = 0
         saw_class = False
 
-        # Class body tracking.
-        in_class_body = False
-        class_col = None
-        saw_class = False
-
         i = 0
         while i < len(tokens):
             tok = tokens[i]
@@ -120,13 +115,6 @@ class IndentInjector:
                         'line': tok['line'], 'column': tok['column'],
                     })
                     indent_stack.pop()
-                if in_class_body:
-                    result.append({
-                        'type': 'DEDENT', 'value': '',
-                        'line': tok['line'], 'column': tok['column'],
-                    })
-                    in_class_body = False
-                    class_col = None
                 in_method_body = False
                 member_col = None
                 paren_depth = 0
@@ -158,9 +146,8 @@ class IndentInjector:
                 result.append(tok)
                 i += 1
 
-                # Consume any consecutive newlines.
+                # Consume any consecutive newlines (suppress blank lines).
                 while i < len(tokens) and tokens[i]['type'] == 'NEWLINE':
-                    result.append(tokens[i])
                     i += 1
 
                 if i < len(tokens):
@@ -193,9 +180,8 @@ class IndentInjector:
                 result.append(tok)
                 i += 1
 
-                # Consume any consecutive newlines.
+                # Consume any consecutive newlines (suppress blank lines).
                 while i < len(tokens) and tokens[i]['type'] == 'NEWLINE':
-                    result.append(tokens[i])
                     i += 1
 
                 if i < len(tokens):
@@ -268,6 +254,15 @@ class IndentInjector:
 
         # Close any method body still open at end of stream.
         last_line = tokens[-1]['line'] if tokens else 0
+
+        # Ensure the stream ends with NEWLINE before emitting DEDENTs
+        # so the grammar's stmt : token_seq NEWLINE can always reduce.
+        if (indent_stack or class_indent_stack) and result and result[-1]['type'] != 'NEWLINE':
+            result.append({
+                'type': 'NEWLINE', 'value': '\n',
+                'line': last_line, 'column': 0,
+            })
+
         while indent_stack:
             result.append({
                 'type': 'DEDENT', 'value': '',

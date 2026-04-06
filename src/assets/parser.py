@@ -47,11 +47,13 @@ p_group_header_start = 'group_header : ARTIFACT_START'
 p_section_list = 'section_list : section_list section'
 p_section_list_empty = 'section_list : '
 
-# * rule: section (rules 9–10)
+# * rule: section (rules 9–11)
 # Section --> SectionHeader NEWLINE SectionBody
 # Section --> Annots SectionHeader NEWLINE SectionBody
+# Section --> SectionHeader NEWLINE Annots SectionBody
 p_section = 'section : section_header NEWLINE section_body'
 p_section_annotated = 'section : annots section_header NEWLINE section_body'
+p_section_post_annotated = 'section : section_header NEWLINE annots section_body'
 
 # * rule: section_header (rules 11–12)
 # SectionHeader --> ARTIFACT_SECTION | ARTIFACT_IMPORT_GROUP
@@ -108,11 +110,13 @@ p_name_list_multi = 'name_list : name_list COMMA IDENTIFIER'
 p_member_list = 'member_list : member_list member'
 p_member_list_empty = 'member_list : '
 
-# * rule: member (rules 30–31)
+# * rule: member (rules 30–32)
 # Member --> ARTIFACT_MEMBER NEWLINE MemberBody
 # Member --> Annots ARTIFACT_MEMBER NEWLINE MemberBody
+# Member --> ARTIFACT_MEMBER NEWLINE Annots MemberBody
 p_member = 'member : ARTIFACT_MEMBER NEWLINE member_body'
 p_member_annotated = 'member : annots ARTIFACT_MEMBER NEWLINE member_body'
+p_member_post_annotated = 'member : ARTIFACT_MEMBER NEWLINE annots member_body'
 
 # * rule: member_body (rules 32–33)
 # MemberBody --> AttrDecl | MethodDef
@@ -276,6 +280,7 @@ RULES = {
     'p_section_list_empty': p_section_list_empty,
     'p_section': p_section,
     'p_section_annotated': p_section_annotated,
+    'p_section_post_annotated': p_section_post_annotated,
     'p_section_header_section': p_section_header_section,
     'p_section_header_import': p_section_header_import,
     'p_annots_single': p_annots_single,
@@ -303,6 +308,7 @@ RULES = {
     'p_member_list_empty': p_member_list_empty,
     'p_member': p_member,
     'p_member_annotated': p_member_annotated,
+    'p_member_post_annotated': p_member_post_annotated,
     'p_member_body_attr': p_member_body_attr,
     'p_member_body_method': p_member_body_method,
     'p_attr_decl': p_attr_decl,
