@@ -63,11 +63,18 @@ class ExtractText(DomainEvent):
         # Extract the imports block.
         imports_block = ArtifactBlockParser.extract_imports_block(lines)
 
+        # Extract the group header block (e.g. # *** events).
+        group_header = ArtifactBlockParser.extract_group_header(lines, group_type)
+
         # Extract artifact blocks for the given group type.
         blocks = ArtifactBlockParser.extract_artifact_blocks(lines, group_type)
 
         # Apply extract filter if specified (imports are always included).
         blocks = ArtifactBlockParser.filter_blocks(blocks, extract_ids)
+
+        # Prepend the group header block before artifact sections.
+        if group_header:
+            blocks.insert(0, group_header)
 
         # Prepend the imports block if found.
         if imports_block:

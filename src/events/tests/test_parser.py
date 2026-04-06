@@ -95,7 +95,7 @@ def test_parser_initialized_success(mock_parser_service: ParserService) -> None:
     # Execute the ParserInitialized event.
     result = DomainEvent.handle(
         ParserInitialized,
-        dependencies={'parser': mock_parser_service},
+        dependencies={'parser_service': mock_parser_service},
     )
 
     # Assert the parser service is returned.
@@ -108,11 +108,11 @@ def test_parser_initialized_none_service() -> None:
     Test that a None parser service raises TiferetError.
     '''
 
-    # Attempt with None parser.
+    # Attempt with None parser service.
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             ParserInitialized,
-            dependencies={'parser': None},
+            dependencies={'parser_service': None},
         )
 
 # *** tests — PerformSyntacticAnalysis
@@ -137,11 +137,18 @@ def test_perform_syntactic_analysis_success(
     # Arrange the parser service to return the sample AST.
     mock_parser_service.parse.return_value = sample_ast
 
+    # Build analysis_result as produced by PerformLexicalAnalysis.
+    analysis_result = {
+        'tokens': sample_tokens,
+        'token_count': len(sample_tokens),
+        'metrics': {},
+    }
+
     # Execute via DomainEvent.handle with injected dependency.
     result = DomainEvent.handle(
         PerformSyntacticAnalysis,
-        dependencies={'parser': mock_parser_service},
-        tokens=sample_tokens,
+        dependencies={'parser_service': mock_parser_service},
+        analysis_result=analysis_result,
     )
 
     # Assert the AST structure is correct.
@@ -153,22 +160,22 @@ def test_perform_syntactic_analysis_success(
     mock_parser_service.parse.assert_called_once_with(sample_tokens)
 
 
-# ** test: perform_syntactic_analysis_missing_tokens
-def test_perform_syntactic_analysis_missing_tokens(
+# ** test: perform_syntactic_analysis_missing_analysis_result
+def test_perform_syntactic_analysis_missing_analysis_result(
         mock_parser_service: ParserService,
     ) -> None:
     '''
-    Test that missing tokens parameter raises TiferetError.
+    Test that missing analysis_result parameter raises TiferetError.
 
     :param mock_parser_service: Mocked parser service.
     :type mock_parser_service: ParserService
     '''
 
-    # Attempt without tokens.
+    # Attempt without analysis_result.
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             PerformSyntacticAnalysis,
-            dependencies={'parser': mock_parser_service},
+            dependencies={'parser_service': mock_parser_service},
         )
 
 
@@ -189,12 +196,19 @@ def test_perform_syntactic_analysis_invalid_ast(
     # Arrange the parser to return a non-Module dict.
     mock_parser_service.parse.return_value = {'type': 'InvalidRoot'}
 
+    # Build analysis_result with sample tokens.
+    analysis_result = {
+        'tokens': sample_tokens,
+        'token_count': len(sample_tokens),
+        'metrics': {},
+    }
+
     # Attempt parsing with an invalid AST result.
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             PerformSyntacticAnalysis,
-            dependencies={'parser': mock_parser_service},
-            tokens=sample_tokens,
+            dependencies={'parser_service': mock_parser_service},
+            analysis_result=analysis_result,
         )
 
 
@@ -215,12 +229,19 @@ def test_perform_syntactic_analysis_none_ast(
     # Arrange the parser to return None.
     mock_parser_service.parse.return_value = None
 
+    # Build analysis_result with sample tokens.
+    analysis_result = {
+        'tokens': sample_tokens,
+        'token_count': len(sample_tokens),
+        'metrics': {},
+    }
+
     # Attempt parsing with a None result.
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             PerformSyntacticAnalysis,
-            dependencies={'parser': mock_parser_service},
-            tokens=sample_tokens,
+            dependencies={'parser_service': mock_parser_service},
+            analysis_result=analysis_result,
         )
 
 # *** tests — SyntacticAnalysisCompleted

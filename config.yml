@@ -50,8 +50,6 @@ features:
         - attribute_id: perform_syntactic_analysis_event
           name: Parse token stream into AST
           data_key: ast
-          params:
-            tokens: analysis_result.tokens
         - attribute_id: syntactic_analysis_completed_event
           name: Finalize syntactic analysis result
           data_key: syntactic_result
@@ -76,8 +74,6 @@ features:
         - attribute_id: perform_syntactic_analysis_event
           name: Parse token stream into AST
           data_key: ast
-          params:
-            tokens: analysis_result.tokens
         - attribute_id: emit_parse_result_event
           name: Assemble and emit parse result
 
@@ -147,6 +143,33 @@ cli:
           - name_or_flags:
               - --metrics-format
             description: "Metrics rendering format: yaml, json, or text."
+    parse:
+      event:
+        group_key: parse
+        key: event
+        name: Parse Event Command
+        description: Perform syntactic parsing on a Tiferet event source file.
+        args:
+          - name_or_flags:
+              - source_file
+            description: Path to the Python source file to parse.
+          - name_or_flags:
+              - -o
+              - --output
+            description: Path to output YAML/JSON file.
+          - name_or_flags:
+              - --format
+            description: "Output format: yaml, json, console, or auto."
+          - name_or_flags:
+              - -x
+              - --extract
+            description: Comma-separated artifact names to extract.
+          - name_or_flags:
+              - --summary-only
+            description: Output only metrics/summary (no token list).
+          - name_or_flags:
+              - --with-metrics
+            description: Include detailed lexical metrics section.
 
 interfaces:
   compiler:
