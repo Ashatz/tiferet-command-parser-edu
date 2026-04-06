@@ -181,7 +181,7 @@ def test_parse_extract_names_single() -> None:
 # ** test: parse_extract_names_multiple
 def test_parse_extract_names_multiple() -> None:
     '''
-    Test parsing comma-separated names with whitespace.
+    Test parsing comma-separated names with whitespace preserves order.
     '''
 
     # Parse multiple names.

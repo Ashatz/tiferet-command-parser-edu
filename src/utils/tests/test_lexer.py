@@ -315,6 +315,65 @@ def test_number_literal_float(lexer: TiferetLexer) -> None:
     assert tok['value'] == '3.14'
 
 
+# ** test: operators_arithmetic
+def test_operators_arithmetic(lexer: TiferetLexer) -> None:
+    '''
+    Test that arithmetic operators are recognized correctly.
+    '''
+
+    cases = {
+        '+': 'PLUS',
+        '-': 'MINUS',
+        '*': 'STAR',
+        '/': 'SLASH',
+        '**': 'DOUBLESTAR',
+        '//': 'DOUBLESLASH',
+        '%': 'PERCENT',
+        '@': 'AT',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
+
+
+# ** test: operators_comparison
+def test_operators_comparison(lexer: TiferetLexer) -> None:
+    '''
+    Test that comparison operators are recognized correctly.
+    '''
+
+    cases = {
+        '==': 'EQEQ',
+        '!=': 'NOTEQ',
+        '<': 'LT',
+        '>': 'GT',
+        '<=': 'LTEQ',
+        '>=': 'GTEQ',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
+
+
+# ** test: operators_bitwise
+def test_operators_bitwise(lexer: TiferetLexer) -> None:
+    '''
+    Test that bitwise operators are recognized correctly.
+    '''
+
+    cases = {
+        '|': 'PIPE',
+        '&': 'AMPERSAND',
+        '~': 'TILDE',
+        '^': 'CARET',
+        '<<': 'LSHIFT',
+        '>>': 'RSHIFT',
+    }
+    for char, expected_type in cases.items():
+        tok = first_token(lexer, char)
+        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
+
+
 # ** test: punctuation
 def test_punctuation(lexer: TiferetLexer) -> None:
     '''

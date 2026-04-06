@@ -33,13 +33,13 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-### Scanner Usage
+### Usage
 
-The scanner performs lexical analysis on Python source files written in the Tiferet Domain Event pattern, recognizing domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords.
+The compiler performs lexical scanning and syntactic parsing on Python source files written in the Tiferet Domain Event pattern, recognizing domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords, then building a structured AST reflecting the three-tier artifact hierarchy.
 
 #### CLI Commands
 
-Scan a Tiferet event source file:
+Scan a Tiferet event source file (lexical analysis + syntactic parsing):
 
 ```bash
 python compiler.py scan event <source_file>
@@ -59,7 +59,7 @@ python compiler.py scan event <source_file>
 **Examples:**
 
 ```bash
-# Full scan with YAML output
+# Full scan with YAML output (lexical + syntactic analysis)
 python compiler.py scan event samples/add_error_event.py -o results.yaml
 
 # JSON output
@@ -74,7 +74,7 @@ python compiler.py scan event samples/error_events.py -x add_error,get_error
 
 #### Token Categories
 
-The scanner recognizes the following token families (see [LEXICAL_SPEC.md](./Scanner/LEXICAL_SPEC.md) for the complete formal specification):
+The scanner recognizes the following token families (see [lexical_spec.md](./docs/guides/lexical_spec.md) for the complete formal specification):
 
 - **Artifact Comments** — `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`, `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `OBSOLETE`, `TODO`
 - **Documentation** — `DOCSTRING`, `LINE_COMMENT`
@@ -109,7 +109,7 @@ The `samples/` directory contains 7 Tiferet Domain Event source files for testin
 
 ### Running Tests
 
-The test suite validates every token type, non-matching/unknown tokens, and the full event pipeline.
+The test suite validates every token type, non-matching/unknown tokens, parser grammar rules, and the full event pipeline.
 
 ```bash
 # Run all tests
@@ -118,20 +118,26 @@ python -m pytest src/ -v
 # Run only lexer tests (43 tests)
 python -m pytest src/utils/tests/test_lexer.py -v
 
-# Run only parser utility tests (13 tests)
-python -m pytest src/utils/tests/test_parser.py -v
+# Run only artifact block parser utility tests (13 tests)
+python -m pytest src/utils/tests/test_artifact.py -v
 
 # Run only output utility tests (11 tests)
 python -m pytest src/utils/tests/test_output.py -v
 
-# Run only event tests (17 tests)
-python -m pytest src/events/tests/test_scan.py -v
-
 # Run only indent injector tests (12 tests)
 python -m pytest src/utils/tests/test_indent.py -v
+
+# Run only parser utility tests (16 tests)
+python -m pytest src/utils/tests/test_parser.py -v
+
+# Run only scanner event tests (17 tests)
+python -m pytest src/events/tests/test_scan.py -v
+
+# Run only parser event tests (9 tests)
+python -m pytest src/events/tests/test_parser.py -v
 ```
 
-**Total: 96 tests** (43 lexer + 13 parser + 11 output + 17 events + 12 indent)
+**Total: 121 tests** (43 lexer + 13 artifact + 11 output + 12 indent + 16 parser util + 17 scanner events + 9 parser events)
 
 ### Project Structure
 
@@ -139,6 +145,12 @@ python -m pytest src/utils/tests/test_indent.py -v
 compiler.py              — Entry point: loads Tiferet CLI app from config.yml
 config.yml               — Tiferet app configuration (attrs, features, errors, cli, interfaces)
 pyproject.toml           — Project metadata, dependencies (tiferet, ply, pyyaml)
+docs/
+  guides/
+    lexical_spec.md      — Formal lexical specification for all 53 token types
+    grammar_spec.md      — Context-free grammar specification and LR(1)/LALR verification
+    utils/
+      parser.md          — Parser utility guide (TiferetParser, ParserService, AST structure)
 samples/
   empty_events.py                    — Empty placeholder events module (success case)
   add_error_event.py                 — Single AddError event with service injection (success case)
@@ -149,30 +161,36 @@ samples/
   invalid_annotation_event.py        — Malformed OBSOLETE/TODO annotations (failure case)
 
 src/
-  __init__.py            — Package exports and version (0.1.0)
+  __init__.py            — Package exports and version (0.3.0)
   assets/
-    __init__.py          — Assets package exports (imports lexer module)
-    lexer.py             — Token constants (53 types), rule handlers (functions/regexes), RULES mapping dict
+    __init__.py          — Assets package exports
+    lexer.py             — Token constants (53 types), rule handlers, RULES mapping dict
+    parser.py            — Grammar constants (69 productions), precedence, RULES mapping, AST builders
   domain/
     __init__.py          — Reserved for future domain objects
   events/
     settings.py          — Re-exports DomainEvent, TiferetError; imports local assets as `a`
     scan.py              — Scanner domain events: ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult
-    __init__.py          — Events package exports (DomainEvent, TiferetError, a, all events)
+    parser.py            — Parser domain events: ParserInitialized, PerformSyntacticAnalysis, SyntacticAnalysisCompleted, EmitParseResult
+    __init__.py          — Events package exports
     tests/
       test_scan.py       — 17 tests for all scanner events (DomainEvent.handle pattern)
+      test_parser.py     — 9 tests for parser domain events
   interfaces/
     lexer.py             — LexerService abstract interface (extends tiferet Service)
+    parser.py            — ParserService abstract interface (extends tiferet Service)
     __init__.py          — Interfaces package exports
   utils/
     lexer.py             — TiferetLexer: generic PLY host that loads tokens and rules dynamically from assets
-    parser.py            — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
+    parser.py            — TiferetParser: PLY yacc-based parser with dynamic grammar loading from assets
+    artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
     indent.py            — IndentInjector: post-tokenization INDENT/DEDENT injection for method bodies
     __init__.py          — Utils package exports
     tests/
       test_lexer.py      — 43 tests for all lexer token rules
-      test_parser.py     — 13 tests for artifact block parser utility
+      test_parser.py     — 16 tests for parser grammar rules and AST structure
+      test_artifact.py   — 13 tests for artifact block parser utility
       test_output.py     — 11 tests for scan output writer utility
       test_indent.py     — 12 tests for IndentInjector
 ```
@@ -180,7 +198,9 @@ src/
 ### Project Documentation
 - **[PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md)** — ECE 506 course context and educational goals
 - **[PROJECT_PROPOSAL.md](./PROJECT_PROPOSAL.md)** — Completed ECE 506 initial project definition template
-- **[Scanner/LEXICAL_SPEC.md](./Scanner/LEXICAL_SPEC.md)** — Formal lexical specification for all token types
+- **[lexical_spec.md](./docs/guides/lexical_spec.md)** — Formal lexical specification for all token types
+- **[grammar_spec.md](./docs/guides/grammar_spec.md)** — Context-free grammar specification and LALR verification
+- **[parser.md](./docs/guides/utils/parser.md)** — Parser utility guide (TiferetParser, AST structure)
 - **[AGENTS.md](./AGENTS.md)** — AI agent codebase index
 
 **Guides:**
@@ -188,9 +208,9 @@ src/
 
 ### Development Status
 
-- **Current branch**: `v0.x-proto`
-- **Version**: 0.1.0
-- **Focus**: Lexical scanner for the Tiferet Domain Event pattern
+- **Current branch**: `v0.3-release`
+- **Version**: 0.3.0
+- **Focus**: Lexical scanner and syntactic parser for the Tiferet Domain Event pattern
 - **License**: MIT (educational reuse encouraged)
 
 ### Acknowledgments

@@ -6,9 +6,9 @@
 import re
 from typing import List, Dict, Any, Set, Optional
 
-# *** classes
+# *** utils
 
-# ** class: artifact_block_parser
+# ** util: artifact_block_parser
 class ArtifactBlockParser:
     '''
     Utility for parsing Tiferet artifact blocks from source file lines.

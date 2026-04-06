@@ -5,14 +5,14 @@
 # ** core
 import os
 import json
-from typing import Dict, Any, List, Optional, Set
+from typing import Dict, Any, List, Optional
 
 # ** infra
 import yaml
 
-# *** classes
+# *** utils
 
-# ** class: scan_output_writer
+# ** util: scan_output_writer
 class ScanOutputWriter:
     '''
     Utility for writing scan result payloads to file.

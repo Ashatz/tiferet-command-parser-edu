@@ -157,14 +157,14 @@ EQUALS = 'EQUALS'
 # ** constant: newline
 NEWLINE = 'NEWLINE'
 
+# ** constant: unknown
+UNKNOWN = 'UNKNOWN'
+
 # ** constant: indent
 INDENT = 'INDENT'
 
 # ** constant: dedent
 DEDENT = 'DEDENT'
-
-# ** constant: unknown
-UNKNOWN = 'UNKNOWN'
 
 # ** constant: tokens
 TOKENS = (
@@ -235,7 +235,7 @@ TOKENS = (
     NEWLINE,
     UNKNOWN,
 
-    # Indentation
+    # Indentation (synthetic — injected by IndentInjector, not produced by PLY lexer)
     INDENT,
     DEDENT,
 )

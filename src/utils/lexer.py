@@ -26,6 +26,12 @@ class TiferetLexer(LexerService):
     # * attribute: lexer
     lexer: Any
 
+    # * attribute: tokens
+    tokens = a.lexer.TOKENS
+
+    # * attribute: t_ignore
+    t_ignore = ' \t'
+
     # * init
     def __init__(self):
         '''
@@ -42,13 +48,7 @@ class TiferetLexer(LexerService):
         # Build the PLY lexer from this module's token rules.
         self.lexer = lex.lex(module=self)
 
-    # -- PLY token list (sourced from assets)
-    tokens = a.lexer.TOKENS
-
-    # -- Ignored characters (spaces and tabs)
-    t_ignore = ' \t'
-
-    # * rule: unknown
+    # * rule: t_error
     def t_error(self, t):
         '''
         Handle unrecognized characters by emitting UNKNOWN tokens.

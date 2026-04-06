@@ -140,7 +140,7 @@ def test_init_body_opens() -> None:
     assert result_types.count('INDENT') == 1
     assert result_types.count('DEDENT') == 1
 
-    # Assert INDENT appears before the first body SELF (after the INDENT, not the signature).
+    # Assert INDENT appears before the first body SELF (after the signature).
     indent_idx = result_types.index('INDENT')
     body_self_idx = next(
         i for i, t in enumerate(result)
