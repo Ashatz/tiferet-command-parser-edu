@@ -12,6 +12,8 @@ TOKENS = _lexer.TOKENS
 
 # ** constant: precedence
 precedence = (
+    ('right', 'COLON'),
+    ('right', 'ARROW'),
     ('nonassoc', 'ARTIFACT_START', 'ARTIFACT_SECTION', 'ARTIFACT_MEMBER',
                  'OBSOLETE', 'TODO', 'DEDENT'),
 )
