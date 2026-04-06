@@ -118,8 +118,8 @@ python -m pytest src/ -v
 # Run only lexer tests (43 tests)
 python -m pytest src/utils/tests/test_lexer.py -v
 
-# Run only parser utility tests (13 tests)
-python -m pytest src/utils/tests/test_parser.py -v
+# Run only artifact block parser utility tests (13 tests)
+python -m pytest src/utils/tests/test_artifact.py -v
 
 # Run only output utility tests (11 tests)
 python -m pytest src/utils/tests/test_output.py -v
@@ -131,7 +131,7 @@ python -m pytest src/utils/tests/test_indent.py -v
 python -m pytest src/events/tests/test_scan.py -v
 ```
 
-**Total: 96 tests** (43 lexer + 13 parser + 11 output + 12 indent + 17 events)
+**Total: 96 tests** (43 lexer + 13 artifact + 11 output + 12 indent + 17 events)
 
 ### Project Structure
 
@@ -169,13 +169,13 @@ src/
     __init__.py          — Interfaces package exports
   utils/
     lexer.py             — TiferetLexer: generic PLY host that loads tokens and rules dynamically from assets
-    parser.py            — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
+    artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
     indent.py            — IndentInjector: post-tokenization INDENT/DEDENT injection for method bodies
     __init__.py          — Utils package exports
     tests/
       test_lexer.py      — 43 tests for all lexer token rules
-      test_parser.py     — 13 tests for artifact block parser utility
+      test_artifact.py   — 13 tests for artifact block parser utility
       test_output.py     — 11 tests for scan output writer utility
       test_indent.py     — 12 tests for IndentInjector
 ```

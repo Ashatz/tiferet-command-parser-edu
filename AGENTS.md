@@ -53,13 +53,13 @@ src/
     __init__.py          — Interfaces package exports
   utils/
     lexer.py             — TiferetLexer: generic PLY host that loads tokens and rules dynamically from assets
-    parser.py            — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
+    artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
     indent.py            — IndentInjector: post-tokenization INDENT/DEDENT injection for method bodies
     __init__.py          — Utils package exports
     tests/
       test_lexer.py      — 43 tests for all lexer token rules
-      test_parser.py     — 13 tests for artifact block parser utility
+      test_artifact.py   — 13 tests for artifact block parser utility
       test_output.py     — 11 tests for scan output writer utility
       test_indent.py     — 12 tests for IndentInjector
 ```
@@ -78,7 +78,7 @@ All scanner domain events. Each event follows the Tiferet pattern: `@DomainEvent
 Post-tokenization utility (`IndentInjector`) with a single static method:
 - **`inject(tokens)`** — Injects `INDENT`/`DEDENT` tokens at method-body indentation boundaries. Enters body mode on `ARTIFACT_MEMBER` matching `# * method:` or `# * init`, tracks paren depth to skip multi-line signatures, manages a column stack to handle nested indentation.
 
-### `src/utils/parser.py`
+### `src/utils/artifact.py`
 Artifact block parser (`ArtifactBlockParser`) with static methods:
 - **`parse_extract_filter`** — Converts comma-separated extract string to a set of names.
 - **`extract_imports_block`** — Locates and extracts the `# *** imports` section.
@@ -132,7 +132,7 @@ python compiler.py scan event <source_file> -o output.yaml -x add_error,get_erro
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 96 tests (43 lexer + 13 parser + 11 output + 12 indent + 17 events)
+python -m pytest src/ -v    # 96 tests (43 lexer + 13 artifact + 11 output + 12 indent + 17 events)
 ```
 
 Tests use `DomainEvent.handle` for event invocation and mock `LexerService` for isolation. Utility tests validate parsing and output logic independently of domain events.
