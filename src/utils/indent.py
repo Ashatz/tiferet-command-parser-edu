@@ -146,9 +146,8 @@ class IndentInjector:
                 result.append(tok)
                 i += 1
 
-                # Consume any consecutive newlines.
+                # Suppress any consecutive blank-line newlines.
                 while i < len(tokens) and tokens[i]['type'] == 'NEWLINE':
-                    result.append(tokens[i])
                     i += 1
 
                 if i < len(tokens):
@@ -181,9 +180,8 @@ class IndentInjector:
                 result.append(tok)
                 i += 1
 
-                # Consume any consecutive newlines.
+                # Suppress any consecutive blank-line newlines.
                 while i < len(tokens) and tokens[i]['type'] == 'NEWLINE':
-                    result.append(tokens[i])
                     i += 1
 
                 if i < len(tokens):
@@ -256,6 +254,14 @@ class IndentInjector:
 
         # Close any method body still open at end of stream.
         last_line = tokens[-1]['line'] if tokens else 0
+
+        # Ensure the stream ends with NEWLINE before emitting DEDENTs.
+        if (indent_stack or class_indent_stack) and result and result[-1]['type'] != 'NEWLINE':
+            result.append({
+                'type': 'NEWLINE', 'value': '\n',
+                'line': last_line, 'column': 0,
+            })
+
         while indent_stack:
             result.append({
                 'type': 'DEDENT', 'value': '',

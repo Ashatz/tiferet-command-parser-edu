@@ -239,6 +239,10 @@ def _action_section_annotated(p):
     '''Build Section AST node with annotations: annots header NEWLINE body.'''
     p[0] = a.parser.build_section(p[2], p[4], annotations=p[1])
 
+def _action_section_post_annotated(p):
+    '''Build Section AST node with post-header annotations: header NEWLINE annots body.'''
+    p[0] = a.parser.build_section(p[1], p[4], annotations=p[3])
+
 def _action_section_header(p):
     '''Pass through the section header token value.'''
     p[0] = p[1]
@@ -316,6 +320,11 @@ def _action_member_annotated(p):
     '''Build Member AST node with annotations: annots ARTIFACT_MEMBER NEWLINE member_body.'''
     kind = _parse_member_kind(p[2])
     p[0] = a.parser.build_member(kind, p[4], annotations=p[1])
+
+def _action_member_post_annotated(p):
+    '''Build Member AST node with post-header annotations: ARTIFACT_MEMBER NEWLINE annots body.'''
+    kind = _parse_member_kind(p[1])
+    p[0] = a.parser.build_member(kind, p[4], annotations=p[3])
 
 def _action_member_body(p):
     '''Pass through the member body (AttrDecl or MethodDef).'''
@@ -499,6 +508,7 @@ _SEMANTIC_ACTIONS = {
     'p_section_list_empty': _empty_list,
     'p_section': _action_section,
     'p_section_annotated': _action_section_annotated,
+    'p_section_post_annotated': _action_section_post_annotated,
     'p_section_header_section': _action_section_header,
     'p_section_header_import': _action_section_header,
     'p_annots_single': _action_annots_single,
@@ -526,6 +536,7 @@ _SEMANTIC_ACTIONS = {
     'p_member_list_empty': _empty_list,
     'p_member': _action_member,
     'p_member_annotated': _action_member_annotated,
+    'p_member_post_annotated': _action_member_post_annotated,
     'p_member_body_attr': _action_member_body,
     'p_member_body_method': _action_member_body,
     'p_attr_decl': _action_attr_decl,
