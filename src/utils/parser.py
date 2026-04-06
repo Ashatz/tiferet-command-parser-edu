@@ -322,7 +322,7 @@ def _action_member_annotated(p):
     p[0] = a.parser.build_member(kind, p[4], annotations=p[1])
 
 def _action_member_post_annotated(p):
-    '''Build Member AST node with post-header annotations: ARTIFACT_MEMBER NEWLINE annots member_body.'''
+    '''Build Member AST node with post-header annotations: ARTIFACT_MEMBER NEWLINE annots body.'''
     kind = _parse_member_kind(p[1])
     p[0] = a.parser.build_member(kind, p[4], annotations=p[3])
 

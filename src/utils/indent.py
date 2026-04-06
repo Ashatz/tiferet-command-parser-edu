@@ -146,7 +146,7 @@ class IndentInjector:
                 result.append(tok)
                 i += 1
 
-                # Consume any consecutive newlines (suppress blank lines).
+                # Suppress any consecutive blank-line newlines.
                 while i < len(tokens) and tokens[i]['type'] == 'NEWLINE':
                     i += 1
 
@@ -180,7 +180,7 @@ class IndentInjector:
                 result.append(tok)
                 i += 1
 
-                # Consume any consecutive newlines (suppress blank lines).
+                # Suppress any consecutive blank-line newlines.
                 while i < len(tokens) and tokens[i]['type'] == 'NEWLINE':
                     i += 1
 
@@ -255,8 +255,7 @@ class IndentInjector:
         # Close any method body still open at end of stream.
         last_line = tokens[-1]['line'] if tokens else 0
 
-        # Ensure the stream ends with NEWLINE before emitting DEDENTs
-        # so the grammar's stmt : token_seq NEWLINE can always reduce.
+        # Ensure the stream ends with NEWLINE before emitting DEDENTs.
         if (indent_stack or class_indent_stack) and result and result[-1]['type'] != 'NEWLINE':
             result.append({
                 'type': 'NEWLINE', 'value': '\n',
