@@ -181,7 +181,35 @@ python compiler.py parse event Parser/samples/fail_class_bare_method.py
 python compiler.py parse event Parser/samples/fail_import_no_group.py
 ```
 
-### Running the Automated Test Suite
+### Running the Test Battery
+
+The `Parser/` directory includes a standalone test battery that exercises all 10 sample programs directly against the parser:
+
+```bash
+python Parser/test_parser.py
+```
+
+Expected output:
+
+```
+PASSING PROGRAMS (expect valid Module AST)
+  pass_minimal_event.py                            PASS  (2 groups)
+  pass_annotated_event.py                          PASS  (2 groups)
+  pass_multi_member_event.py                       PASS  (2 groups)
+  pass_multi_section_event.py                      PASS  (2 groups)
+  pass_standalone_function.py                      PASS  (2 groups)
+
+FAILING PROGRAMS (expect SyntaxError or extraction rejection)
+  fail_class_bare_attribute.py                     PASS  (SyntaxError raised)
+  fail_class_bare_method.py                        PASS  (SyntaxError raised)
+  fail_import_no_group.py                          PASS  (SyntaxError raised)
+  fail_class_no_section.py                         PASS  (rejected: no matching artifact blocks)
+  fail_bare_function.py                            PASS  (rejected: no matching artifact blocks)
+
+Results: 10/10 passed, 0/10 failed
+```
+
+### Running the Full Automated Test Suite
 
 ```bash
 # Run all tests (121 total)
