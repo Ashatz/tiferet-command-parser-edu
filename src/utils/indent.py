@@ -12,13 +12,14 @@ from typing import List, Dict, Any
 class IndentInjector:
     '''
     Post-tokenization utility that injects INDENT and DEDENT tokens
-    into a PLY token stream within method and init artifact member bodies.
+    into a PLY token stream within class bodies and method/init
+    artifact member bodies.
 
-    Enters method-body mode after an ARTIFACT_MEMBER token whose value
-    matches ``# * method:`` or ``# * init``. Tracks indentation depth
-    via a column stack, guarded by parenthesis depth so multi-line
-    function signatures are ignored. Exits on the next artifact comment
-    at the same or higher structural level.
+    Class body mode is entered after a ``CLASS ... COLON NEWLINE``
+    sequence. Method-body mode is entered after an ARTIFACT_MEMBER
+    token whose value matches ``# * method:`` or ``# * init``.
+    Tracks indentation depth via a column stack, guarded by
+    parenthesis depth so multi-line signatures are ignored.
     '''
 
     # * method: inject (static)
@@ -46,14 +47,27 @@ class IndentInjector:
             'ARTIFACT_IMPORT_GROUP',
         }
 
-        # Annotation tokens that close a method body only when body content exists.
+        # Annotation token types that close a method body only when
+        # indent_stack is non-empty (distinguishing post-body annotations
+        # from preamble annotations).
         annotation_exits = {'OBSOLETE', 'TODO'}
+
+        # Structural tokens that close class bodies.
+        class_exits = {
+            'ARTIFACT_SECTION',
+            'ARTIFACT_START',
+            'ARTIFACT_IMPORTS_START',
+        }
 
         result = []
         in_method_body = False
+        in_class_body = False
         member_col = None
+        class_col = None
         indent_stack = []
+        class_indent_stack = []
         paren_depth = 0
+        saw_class = False
 
         # Class body tracking.
         in_class_body = False
@@ -70,15 +84,15 @@ class IndentInjector:
             elif tok['type'] in ('RPAREN', 'RBRACK', 'RBRACE'):
                 paren_depth = max(0, paren_depth - 1)
 
-            # Detect CLASS token to prepare for class body injection.
+            # Detect CLASS token to watch for class body entry.
             if tok['type'] == 'CLASS':
                 saw_class = True
                 class_col = tok['column']
 
-            # Artifact member token — close any open body, optionally open new one.
+            # Artifact member token — close any open method body, optionally open new one.
             if tok['type'] == 'ARTIFACT_MEMBER':
 
-                # Flush remaining DEDENTs for the closing body.
+                # Flush remaining DEDENTs for the closing method body.
                 while indent_stack:
                     result.append({
                         'type': 'DEDENT', 'value': '',
@@ -86,18 +100,20 @@ class IndentInjector:
                     })
                     indent_stack.pop()
 
-                # Reset body state.
+                # Reset method body state.
                 in_method_body = False
                 member_col = None
                 paren_depth = 0
 
-                # Enter body mode if this member is a method or init.
+                # Enter method body mode if this member is a method or init.
                 if method_pattern.search(tok['value']):
                     in_method_body = True
                     member_col = tok['column']
 
-            # Section or start token — close any open class and method bodies.
-            elif tok['type'] in ('ARTIFACT_SECTION', 'ARTIFACT_START', 'ARTIFACT_IMPORTS_START'):
+            # Section or start token — close any open method body and class body.
+            elif tok['type'] in class_exits:
+
+                # Close method body first.
                 while indent_stack:
                     result.append({
                         'type': 'DEDENT', 'value': '',
@@ -115,8 +131,30 @@ class IndentInjector:
                 member_col = None
                 paren_depth = 0
 
-            # After CLASS ... COLON NEWLINE, inject INDENT for class body.
-            if saw_class and tok['type'] == 'NEWLINE' and paren_depth == 0:
+                # Close class body.
+                while class_indent_stack:
+                    result.append({
+                        'type': 'DEDENT', 'value': '',
+                        'line': tok['line'], 'column': tok['column'],
+                    })
+                    class_indent_stack.pop()
+                in_class_body = False
+                class_col = None
+                saw_class = False
+
+            # Handle annotation tokens — close method body only when inside one.
+            elif tok['type'] in annotation_exits and indent_stack:
+                while indent_stack:
+                    result.append({
+                        'type': 'DEDENT', 'value': '',
+                        'line': tok['line'], 'column': tok['column'],
+                    })
+                    indent_stack.pop()
+                in_method_body = False
+                member_col = None
+
+            # Class body INDENT injection after CLASS...COLON NEWLINE.
+            if in_class_body and tok['type'] == 'NEWLINE' and not in_method_body and paren_depth == 0:
                 result.append(tok)
                 i += 1
 
@@ -125,26 +163,29 @@ class IndentInjector:
                     result.append(tokens[i])
                     i += 1
 
-                # Check if we just passed a COLON before this NEWLINE.
-                colon_before = False
-                for j in range(len(result) - 1, -1, -1):
-                    if result[j]['type'] == 'NEWLINE':
-                        continue
-                    colon_before = result[j]['type'] == 'COLON'
-                    break
-
-                if colon_before and i < len(tokens):
+                if i < len(tokens):
                     next_tok = tokens[i]
-                    if next_tok['column'] > class_col:
+                    next_col = next_tok['column']
+
+                    # Structural boundary closes class body.
+                    if next_tok['type'] in class_exits:
+                        while class_indent_stack:
+                            result.append({
+                                'type': 'DEDENT', 'value': '',
+                                'line': next_tok['line'], 'column': next_tok['column'],
+                            })
+                            class_indent_stack.pop()
+                        in_class_body = False
+                        class_col = None
+
+                    # First class body line — inject INDENT.
+                    elif not class_indent_stack and class_col is not None and next_col > class_col:
+                        class_indent_stack.append(next_col)
                         result.append({
                             'type': 'INDENT', 'value': '',
-                            'line': next_tok['line'], 'column': next_tok['column'],
+                            'line': next_tok['line'], 'column': next_col,
                         })
-                        in_class_body = True
-                        saw_class = False
-                        continue
 
-                saw_class = False
                 continue
 
             # Inject INDENT/DEDENT after each newline inside a method body.
@@ -161,10 +202,19 @@ class IndentInjector:
                     next_tok = tokens[i]
                     next_col = next_tok['column']
 
-                    # Next artifact comment closes the body.
-                    if next_tok['type'] in exits_body or (
-                        next_tok['type'] in annotation_exits and indent_stack
-                    ):
+                    # Next artifact comment closes the method body.
+                    if next_tok['type'] in exits_body:
+                        while indent_stack:
+                            result.append({
+                                'type': 'DEDENT', 'value': '',
+                                'line': next_tok['line'], 'column': next_tok['column'],
+                            })
+                            indent_stack.pop()
+                        in_method_body = False
+                        member_col = None
+
+                    # Annotation after method body closes it.
+                    elif next_tok['type'] in annotation_exits and indent_stack:
                         while indent_stack:
                             result.append({
                                 'type': 'DEDENT', 'value': '',
@@ -208,6 +258,11 @@ class IndentInjector:
 
                 continue
 
+            # Detect COLON after CLASS to enter class body on the next NEWLINE.
+            if saw_class and tok['type'] == 'COLON' and paren_depth == 0:
+                saw_class = False
+                in_class_body = True
+
             result.append(tok)
             i += 1
 
@@ -221,11 +276,12 @@ class IndentInjector:
             indent_stack.pop()
 
         # Close any class body still open at end of stream.
-        if in_class_body:
+        while class_indent_stack:
             result.append({
                 'type': 'DEDENT', 'value': '',
                 'line': last_line, 'column': 0,
             })
+            class_indent_stack.pop()
 
         # Return the enriched token stream.
         return result

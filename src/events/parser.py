@@ -89,7 +89,7 @@ class PerformSyntacticAnalysis(DomainEvent):
         '''
         Parse token stream and produce structured AST.
 
-        :param analysis_result: Output from PerformLexicalAnalysis containing tokens.
+        :param analysis_result: Analysis result dict from PerformLexicalAnalysis containing tokens.
         :type analysis_result: Dict[str, Any]
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
@@ -97,7 +97,7 @@ class PerformSyntacticAnalysis(DomainEvent):
         :rtype: Dict[str, Any]
         '''
 
-        # Extract token stream from the analysis result.
+        # Extract tokens from the analysis result.
         tokens = analysis_result['tokens']
 
         # Execute syntactic parsing via the injected parser service.

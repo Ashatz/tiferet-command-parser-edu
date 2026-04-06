@@ -78,31 +78,26 @@ class ArtifactBlockParser:
     @staticmethod
     def extract_group_header(
             lines: List[str],
-            group_type: str = 'event',
         ) -> Optional[Dict[str, Any]]:
         '''
-        Locate and extract the top-level group header line
-        (e.g. ``# *** events``) for the given group type.
+        Locate and extract the first non-imports top-level group header
+        (e.g. ``# *** events``) from source lines.
 
         :param lines: The source file lines.
         :type lines: List[str]
-        :param group_type: The artifact group type to match.
-        :type group_type: str
         :return: A block dict with name, line_start, line_end, text,
                  and length_chars, or None if not found.
         :rtype: Optional[Dict[str, Any]]
         '''
 
-        # Build pattern for the top-level group header.
-        group_pattern = re.compile(
-            rf'^\s*#\s*\*{{3}}\s+\S+'
-        )
-        imports_pattern = re.compile(r'^\s*#\s*\*{3}\s+imports\s*$')
+        # Build patterns for top-level sections.
+        top_level_pattern = re.compile(r'^\s*#\s*\*{3}\s+(\S+)')
 
-        # Walk lines to find a non-imports top-level header.
+        # Walk lines to find the first non-imports group header.
         for i, line in enumerate(lines):
-            if group_pattern.match(line) and not imports_pattern.match(line):
-                text = line if line.endswith('\n') else line + '\n'
+            match = top_level_pattern.match(line)
+            if match and match.group(1) != 'imports':
+                text = line
                 return {
                     'name': '__group_header__',
                     'line_start': i,

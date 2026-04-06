@@ -148,7 +148,7 @@ def test_perform_syntactic_analysis_success(
     result = DomainEvent.handle(
         PerformSyntacticAnalysis,
         dependencies={'parser_service': mock_parser_service},
-        analysis_result=analysis_result,
+        analysis_result={'tokens': sample_tokens},
     )
 
     # Assert the AST structure is correct.
@@ -208,7 +208,7 @@ def test_perform_syntactic_analysis_invalid_ast(
         DomainEvent.handle(
             PerformSyntacticAnalysis,
             dependencies={'parser_service': mock_parser_service},
-            analysis_result=analysis_result,
+            analysis_result={'tokens': sample_tokens},
         )
 
 
@@ -241,7 +241,7 @@ def test_perform_syntactic_analysis_none_ast(
         DomainEvent.handle(
             PerformSyntacticAnalysis,
             dependencies={'parser_service': mock_parser_service},
-            analysis_result=analysis_result,
+            analysis_result={'tokens': sample_tokens},
         )
 
 # *** tests — SyntacticAnalysisCompleted
