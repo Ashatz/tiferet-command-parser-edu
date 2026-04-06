@@ -251,7 +251,7 @@ _python_keywords = {
 
 # ** constant: artifact_imports_start
 def ARTIFACT_IMPORTS_START(self, t):
-    r'\#\s*\*{3}\s+imports\s*'
+    r'\#\s*\*{3}\s+imports[^\S\n]*'
     return t
 
 # ** constant: artifact_import_group
