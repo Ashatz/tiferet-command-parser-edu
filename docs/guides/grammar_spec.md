@@ -2,7 +2,7 @@
 
 This grammar defines the **Tiferet Domain Event dialect** — a highly structured subset of Python 3.10+ used within the Tiferet framework for Domain-Driven Design. The grammar is organized around Tiferet's three-tier artifact comment hierarchy (`# ***` groups → `# **` sections → `# *` members), with class definitions, method definitions, standalone function definitions, attribute declarations, and import statements as the structural building blocks. Method and function bodies are parsed as sequences of **code snippets** — optional `LINE_COMMENT` headers followed by one or more statements — rather than full expression trees. Statement internals use a generic flat token sequence (`TokenSeq`) with matched bracket groups to handle multi-line parenthesized expressions.
 
-The grammar distinguishes **MethodDef** (inside a class, parameter list must begin with `SELF`) from **FuncDef** (standalone at the section level, no `SELF` requirement). `OBSOLETE` and `TODO` annotations are modeled as optional prefixes at both the section and member tiers. Synthetic `INDENT`/`DEDENT` tokens serve as block delimiters for class bodies, method bodies, and compound statements (e.g., if-blocks).
+The grammar distinguishes **MethodDef** (inside a class, parameter list must begin with `SELF`) from **FuncDef** (standalone at the section level, no `SELF` requirement). `OBSOLETE` and `TODO` annotations are modeled as optional prefixes or suffixes at both the section and member tiers. Synthetic `INDENT`/`DEDENT` tokens serve as block delimiters for class bodies, method bodies, and compound statements (e.g., if-blocks).
 
 
 ## Formal Definition
@@ -34,7 +34,7 @@ V = { Module, GroupList, Group, GroupHeader,
 | SectionList | Tier 2 | One or more artifact sections within a group. |
 | Section | Tier 2 | A single `# **` artifact section with optional annotations, header, and body. |
 | SectionHeader | Tier 2 | The opening marker of a section (`ARTIFACT_SECTION` or `ARTIFACT_IMPORT_GROUP`). |
-| Annots | Tier 2 | One or more annotation prefixes (`OBSOLETE`/`TODO`) attached to a section or member. |
+| Annots | Tier 2 | One or more annotations (`OBSOLETE`/`TODO`) attached before or after a section or member header. |
 | Annot | Tier 2 | A single annotation marker — either `OBSOLETE` or `TODO`. |
 | SectionBody | Tier 2 | The content of a section: a class definition, function definition, or import block. |
 | ImportBlock | Tier 2 | One or more import statements within an import-group section. |
@@ -99,18 +99,26 @@ from .settings import DomainEvent, a   ← ImportStmt
 from ..domain import Error             ← ImportStmt
 ```
 
-Annotations (**Annots** / **Annot**) prefix a section or member header. From `obsolete_rename_error_event.py`:
+Annotations (**Annots** / **Annot**) may appear either *before* or *after* a section or member header. From `obsolete_rename_error_event.py` (pre-header):
 
 ```python path=null start=null
 # -- obsolete: superseded by ErrorAggregate.rename()   ← Annot (OBSOLETE NEWLINE)
 # ** event: rename_error                               ← SectionHeader
 ```
 
-From `todo_get_error_event.py`:
+From `todo_get_error_event.py` (pre-header):
 
 ```python path=null start=null
 # ++ todo: add CacheService injection   ← Annot (TODO NEWLINE)
 # ** event: get_error                    ← SectionHeader
+```
+
+Post-header annotations appear between the header and the body:
+
+```python path=null start=null
+# ** event: rename_error                               ← SectionHeader
+# -- obsolete: superseded by ErrorAggregate.rename()   ← Annot (post-header)
+class RenameError(DomainEvent):                        ← SectionBody
 ```
 
 **Tier 3 — Class / Members / Methods**
@@ -135,7 +143,7 @@ class AddError(DomainEvent):                       ← ClassDef (NameList = [Dom
         ...                                              MethodName = IDENTIFIER("execute")
 ```
 
-Note: **MethodDef** requires `SELF` as the first parameter (rule 35–36). A **FuncDef** (rules 44–45) would appear directly under a section body without a class, and has no `SELF` requirement.
+Note: **MethodDef** requires `SELF` as the first parameter (rules 37–38). A **FuncDef** (rules 46–47) would appear directly under a section body without a class, and has no `SELF` requirement.
 
 **Body / Snippets**
 
@@ -222,109 +230,111 @@ S = Module
 (8)  SectionList  --> SectionList Section
 (9)  Section      --> SectionHeader NEWLINE SectionBody
 (10) Section      --> Annots SectionHeader NEWLINE SectionBody
-(11) SectionHeader --> ARTIFACT_SECTION
-(12) SectionHeader --> ARTIFACT_IMPORT_GROUP
-(13) Annots       --> Annot
-(14) Annots       --> Annots Annot
-(15) Annot        --> OBSOLETE NEWLINE
-(16) Annot        --> TODO NEWLINE
+(11) Section      --> SectionHeader NEWLINE Annots SectionBody
+(12) SectionHeader --> ARTIFACT_SECTION
+(13) SectionHeader --> ARTIFACT_IMPORT_GROUP
+(14) Annots       --> Annot
+(15) Annots       --> Annots Annot
+(16) Annot        --> OBSOLETE NEWLINE
+(17) Annot        --> TODO NEWLINE
 ```
 
 #### Section Body
 
 ```ebnf
-(17) SectionBody  --> ClassDef
-(18) SectionBody  --> FuncDef
-(19) SectionBody  --> ImportBlock
-(20) ImportBlock  --> ImportStmt
-(21) ImportBlock  --> ImportBlock ImportStmt
-(22) ImportStmt   --> PYTHON_KEYWORD TokenSeq NEWLINE
+(18) SectionBody  --> ClassDef
+(19) SectionBody  --> FuncDef
+(20) SectionBody  --> ImportBlock
+(21) ImportBlock  --> ImportStmt
+(22) ImportBlock  --> ImportBlock ImportStmt
+(23) ImportStmt   --> PYTHON_KEYWORD TokenSeq NEWLINE
 ```
 
 #### Class Definition
 
 ```ebnf
-(23) ClassDef     --> CLASS IDENTIFIER LPAREN NameList RPAREN COLON NEWLINE INDENT ClassBody DEDENT
-(24) ClassBody    --> DOCSTRING NEWLINE MemberList
-(25) ClassBody    --> MemberList
-(26) NameList     --> IDENTIFIER
-(27) NameList     --> NameList COMMA IDENTIFIER
+(24) ClassDef     --> CLASS IDENTIFIER LPAREN NameList RPAREN COLON NEWLINE INDENT ClassBody DEDENT
+(25) ClassBody    --> DOCSTRING NEWLINE MemberList
+(26) ClassBody    --> MemberList
+(27) NameList     --> IDENTIFIER
+(28) NameList     --> NameList COMMA IDENTIFIER
 ```
 
 #### Tier 3 — Artifact Members
 
 ```ebnf
-(28) MemberList   --> Member
-(29) MemberList   --> MemberList Member
-(30) Member       --> ARTIFACT_MEMBER NEWLINE MemberBody
-(31) Member       --> Annots ARTIFACT_MEMBER NEWLINE MemberBody
-(32) MemberBody   --> AttrDecl
-(33) MemberBody   --> MethodDef
-(34) AttrDecl     --> IDENTIFIER COLON TokenSeq NEWLINE
+(29) MemberList   --> Member
+(30) MemberList   --> MemberList Member
+(31) Member       --> ARTIFACT_MEMBER NEWLINE MemberBody
+(32) Member       --> Annots ARTIFACT_MEMBER NEWLINE MemberBody
+(33) Member       --> ARTIFACT_MEMBER NEWLINE Annots MemberBody
+(34) MemberBody   --> AttrDecl
+(35) MemberBody   --> MethodDef
+(36) AttrDecl     --> IDENTIFIER COLON TokenSeq NEWLINE
 ```
 
 #### Method Definition (inside class — requires SELF)
 
 ```ebnf
-(35) MethodDef    --> DEF MethodName LPAREN SELF ParamTail RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
-(36) MethodDef    --> Decorator DEF MethodName LPAREN SELF ParamTail RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
-(37) MethodName   --> IDENTIFIER
-(38) MethodName   --> INIT
-(39) ParamTail    --> COMMA TokenSeq
-(40) ParamTail    --> ε
-(41) RetAnnot     --> ARROW TokenSeq
-(42) RetAnnot     --> ε
-(43) Decorator    --> AT TokenSeq NEWLINE
+(37) MethodDef    --> DEF MethodName LPAREN SELF ParamTail RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
+(38) MethodDef    --> Decorator DEF MethodName LPAREN SELF ParamTail RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
+(39) MethodName   --> IDENTIFIER
+(40) MethodName   --> INIT
+(41) ParamTail    --> COMMA TokenSeq
+(42) ParamTail    --> ε
+(43) RetAnnot     --> ARROW TokenSeq
+(44) RetAnnot     --> ε
+(45) Decorator    --> AT TokenSeq NEWLINE
 ```
 
 #### Function Definition (standalone at section level — no SELF)
 
 ```ebnf
-(44) FuncDef      --> DEF IDENTIFIER LPAREN ParamBody RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
-(45) FuncDef      --> Decorator DEF IDENTIFIER LPAREN ParamBody RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
-(46) ParamBody    --> TokenSeq
-(47) ParamBody    --> ε
+(46) FuncDef      --> DEF IDENTIFIER LPAREN ParamBody RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
+(47) FuncDef      --> Decorator DEF IDENTIFIER LPAREN ParamBody RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
+(48) ParamBody    --> TokenSeq
+(49) ParamBody    --> ε
 ```
 
 #### Method/Function Body — Snippets
 
 ```ebnf
-(48) Body         --> DOCSTRING NEWLINE SnippetList
-(49) Body         --> SnippetList
-(50) SnippetList  --> Snippet
-(51) SnippetList  --> SnippetList Snippet
-(52) Snippet      --> LINE_COMMENT NEWLINE StmtList
-(53) Snippet      --> StmtList
-(54) StmtList     --> Stmt
-(55) StmtList     --> StmtList Stmt
-(56) Stmt         --> TokenSeq NEWLINE
-(57) Stmt         --> TokenSeq NEWLINE INDENT StmtList DEDENT
+(50) Body         --> DOCSTRING NEWLINE SnippetList
+(51) Body         --> SnippetList
+(52) SnippetList  --> Snippet
+(53) SnippetList  --> SnippetList Snippet
+(54) Snippet      --> LINE_COMMENT NEWLINE StmtList
+(55) Snippet      --> StmtList
+(56) StmtList     --> Stmt
+(57) StmtList     --> StmtList Stmt
+(58) Stmt         --> TokenSeq NEWLINE
+(59) Stmt         --> TokenSeq NEWLINE INDENT StmtList DEDENT
 ```
 
-Rule 56 covers simple statements (assignments, return, expression calls). Rule 57 covers compound statements (if-blocks, for-loops, etc.) where the header line is followed by an indented body.
+Rule 58 covers simple statements (assignments, return, expression calls). Rule 59 covers compound statements (if-blocks, for-loops, etc.) where the header line is followed by an indented body.
 
 #### Token Sequence — Generic Content
 
 ```ebnf
-(58) TokenSeq     --> TokenItem
-(59) TokenSeq     --> TokenSeq TokenItem
-(60) TokenItem    --> Token
-(61) TokenItem    --> Enclosed
-(62) Enclosed     --> LPAREN Inner RPAREN
-(63) Enclosed     --> LBRACK Inner RBRACK
-(64) Enclosed     --> LBRACE Inner RBRACE
-(65) Inner        --> InnerItem Inner
-(66) Inner        --> ε
-(67) InnerItem    --> TokenItem
-(68) InnerItem    --> NEWLINE
+(60) TokenSeq     --> TokenItem
+(61) TokenSeq     --> TokenSeq TokenItem
+(62) TokenItem    --> Token
+(63) TokenItem    --> Enclosed
+(64) Enclosed     --> LPAREN Inner RPAREN
+(65) Enclosed     --> LBRACK Inner RBRACK
+(66) Enclosed     --> LBRACE Inner RBRACE
+(67) Inner        --> InnerItem Inner
+(68) Inner        --> ε
+(69) InnerItem    --> TokenItem
+(70) InnerItem    --> NEWLINE
 ```
 
-`Enclosed` handles multi-line parenthesized expressions by allowing `NEWLINE` inside matched brackets (rules 62–68). Outside brackets, `NEWLINE` terminates a statement (rule 56–57).
+`Enclosed` handles multi-line parenthesized expressions by allowing `NEWLINE` inside matched brackets (rules 64–70). Outside brackets, `NEWLINE` terminates a statement (rules 58–59).
 
 #### Token — Content Terminals
 
 ```ebnf
-(69) Token --> IDENTIFIER | SELF | INIT | RETURN | CLASS | DEF
+(71) Token --> IDENTIFIER | SELF | INIT | RETURN | CLASS | DEF
             | STRING_LITERAL | NUMBER_LITERAL | DOCSTRING
             | PYTHON_KEYWORD
             | DOT | COMMA | COLON | EQUALS | ARROW
