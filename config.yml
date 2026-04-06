@@ -8,12 +8,24 @@ attrs:
   perform_lexical_analysis_event:
     module_path: src.events.scan
     class_name: PerformLexicalAnalysis
+  parser_initialized_event:
+    module_path: src.events.parser
+    class_name: ParserInitialized
+  perform_syntactic_analysis_event:
+    module_path: src.events.parser
+    class_name: PerformSyntacticAnalysis
+  syntactic_analysis_completed_event:
+    module_path: src.events.parser
+    class_name: SyntacticAnalysisCompleted
   emit_scan_result_event:
     module_path: src.events.scan
     class_name: EmitScanResult
   lexer_service:
     module_path: src.utils.lexer
     class_name: TiferetLexer
+  parser_service:
+    module_path: src.utils.parser
+    class_name: TiferetParser
 
 features:
   scan:
@@ -30,6 +42,16 @@ features:
         - attribute_id: perform_lexical_analysis_event
           name: Tokenize and compute lexical metrics
           data_key: analysis_result
+        - attribute_id: parser_initialized_event
+          name: Verify parser service readiness
+        - attribute_id: perform_syntactic_analysis_event
+          name: Parse token stream into AST
+          data_key: ast
+          params:
+            tokens: analysis_result.tokens
+        - attribute_id: syntactic_analysis_completed_event
+          name: Finalize syntactic analysis result
+          data_key: syntactic_result
         - attribute_id: emit_scan_result_event
           name: Format and emit scan result
 
@@ -49,6 +71,21 @@ errors:
     message:
       - lang: en_US
         text: 'Lexical error detected during tokenization'
+  parser_not_initialized:
+    name: Parser Not Initialized
+    message:
+      - lang: en_US
+        text: 'TiferetParser service failed to initialize'
+  invalid_ast_structure:
+    name: Invalid AST Structure
+    message:
+      - lang: en_US
+        text: 'Syntactic parser did not return a valid Module AST'
+  missing_ast:
+    name: Missing AST
+    message:
+      - lang: en_US
+        text: 'No AST received from syntactic analysis'
 
 logging: {}
 
