@@ -20,6 +20,9 @@ attrs:
   emit_scan_result_event:
     module_path: src.events.scan
     class_name: EmitScanResult
+  emit_parse_result_event:
+    module_path: src.events.parser
+    class_name: EmitParseResult
   lexer_service:
     module_path: src.utils.lexer
     class_name: TiferetLexer
@@ -54,6 +57,29 @@ features:
           data_key: syntactic_result
         - attribute_id: emit_scan_result_event
           name: Format and emit scan result
+  parse:
+    event:
+      name: 'Parse Event'
+      description: 'Perform syntactic parsing on a Tiferet event source file'
+      commands:
+        - attribute_id: extract_text_event
+          name: Extract text blocks from source file
+          data_key: text_blocks
+        - attribute_id: lexer_initialized_event
+          name: Validate extracted text blocks
+          data_key: validated_blocks
+        - attribute_id: perform_lexical_analysis_event
+          name: Tokenize and compute lexical metrics
+          data_key: analysis_result
+        - attribute_id: parser_initialized_event
+          name: Verify parser service readiness
+        - attribute_id: perform_syntactic_analysis_event
+          name: Parse token stream into AST
+          data_key: ast
+          params:
+            tokens: analysis_result.tokens
+        - attribute_id: emit_parse_result_event
+          name: Assemble and emit parse result
 
 errors:
   source_file_not_found:
