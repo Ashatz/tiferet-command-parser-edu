@@ -95,7 +95,7 @@ def test_parser_initialized_success(mock_parser_service: ParserService) -> None:
     # Execute the ParserInitialized event.
     result = DomainEvent.handle(
         ParserInitialized,
-        dependencies={'parser': mock_parser_service},
+        dependencies={'parser_service': mock_parser_service},
     )
 
     # Assert the parser service is returned.
@@ -112,7 +112,7 @@ def test_parser_initialized_none_service() -> None:
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             ParserInitialized,
-            dependencies={'parser': None},
+            dependencies={'parser_service': None},
         )
 
 # *** tests — PerformSyntacticAnalysis
@@ -140,8 +140,8 @@ def test_perform_syntactic_analysis_success(
     # Execute via DomainEvent.handle with injected dependency.
     result = DomainEvent.handle(
         PerformSyntacticAnalysis,
-        dependencies={'parser': mock_parser_service},
-        tokens=sample_tokens,
+        dependencies={'parser_service': mock_parser_service},
+        analysis_result={'tokens': sample_tokens},
     )
 
     # Assert the AST structure is correct.
@@ -164,11 +164,11 @@ def test_perform_syntactic_analysis_missing_tokens(
     :type mock_parser_service: ParserService
     '''
 
-    # Attempt without tokens.
+    # Attempt without analysis_result.
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             PerformSyntacticAnalysis,
-            dependencies={'parser': mock_parser_service},
+            dependencies={'parser_service': mock_parser_service},
         )
 
 
@@ -193,8 +193,8 @@ def test_perform_syntactic_analysis_invalid_ast(
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             PerformSyntacticAnalysis,
-            dependencies={'parser': mock_parser_service},
-            tokens=sample_tokens,
+            dependencies={'parser_service': mock_parser_service},
+            analysis_result={'tokens': sample_tokens},
         )
 
 
@@ -219,8 +219,8 @@ def test_perform_syntactic_analysis_none_ast(
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             PerformSyntacticAnalysis,
-            dependencies={'parser': mock_parser_service},
-            tokens=sample_tokens,
+            dependencies={'parser_service': mock_parser_service},
+            analysis_result={'tokens': sample_tokens},
         )
 
 # *** tests — SyntacticAnalysisCompleted

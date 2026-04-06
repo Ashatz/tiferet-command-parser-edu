@@ -133,14 +133,15 @@ def test_extract_text_success(sample_source_file: str) -> None:
         source_file=sample_source_file,
     )
 
-    # Assert imports block plus two event blocks were extracted.
-    assert len(result) == 3
+    # Assert imports block, group header, plus two event blocks were extracted.
+    assert len(result) == 4
     assert result[0]['name'] == '__imports__'
-    assert result[1]['name'] == 'sample_event'
-    assert result[2]['name'] == 'another_event'
+    assert result[1]['name'] == '__group_header__'
+    assert result[2]['name'] == 'sample_event'
+    assert result[3]['name'] == 'another_event'
     assert result[0]['text'] is not None
     assert '# *** imports' in result[0]['text']
-    assert len(result[1]['text']) > 0
+    assert len(result[2]['text']) > 0
 
 
 # ** test: extract_text_with_filter
@@ -159,10 +160,11 @@ def test_extract_text_with_filter(sample_source_file: str) -> None:
         extract='sample_event',
     )
 
-    # Assert imports block plus the filtered block were returned.
-    assert len(result) == 2
+    # Assert imports block, group header, plus the filtered block were returned.
+    assert len(result) == 3
     assert result[0]['name'] == '__imports__'
-    assert result[1]['name'] == 'sample_event'
+    assert result[1]['name'] == '__group_header__'
+    assert result[2]['name'] == 'sample_event'
 
 
 # ** test: extract_text_missing_source_file_param

@@ -20,20 +20,20 @@ class ParserInitialized(DomainEvent):
     is properly instantiated before syntactic analysis.
     '''
 
-    # * attribute: parser
-    parser: ParserService
+    # * attribute: parser_service
+    parser_service: ParserService
 
     # * init
-    def __init__(self, parser: ParserService):
+    def __init__(self, parser_service: ParserService):
         '''
         Initialize with injected parser service.
 
-        :param parser: The parser service for syntactic analysis.
-        :type parser: ParserService
+        :param parser_service: The parser service for syntactic analysis.
+        :type parser_service: ParserService
         '''
 
         # Set the parser service dependency.
-        self.parser = parser
+        self.parser_service = parser_service
 
     # * method: execute
     @DomainEvent.parameters_required([])
@@ -49,13 +49,13 @@ class ParserInitialized(DomainEvent):
 
         # Verify the parser service is not None.
         self.verify(
-            expression=self.parser is not None,
+            expression=self.parser_service is not None,
             error_code='PARSER_NOT_INITIALIZED',
             message='TiferetParser service failed to initialize',
         )
 
         # Return the validated parser service.
-        return self.parser
+        return self.parser_service
 
 
 # ** event: perform_syntactic_analysis
@@ -65,40 +65,43 @@ class PerformSyntacticAnalysis(DomainEvent):
     tokenized input using the injected ParserService.
     '''
 
-    # * attribute: parser
-    parser: ParserService
+    # * attribute: parser_service
+    parser_service: ParserService
 
     # * init
-    def __init__(self, parser: ParserService):
+    def __init__(self, parser_service: ParserService):
         '''
         Initialize with injected parser service.
 
-        :param parser: The parser service for syntactic analysis.
-        :type parser: ParserService
+        :param parser_service: The parser service for syntactic analysis.
+        :type parser_service: ParserService
         '''
 
         # Set the parser service dependency.
-        self.parser = parser
+        self.parser_service = parser_service
 
     # * method: execute
-    @DomainEvent.parameters_required(['tokens'])
+    @DomainEvent.parameters_required(['analysis_result'])
     def execute(self,
-            tokens: List[Dict[str, Any]],
+            analysis_result: Dict[str, Any],
             **kwargs,
         ) -> Dict[str, Any]:
         '''
         Parse token stream and produce structured AST.
 
-        :param tokens: Token stream from PerformLexicalAnalysis (post-IndentInjector).
-        :type tokens: List[Dict[str, Any]]
+        :param analysis_result: Analysis result dict from PerformLexicalAnalysis containing tokens.
+        :type analysis_result: Dict[str, Any]
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
         :return: AST dict with Module root.
         :rtype: Dict[str, Any]
         '''
 
+        # Extract tokens from the analysis result.
+        tokens = analysis_result['tokens']
+
         # Execute syntactic parsing via the injected parser service.
-        ast = self.parser.parse(tokens)
+        ast = self.parser_service.parse(tokens)
 
         # Validate the AST root structure is a Module.
         self.verify(
