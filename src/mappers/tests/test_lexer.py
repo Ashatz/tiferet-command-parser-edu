@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 # ** app
 from ...domain import Token
-from ...mappers import TokenAggregate
+from ..lexer import TokenAggregate, a
 
 # *** fixtures
 
@@ -97,7 +97,9 @@ def test_token_aggregate_inherits_from_token() -> None:
 # ** test: token_aggregate_new_requires_all_params
 def test_token_aggregate_new_requires_all_params() -> None:
     '''
-    TokenAggregate.new() requires all four parameters; missing one raise TypeError. Null values raise ValidationError.
+    TokenAggregate.new() (which delegates to Token(BaseModel)) requires all four fields.
+    Missing a required parameter raises TypeError from the constructor.
+    Passing None (or any invalid value) for a required field raises ValidationError from pydantic.
     '''
 
     with pytest.raises(TypeError):
@@ -112,7 +114,6 @@ def test_token_aggregate_new_requires_all_params() -> None:
         TokenAggregate.new(
             type='IDENTIFIER',
             value='foo',
-            # missing lineno and lexpos
             lineno=None,
             lexpos=None,
         )
@@ -121,7 +122,8 @@ def test_token_aggregate_new_requires_all_params() -> None:
 # ** test: token_aggregate_column_default
 def test_token_aggregate_column_default() -> None:
     '''
-    When created via .new(), column defaults to 0 (as defined in base Token).
+    Token model no longer defines a column field (it was removed when switching from schematics to pydantic).
+    This test is kept as documentation that no extra column attribute exists.
     '''
 
     agg = TokenAggregate.new(
@@ -131,11 +133,14 @@ def test_token_aggregate_column_default() -> None:
         lexpos=0,
     )
 
+    # Explicit check that no .column attribute exists
+    assert not hasattr(agg, 'column')
+
 
 # ** test: token_aggregate_mutation
 def test_token_aggregate_mutation(minimal_token_aggregate: TokenAggregate) -> None:
     '''
-    TokenAggregate (like its base Token) allows mutation by default.
+    TokenAggregate (backed by pydantic BaseModel) is mutable by default.
 
     :param minimal_token_aggregate: Fixture providing an aggregate.
     :type minimal_token_aggregate: TokenAggregate
@@ -143,7 +148,7 @@ def test_token_aggregate_mutation(minimal_token_aggregate: TokenAggregate) -> No
 
     assert minimal_token_aggregate.type == 'IDENTIFIER'
 
-    # Mutation is permitted (model is not frozen).
+    # Mutation is permitted (BaseModel is not frozen by default).
     minimal_token_aggregate.type = 'PYTHON_KEYWORD'
     minimal_token_aggregate.value = 'self'
     assert minimal_token_aggregate.type == 'PYTHON_KEYWORD'
@@ -186,3 +191,36 @@ def test_token_aggregate_with_long_value() -> None:
 
     assert agg.value == long_value
     assert len(agg.value) > 50
+
+
+# ** test: token_aggregate_new_indent
+def test_token_aggregate_new_indent() -> None:
+    '''
+    TokenAggregate.new_indent() correctly creates an INDENT token using the canonical factory.
+    '''
+
+    agg = TokenAggregate.new_indent(lineno=10, lexpos=4)
+
+    assert agg.type == a.lexer.INDENT
+    assert agg.value == ''
+    assert agg.lineno == 10
+    assert agg.lexpos == 4
+
+
+# ** test: token_aggregate_new_dedent
+def test_token_aggregate_new_dedent() -> None:
+    '''
+    TokenAggregate.new_dedent() correctly creates a DEDENT token (defaults lineno/lexpos to 0).
+    '''
+
+    agg = TokenAggregate.new_dedent()
+
+    assert agg.type == a.lexer.DEDENT
+    assert agg.value == ''
+    assert agg.lineno == 0
+    assert agg.lexpos == 0
+
+    agg2 = TokenAggregate.new_dedent(lineno=25, lexpos=120)
+
+    assert agg2.lineno == 25
+    assert agg2.lexpos == 120
