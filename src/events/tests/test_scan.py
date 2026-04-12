@@ -8,12 +8,11 @@ from unittest import mock
 
 # ** infra
 import pytest
-from tiferet.events import TiferetError
+from tiferet.events import TiferetError, DomainEvent
 
 # ** app
 from ...interfaces import LexerService
 from ...mappers import TokenAggregate
-from ..settings import DomainEvent
 from ..scan import PerformLexicalAnalysis, EmitScanResult
 
 # *** fixtures
@@ -56,6 +55,7 @@ class AnotherEvent(DomainEvent):
     file_path.write_text(content)
     return str(file_path)
 
+
 # ** fixture: mock_lexer_service
 @pytest.fixture
 def mock_lexer_service() -> LexerService:
@@ -67,6 +67,7 @@ def mock_lexer_service() -> LexerService:
     '''
 
     return mock.Mock(spec=LexerService)
+
 
 # *** tests
 
@@ -100,12 +101,10 @@ def test_perform_lexical_analysis_success(
         source_file=sample_source_file,
     )
 
-    # Assert structure matches current module.
-    assert isinstance(result, dict)
-    assert 'tokens' in result
-    assert 'token_count' in result
-    assert result['token_count'] == len(mock_tokens)
-    assert len(result['tokens']) == len(mock_tokens)
+    # Assert structure matches current module (PerformLexicalAnalysis returns list of TokenAggregate).
+    assert isinstance(result, list)
+    assert len(result) == len(mock_tokens)
+    assert all(isinstance(t, TokenAggregate) for t in result)
 
     # Verify lexer was called with full file content.
     mock_lexer_service.tokenize.assert_called_once()
@@ -129,6 +128,7 @@ def test_perform_lexical_analysis_missing_source_file(
         DomainEvent.handle(
             PerformLexicalAnalysis,
             dependencies={'lexer_service': mock_lexer_service},
+            # source_file intentionally omitted
         )
 
 
@@ -138,15 +138,14 @@ def test_emit_scan_result_default() -> None:
     Test default EmitScanResult behavior (always includes tokens).
     '''
 
-    analysis_result = {
-        'tokens': [{'type': 'CLASS', 'value': 'class', 'line': 1, 'column': 0}],
-        'token_count': 1,
-    }
+    tokens = [
+        TokenAggregate.new(type='CLASS', value='class', lineno=1, lexpos=0),
+    ]
 
     result = DomainEvent.handle(
         EmitScanResult,
         source_file='test.py',
-        analysis_result=analysis_result,
+        tokens=tokens,
     )
 
     assert result['event_type'] == 'TokensScanned'
@@ -157,15 +156,16 @@ def test_emit_scan_result_default() -> None:
     assert 'timestamp' in result
 
 
-# ** test: emit_scan_result_no_analysis
-def test_emit_scan_result_no_analysis() -> None:
+# ** test: emit_scan_result_no_tokens
+def test_emit_scan_result_no_tokens() -> None:
     '''
-    Test emit with no analysis_result uses empty defaults.
+    Test emit with no tokens uses empty defaults.
     '''
 
     result = DomainEvent.handle(
         EmitScanResult,
         source_file='test.py',
+        tokens=None,
     )
 
     assert result['token_count'] == 0
@@ -182,12 +182,12 @@ def test_emit_scan_result_write_yaml(tmp_path) -> None:
     '''
 
     output_path = str(tmp_path / 'result.yaml')
-    analysis_result = {'tokens': [], 'token_count': 0}
+    tokens = []
 
     DomainEvent.handle(
         EmitScanResult,
         source_file='test.py',
-        analysis_result=analysis_result,
+        tokens=tokens,
         output=output_path,
     )
 
@@ -207,12 +207,12 @@ def test_emit_scan_result_write_json(tmp_path) -> None:
     '''
 
     output_path = str(tmp_path / 'result.json')
-    analysis_result = {'tokens': [], 'token_count': 0}
+    tokens = []
 
     DomainEvent.handle(
         EmitScanResult,
         source_file='test.py',
-        analysis_result=analysis_result,
+        tokens=tokens,
         output=output_path,
         output_format='json',
     )
