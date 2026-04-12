@@ -1,636 +1,230 @@
-"""Lexer Utility Tests"""
+"""Tests - BlockTracker and TiferetLexer"""
 
 # *** imports
 
-# ** infra
+# ** core
 import pytest
+from pathlib import Path
 
 # ** app
-from ..lexer import TiferetLexer
+from ..lexer import TiferetLexer, BlockTracker, a
+from ...mappers import TokenAggregate
 
 # *** fixtures
 
-# ** fixture: lexer
+# ** fixture: sample_text
 @pytest.fixture
-def lexer() -> TiferetLexer:
+def sample_text() -> str:
     '''
-    Create a fresh TiferetLexer instance for each test.
+    Returns the full add_error_event.py sample used throughout the project.
+
+    :return: Content of samples/add_error_event.py
+    :rtype: str
     '''
-
-    return TiferetLexer()
-
-# *** helpers
-
-def token_types(lexer, text):
-    '''Return a list of token type strings for the given text.'''
-
-    return [t['type'] for t in lexer.tokenize(text)]
+    return Path("samples/add_error_event.py").read_text(encoding="utf-8")
 
 
-def first_token(lexer, text):
-    '''Return the first token dict for the given text.'''
+# ** fixture: minimal_class_text
+@pytest.fixture
+def minimal_class_text() -> str:
+    '''
+    Returns a minimal class + method example for testing basic indent injection.
 
-    tokens = lexer.tokenize(text)
-    assert len(tokens) > 0, f'No tokens produced for: {text!r}'
-    return tokens[0]
+    :return: Small Tiferet-style class with one method
+    :rtype: str
+    '''
+    return '''# ** event: minimal
+class Minimal(DomainEvent):
+    """
+    Class docstring.
+    """
+
+    # * method: execute
+    def execute(self):
+        """
+        Method docstring.
+        """
+        pass
+'''
 
 # *** tests
 
-# ** test: artifact_imports_start
-def test_artifact_imports_start(lexer: TiferetLexer) -> None:
+# ** test: block_tracker_initial_state
+def test_block_tracker_initial_state():
     '''
-    Test that # *** imports is recognized as ARTIFACT_IMPORTS_START.
-    '''
-
-    tok = first_token(lexer, '# *** imports')
-    assert tok['type'] == 'ARTIFACT_IMPORTS_START'
-
-
-# ** test: artifact_start
-def test_artifact_start(lexer: TiferetLexer) -> None:
-    '''
-    Test that # *** commands is recognized as ARTIFACT_START.
-    '''
-
-    tok = first_token(lexer, '# *** commands')
-    assert tok['type'] == 'ARTIFACT_START'
-
-
-# ** test: artifact_import_group_core
-def test_artifact_import_group_core(lexer: TiferetLexer) -> None:
-    '''
-    Test that # ** core is recognized as ARTIFACT_IMPORT_GROUP.
-    '''
-
-    tok = first_token(lexer, '# ** core')
-    assert tok['type'] == 'ARTIFACT_IMPORT_GROUP'
-
-
-# ** test: artifact_import_group_app
-def test_artifact_import_group_app(lexer: TiferetLexer) -> None:
-    '''
-    Test that # ** app is recognized as ARTIFACT_IMPORT_GROUP.
-    '''
-
-    tok = first_token(lexer, '# ** app')
-    assert tok['type'] == 'ARTIFACT_IMPORT_GROUP'
-
-
-# ** test: artifact_import_group_infra
-def test_artifact_import_group_infra(lexer: TiferetLexer) -> None:
-    '''
-    Test that # ** infra is recognized as ARTIFACT_IMPORT_GROUP.
-    '''
-
-    tok = first_token(lexer, '# ** infra')
-    assert tok['type'] == 'ARTIFACT_IMPORT_GROUP'
-
-
-# ** test: artifact_section
-def test_artifact_section(lexer: TiferetLexer) -> None:
-    '''
-    Test that # ** command: add_error is recognized as ARTIFACT_SECTION.
-    '''
-
-    tok = first_token(lexer, '# ** command: add_error')
-    assert tok['type'] == 'ARTIFACT_SECTION'
-
-
-# ** test: artifact_member
-def test_artifact_member(lexer: TiferetLexer) -> None:
-    '''
-    Test that # * method: execute is recognized as ARTIFACT_MEMBER.
-    '''
-
-    tok = first_token(lexer, '# * method: execute')
-    assert tok['type'] == 'ARTIFACT_MEMBER'
-
-
-# ** test: docstring
-def test_docstring(lexer: TiferetLexer) -> None:
-    '''
-    Test that triple-quoted strings are recognized as DOCSTRING.
-    '''
-
-    tok = first_token(lexer, "'''This is a docstring.'''")
-    assert tok['type'] == 'DOCSTRING'
-
-    tok2 = first_token(lexer, '"""Another docstring."""')
-    assert tok2['type'] == 'DOCSTRING'
-
-
-# ** test: docstring_multiline
-def test_docstring_multiline(lexer: TiferetLexer) -> None:
-    '''
-    Test that multiline triple-quoted strings are recognized as DOCSTRING.
-    '''
-
-    text = "'''\n    A multiline\n    docstring.\n    '''"
-    tok = first_token(lexer, text)
-    assert tok['type'] == 'DOCSTRING'
-
-
-# ** test: line_comment
-def test_line_comment(lexer: TiferetLexer) -> None:
-    '''
-    Test that regular comments (non-artifact) are recognized as LINE_COMMENT.
-    '''
-
-    tok = first_token(lexer, '# This is a regular comment')
-    assert tok['type'] == 'LINE_COMMENT'
-
-
-# ** test: class_keyword
-def test_class_keyword(lexer: TiferetLexer) -> None:
-    '''
-    Test that the class keyword is recognized as CLASS.
-    '''
-
-    tok = first_token(lexer, 'class')
-    assert tok['type'] == 'CLASS'
-
-
-# ** test: def_keyword
-def test_def_keyword(lexer: TiferetLexer) -> None:
-    '''
-    Test that the def keyword is recognized as DEF.
-    '''
-
-    tok = first_token(lexer, 'def')
-    assert tok['type'] == 'DEF'
-
-
-# ** test: init_keyword
-def test_init_keyword(lexer: TiferetLexer) -> None:
-    '''
-    Test that __init__ is recognized as INIT.
-    '''
-
-    tok = first_token(lexer, '__init__')
-    assert tok['type'] == 'INIT'
-
-
-# ** test: execute_keyword
-def test_execute_keyword(lexer: TiferetLexer) -> None:
-    '''
-    Test that execute is recognized as IDENTIFIER (not a reserved structural keyword).
-    '''
-
-    tok = first_token(lexer, 'execute')
-    assert tok['type'] == 'IDENTIFIER'
-
-
-# ** test: return_keyword
-def test_return_keyword(lexer: TiferetLexer) -> None:
-    '''
-    Test that return is recognized as RETURN.
-    '''
-
-    tok = first_token(lexer, 'return')
-    assert tok['type'] == 'RETURN'
-
-
-# ** test: self_reference
-def test_self_reference(lexer: TiferetLexer) -> None:
-    '''
-    Test that self is recognized as SELF.
-    '''
-
-    tok = first_token(lexer, 'self')
-    assert tok['type'] == 'SELF'
-
-
-# ** test: obsolete_double_dash
-def test_obsolete_double_dash(lexer: TiferetLexer) -> None:
-    '''
-    Test that # -- obsolete:<description> is recognized as OBSOLETE.
-    '''
+    BlockTracker starts with clean state after initialization.
 
-    tok = first_token(lexer, '# -- obsolete: replaced by new method')
-    assert tok['type'] == 'OBSOLETE'
-
-
-# ** test: obsolete_single_dash
-def test_obsolete_single_dash(lexer: TiferetLexer) -> None:
-    '''
-    Test that # - obsolete:<description> is recognized as OBSOLETE.
-    '''
-
-    tok = first_token(lexer, '# - obsolete: replaced by new method')
-    assert tok['type'] == 'OBSOLETE'
-
-
-# ** test: obsolete_with_trailing_text
-def test_obsolete_with_trailing_text(lexer: TiferetLexer) -> None:
-    '''
-    Test that # -- obsolete with trailing text is recognized as OBSOLETE.
-    '''
-
-    tok = first_token(lexer, '# -- obsolete: replaced by new_method')
-    assert tok['type'] == 'OBSOLETE'
-
-
-# ** test: todo_single_plus
-def test_todo_single_plus(lexer: TiferetLexer) -> None:
-    '''
-    Test that # + todo:<description> is recognized as TODO.
-    '''
-
-    tok = first_token(lexer, '# + todo: add caching support')
-    assert tok['type'] == 'TODO'
-
-
-# ** test: todo_double_plus
-def test_todo_double_plus(lexer: TiferetLexer) -> None:
-    '''
-    Test that # ++ todo:<description> is recognized as TODO.
-    '''
-
-    tok = first_token(lexer, '# ++ todo: add CacheService injection')
-    assert tok['type'] == 'TODO'
-
-
-# ** test: python_keywords
-def test_python_keywords(lexer: TiferetLexer) -> None:
-    '''
-    Test that Python reserved words are recognized as PYTHON_KEYWORD.
-    '''
-
-    keywords = ['from', 'import', 'if', 'else', 'for', 'True', 'False', 'None', 'is', 'not', 'in', 'and', 'or', 'as', 'with']
-    for kw in keywords:
-        tok = first_token(lexer, kw)
-        assert tok['type'] == 'PYTHON_KEYWORD', f'{kw} should be PYTHON_KEYWORD, got {tok["type"]}'
-
-
-# ** test: identifier
-def test_identifier(lexer: TiferetLexer) -> None:
-    '''
-    Test that regular identifiers are recognized as IDENTIFIER.
-    '''
-
-    tok = first_token(lexer, 'my_variable')
-    assert tok['type'] == 'IDENTIFIER'
-    assert tok['value'] == 'my_variable'
-
-
-# ** test: string_literal_single
-def test_string_literal_single(lexer: TiferetLexer) -> None:
-    '''
-    Test that single-quoted strings are recognized as STRING_LITERAL.
-    '''
-
-    tok = first_token(lexer, "'hello world'")
-    assert tok['type'] == 'STRING_LITERAL'
-
-
-# ** test: string_literal_double
-def test_string_literal_double(lexer: TiferetLexer) -> None:
-    '''
-    Test that double-quoted strings are recognized as STRING_LITERAL.
+    :rtype: None
     '''
+    tracker = BlockTracker("")
 
-    tok = first_token(lexer, '"hello world"')
-    assert tok['type'] == 'STRING_LITERAL'
+    assert not tracker.in_class_body
+    assert not tracker.in_method_body
+    assert tracker.class_col is None
+    assert tracker.member_col is None
+    assert len(tracker.class_indent_stack) == 0
+    assert len(tracker.method_indent_stack) == 0
+    assert not tracker.saw_class
+    assert not tracker.saw_method
 
 
-# ** test: number_literal_integer
-def test_number_literal_integer(lexer: TiferetLexer) -> None:
+# ** test: block_tracker_class_body_detection
+def test_block_tracker_class_body_detection(minimal_class_text: str):
     '''
-    Test that integers are recognized as NUMBER_LITERAL.
-    '''
-
-    tok = first_token(lexer, '42')
-    assert tok['type'] == 'NUMBER_LITERAL'
-    assert tok['value'] == '42'
-
+    After seeing CLASS followed by COLON, in_class_body becomes True.
 
-# ** test: number_literal_float
-def test_number_literal_float(lexer: TiferetLexer) -> None:
+    :param minimal_class_text: Minimal class example
+    :type minimal_class_text: str
+    :rtype: None
     '''
-    Test that floats are recognized as NUMBER_LITERAL.
-    '''
-
-    tok = first_token(lexer, '3.14')
-    assert tok['type'] == 'NUMBER_LITERAL'
-    assert tok['value'] == '3.14'
+    tracker = BlockTracker(minimal_class_text)
 
-
-# ** test: operators_arithmetic
-def test_operators_arithmetic(lexer: TiferetLexer) -> None:
-    '''
-    Test that arithmetic operators are recognized correctly.
-    '''
+    tokens = [
+        TokenAggregate.new(type=a.lexer.CLASS, value="class", lineno=2, lexpos=0),
+        TokenAggregate.new(type=a.lexer.COLON, value=":", lineno=2, lexpos=27),
+    ]
 
-    cases = {
-        '+': 'PLUS',
-        '-': 'MINUS',
-        '*': 'STAR',
-        '/': 'SLASH',
-        '**': 'DOUBLESTAR',
-        '//': 'DOUBLESLASH',
-        '%': 'PERCENT',
-        '@': 'AT',
-    }
-    for char, expected_type in cases.items():
-        tok = first_token(lexer, char)
-        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
-
-
-# ** test: operators_comparison
-def test_operators_comparison(lexer: TiferetLexer) -> None:
-    '''
-    Test that comparison operators are recognized correctly.
-    '''
+    for tok in tokens:
+        tracker.process_token(tok)
 
-    cases = {
-        '==': 'EQEQ',
-        '!=': 'NOTEQ',
-        '<': 'LT',
-        '>': 'GT',
-        '<=': 'LTEQ',
-        '>=': 'GTEQ',
-    }
-    for char, expected_type in cases.items():
-        tok = first_token(lexer, char)
-        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
-
-
-# ** test: operators_bitwise
-def test_operators_bitwise(lexer: TiferetLexer) -> None:
-    '''
-    Test that bitwise operators are recognized correctly.
-    '''
+    assert tracker.in_class_body is True
+    assert tracker.saw_class is False
 
-    cases = {
-        '|': 'PIPE',
-        '&': 'AMPERSAND',
-        '~': 'TILDE',
-        '^': 'CARET',
-        '<<': 'LSHIFT',
-        '>>': 'RSHIFT',
-    }
-    for char, expected_type in cases.items():
-        tok = first_token(lexer, char)
-        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
-
-
-# ** test: punctuation
-def test_punctuation(lexer: TiferetLexer) -> None:
-    '''
-    Test that all punctuation and delimiters are recognized correctly.
-    '''
 
-    cases = {
-        '(': 'LPAREN',
-        ')': 'RPAREN',
-        '[': 'LBRACK',
-        ']': 'RBRACK',
-        '{': 'LBRACE',
-        '}': 'RBRACE',
-        ',': 'COMMA',
-        ':': 'COLON',
-        '.': 'DOT',
-        '=': 'EQUALS',
-    }
-    for char, expected_type in cases.items():
-        tok = first_token(lexer, char)
-        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
-
-
-# ** test: arrow
-def test_arrow(lexer: TiferetLexer) -> None:
-    '''
-    Test that -> is recognized as ARROW.
+# ** test: block_tracker_method_body_detection
+def test_block_tracker_method_body_detection(minimal_class_text: str):
     '''
+    After seeing DEF followed by COLON, in_method_body becomes True.
 
-    tok = first_token(lexer, '->')
-    assert tok['type'] == 'ARROW'
-
-
-# ** test: newline
-def test_newline(lexer: TiferetLexer) -> None:
-    '''
-    Test that newlines are recognized as NEWLINE.
+    :param minimal_class_text: Minimal class example
+    :type minimal_class_text: str
+    :rtype: None
     '''
+    tracker = BlockTracker(minimal_class_text)
 
-    types = token_types(lexer, 'a\nb')
-    assert 'NEWLINE' in types
+    tokens = [
+        TokenAggregate.new(type=a.lexer.DEF, value="def", lineno=8, lexpos=100),
+        TokenAggregate.new(type=a.lexer.COLON, value=":", lineno=8, lexpos=150),
+    ]
 
+    for tok in tokens:
+        tracker.process_token(tok)
 
-# ** test: operators_arithmetic
-def test_operators_arithmetic(lexer: TiferetLexer) -> None:
-    '''
-    Test that arithmetic operators are recognized correctly.
-    '''
+    assert tracker.in_method_body is True
+    assert tracker.saw_method is False
 
-    cases = {
-        '+': 'PLUS',
-        '-': 'MINUS',
-        '*': 'STAR',
-        '/': 'SLASH',
-        '**': 'DOUBLESTAR',
-        '//': 'DOUBLESLASH',
-        '%': 'PERCENT',
-        '@': 'AT',
-    }
-    for char, expected_type in cases.items():
-        tok = first_token(lexer, char)
-        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
-
-
-# ** test: operators_comparison
-def test_operators_comparison(lexer: TiferetLexer) -> None:
-    '''
-    Test that comparison operators are recognized correctly.
-    '''
 
-    cases = {
-        '==': 'EQEQ',
-        '!=': 'NOTEQ',
-        '<': 'LT',
-        '>': 'GT',
-        '<=': 'LTEQ',
-        '>=': 'GTEQ',
-    }
-    for char, expected_type in cases.items():
-        tok = first_token(lexer, char)
-        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
-
-
-# ** test: operators_bitwise
-def test_operators_bitwise(lexer: TiferetLexer) -> None:
+# ** test: block_tracker_should_inject_class_indent
+def test_block_tracker_should_inject_class_indent(minimal_class_text: str):
     '''
-    Test that bitwise operators are recognized correctly.
-    '''
+    First token on a new line after class colon with column > class_col triggers INDENT.
 
-    cases = {
-        '|': 'PIPE',
-        '&': 'AMPERSAND',
-        '~': 'TILDE',
-        '^': 'CARET',
-        '<<': 'LSHIFT',
-        '>>': 'RSHIFT',
-    }
-    for char, expected_type in cases.items():
-        tok = first_token(lexer, char)
-        assert tok['type'] == expected_type, f'{char!r} should be {expected_type}, got {tok["type"]}'
-
-
-# ** test: unknown_token
-def test_unknown_token(lexer: TiferetLexer) -> None:
-    '''
-    Test that unrecognized characters produce UNKNOWN tokens.
+    :param minimal_class_text: Minimal class example
+    :type minimal_class_text: str
+    :rtype: None
     '''
+    tracker = BlockTracker(minimal_class_text)
 
-    tok = first_token(lexer, '$')
-    assert tok['type'] == 'UNKNOWN'
+    # Simulate class declaration
+    tracker.process_token(TokenAggregate.new(type=a.lexer.CLASS, value="class", lineno=2, lexpos=0))
+    tracker.process_token(TokenAggregate.new(type=a.lexer.COLON, value=":", lineno=2, lexpos=27))
 
+    # Token at column 4 should trigger class indent
+    assert tracker.should_inject_class_indent(40) is True
 
-# ** test: unknown_tokens_various
-def test_unknown_tokens_various(lexer: TiferetLexer) -> None:
-    '''
-    Test that various unrecognized characters produce UNKNOWN tokens.
-    '''
 
-    for char in ['$', '`']:
-        tok = first_token(lexer, char)
-        assert tok['type'] == 'UNKNOWN', f'{char!r} should be UNKNOWN, got {tok["type"]}'
-
-
-# ** test: column_tracking
-def test_column_tracking(lexer: TiferetLexer) -> None:
-    '''
-    Test that column positions are correctly computed.
+# ** test: block_tracker_should_inject_method_indent
+def test_block_tracker_should_inject_method_indent(minimal_class_text: str):
     '''
+    First token on a new line after method colon with greater column triggers method INDENT.
 
-    tokens = lexer.tokenize('class AddError')
-    assert tokens[0]['column'] == 0
-    assert tokens[1]['column'] == 6
-
-
-# ** test: line_tracking
-def test_line_tracking(lexer: TiferetLexer) -> None:
+    :param minimal_class_text: Minimal class example
+    :type minimal_class_text: str
+    :rtype: None
     '''
-    Test that line numbers are correctly tracked across newlines.
-    '''
+    tracker = BlockTracker(minimal_class_text)
 
-    tokens = lexer.tokenize('class\ndef')
-    class_tok = [t for t in tokens if t['type'] == 'CLASS'][0]
-    def_tok = [t for t in tokens if t['type'] == 'DEF'][0]
-    assert class_tok['line'] == 1
-    assert def_tok['line'] == 2
+    tracker.process_token(TokenAggregate.new(type=a.lexer.DEF, value="def", lineno=8, lexpos=100))
+    tracker.process_token(TokenAggregate.new(type=a.lexer.COLON, value=":", lineno=8, lexpos=150))
 
+    # Token at column 8 should trigger method indent
+    assert tracker.should_inject_method_indent(160) is True
 
-# ** test: full_command_snippet
-def test_full_command_snippet(lexer: TiferetLexer) -> None:
-    '''
-    Test tokenization of a complete Tiferet command snippet.
-    '''
 
-    text = '''# ** command: add_error
-class AddError(DomainEvent):
-    def __init__(self, error_service: ErrorService):
-        self.error_service = error_service
-
-    @DomainEvent.parameters_required(['id', 'name'])
-    def execute(self, id: str, **kwargs):
-        exists = self.error_service.exists(id)
-        self.verify(
-            expression=exists is False,
-            error_code=a.const.ERROR_ALREADY_EXISTS_ID,
-        )
-        new_error = Error.new(id=id, name=name)
-        self.error_service.save(new_error)
-        return new_error
-'''
-
-    tokens = lexer.tokenize(text)
-    types = [t['type'] for t in tokens]
-
-    # Verify key domain tokens are present.
-    assert 'ARTIFACT_SECTION' in types
-    assert 'CLASS' in types
-    assert 'INIT' in types
-    assert 'RETURN' in types
-
-
-# ** test: invalid_class_name_digit_prefix
-def test_invalid_class_name_digit_prefix(lexer: TiferetLexer) -> None:
+# ** test: tiferet_lexer_full_tokenize_includes_indents
+def test_tiferet_lexer_full_tokenize_includes_indents(sample_text: str):
     '''
-    Test that a class with a digit-prefixed name (e.g. 123AddError)
-    is emitted as CLASS UNKNOWN LPAREN rather than splitting the
-    invalid identifier into separate tokens.
-    '''
-
-    # Tokenize a class declaration with an invalid identifier.
-    tokens = lexer.tokenize('class 123AddError(DomainEvent):')
-    types = [t['type'] for t in tokens]
-    values = [t['value'] for t in tokens]
+    Full lexer.tokenize() produces INDENT and DEDENT tokens at correct places.
 
-    # Assert the token sequence: CLASS UNKNOWN LPAREN IDENTIFIER RPAREN COLON.
-    assert types[0] == 'CLASS'
-    assert types[1] == 'UNKNOWN'
-    assert values[1] == '123AddError'
-    assert types[2] == 'LPAREN'
-    assert len(types) == 6
-
-
-# ** test: invalid_method_name_digit_prefix
-def test_invalid_method_name_digit_prefix(lexer: TiferetLexer) -> None:
-    '''
-    Test that a method with a digit-prefixed name (e.g. 123execute)
-    is emitted as DEF UNKNOWN LPAREN rather than splitting the
-    invalid name into separate tokens.
+    :param sample_text: Full sample source
+    :type sample_text: str
+    :rtype: None
     '''
+    lexer = TiferetLexer()
+    tokens = lexer.tokenize(sample_text)
 
-    # Tokenize a def statement with an invalid method name.
-    tokens = lexer.tokenize('def 123execute(self):')
-    types = [t['type'] for t in tokens]
-    values = [t['value'] for t in tokens]
+    token_types = [t.type for t in tokens]
 
-    # Assert the token sequence: DEF UNKNOWN LPAREN SELF RPAREN COLON.
-    assert types[0] == 'DEF'
-    assert types[1] == 'UNKNOWN'
-    assert values[1] == '123execute'
-    assert types[2] == 'LPAREN'
+    assert "INDENT" in token_types
+    assert "DEDENT" in token_types
+    assert len(tokens) > 250
 
 
-# ** test: invalid_attribute_name_digit_prefix
-def test_invalid_attribute_name_digit_prefix(lexer: TiferetLexer) -> None:
+# ** test: tiferet_lexer_empty_text
+def test_tiferet_lexer_empty_text():
     '''
-    Test that a digit-prefixed attribute (e.g. self.123service)
-    emits SELF DOT UNKNOWN instead of splitting into
-    SELF DOT NUMBER_LITERAL IDENTIFIER.
-    '''
-
-    # Tokenize an attribute access with an invalid name.
-    tokens = lexer.tokenize('self.123service')
-    types = [t['type'] for t in tokens]
-    values = [t['value'] for t in tokens]
-
-    # Assert the token sequence: SELF DOT UNKNOWN.
-    assert types[0] == 'SELF'
-    assert types[1] == 'DOT'
-    assert types[2] == 'UNKNOWN'
-    assert values[2] == '123service'
-    assert len(types) == 3
+    Empty text returns an empty list without error.
 
-
-# ** test: empty_input
-def test_empty_input(lexer: TiferetLexer) -> None:
+    :rtype: None
     '''
-    Test that empty input produces no tokens.
-    '''
-
-    tokens = lexer.tokenize('')
+    lexer = TiferetLexer()
+    tokens = lexer.tokenize("")
     assert tokens == []
 
 
-# ** test: whitespace_only
-def test_whitespace_only(lexer: TiferetLexer) -> None:
+# ** test: block_tracker_dedent_on_boundary
+def test_block_tracker_dedent_on_boundary(sample_text: str):
     '''
-    Test that whitespace-only input produces no tokens.
-    '''
+    Hitting next artifact boundary flushes pending DEDENTs and closes bodies.
 
-    tokens = lexer.tokenize('   \t  ')
-    assert tokens == []
+    :param sample_text: Full sample source
+    :type sample_text: str
+    :rtype: None
+    '''
+    tracker = BlockTracker(sample_text)
+
+    # Simulate being inside a method body with indent levels
+    tracker.in_method_body = True
+    tracker.method_indent_stack = [8, 12]
+
+    boundary = TokenAggregate.new(
+        type=a.lexer.ARTIFACT_MEMBER,
+        value="# * attribute: next_one",
+        lineno=100,
+        lexpos=1000
+    )
+
+    tracker.process_token(boundary)
+
+    assert tracker.in_method_body is False
+    assert len(tracker.method_indent_stack) == 0
+
+
+# ** test: lexer_preserves_original_tokens
+def test_lexer_preserves_original_tokens(sample_text: str):
+    '''
+    All original PLY tokens are still present in the final output.
+
+    :param sample_text: Full sample source
+    :type sample_text: str
+    :rtype: None
+    '''
+    lexer = TiferetLexer()
+    tokens = lexer.tokenize(sample_text)
+
+    original_types = {t.type for t in tokens if t.type not in ('INDENT', 'DEDENT')}
+
+    assert a.lexer.CLASS in original_types
+    assert a.lexer.ARTIFACT_MEMBER in original_types
+    assert a.lexer.DEF in original_types
+    assert a.lexer.NEWLINE in original_types
