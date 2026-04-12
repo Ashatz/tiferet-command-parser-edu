@@ -9,12 +9,12 @@ from unittest import mock
 # ** infra
 import pytest
 from tiferet.events import TiferetError
-from tiferet import File
 
 # ** app
+from ...interfaces import LexerService
+from ...mappers import TokenAggregate
 from ..settings import DomainEvent
 from ..scan import PerformLexicalAnalysis, EmitScanResult
-from ...interfaces import LexerService
 
 # *** fixtures
 
@@ -86,10 +86,11 @@ def test_perform_lexical_analysis_success(
 
     # Arrange lexer to return sample tokens.
     mock_tokens = [
-        {'type': 'ARTIFACT_START', 'value': '# *** imports', 'line': 1, 'column': 0},
-        {'type': 'CLASS', 'value': 'class', 'line': 7, 'column': 0},
-        {'type': 'IDENTIFIER', 'value': 'SampleEvent', 'line': 7, 'column': 6},
+        TokenAggregate.new(type='ARTIFACT_START', value='# *** imports', lineno=1, lexpos=0),
+        TokenAggregate.new(type='CLASS', value='class', lineno=2, lexpos=0),
+        TokenAggregate.new(type='IDENTIFIER', value='SampleEvent', lineno=2, lexpos=6),
     ]
+
     mock_lexer_service.tokenize.return_value = mock_tokens
 
     # Execute via DomainEvent.handle (injects lexer_service).
