@@ -7,12 +7,12 @@ from unittest import mock
 
 # ** infra
 import pytest
-from tiferet.events import TiferetError
+from tiferet.events import TiferetError, DomainEvent
 
 # ** app
-from ..settings import DomainEvent
-from ..parser import ParserInitialized, PerformSyntacticAnalysis, SyntacticAnalysisCompleted
 from ...interfaces import ParserService
+from ...mappers import TokenAggregate
+from ..parser import PerformSyntacticAnalysis, EmitParseResult
 
 # *** fixtures
 
@@ -28,30 +28,31 @@ def mock_parser_service() -> ParserService:
 
     return mock.Mock(spec=ParserService)
 
+
 # ** fixture: sample_tokens
 @pytest.fixture
 def sample_tokens() -> list:
     '''
-    Return sample token list as produced by PerformLexicalAnalysis.
+    Return sample token list as List[TokenAggregate] (what PerformSyntacticAnalysis actually receives).
 
-    :return: List of token dicts.
+    :return: List of TokenAggregate objects.
     :rtype: list
     '''
 
     return [
-        {'type': 'ARTIFACT_START', 'value': '# *** events', 'line': 1, 'column': 0},
-        {'type': 'NEWLINE', 'value': '\n', 'line': 1, 'column': 13},
-        {'type': 'ARTIFACT_SECTION', 'value': '# ** event: sample_event', 'line': 3, 'column': 0},
-        {'type': 'NEWLINE', 'value': '\n', 'line': 3, 'column': 24},
-        {'type': 'CLASS', 'value': 'class', 'line': 4, 'column': 0},
-        {'type': 'IDENTIFIER', 'value': 'SampleEvent', 'line': 4, 'column': 6},
+        TokenAggregate.new(type='ARTIFACT_START', value='# *** events', lineno=1, lexpos=0),
+        TokenAggregate.new(type='NEWLINE', value='\n', lineno=1, lexpos=13),
+        TokenAggregate.new(type='ARTIFACT_SECTION', value='# ** event: sample_event', lineno=3, lexpos=0),
+        TokenAggregate.new(type='CLASS', value='class', lineno=4, lexpos=0),
+        TokenAggregate.new(type='IDENTIFIER', value='SampleEvent', lineno=4, lexpos=6),
     ]
+
 
 # ** fixture: sample_ast
 @pytest.fixture
 def sample_ast() -> dict:
     '''
-    Return a sample Module AST as produced by TiferetParser.
+    Return a sample Module AST as produced by the parser service.
 
     :return: A Module AST dict.
     :rtype: dict
@@ -81,39 +82,6 @@ def sample_ast() -> dict:
         ],
     }
 
-# *** tests — ParserInitialized
-
-# ** test: parser_initialized_success
-def test_parser_initialized_success(mock_parser_service: ParserService) -> None:
-    '''
-    Test successful validation of the parser service.
-
-    :param mock_parser_service: Mocked parser service.
-    :type mock_parser_service: ParserService
-    '''
-
-    # Execute the ParserInitialized event.
-    result = DomainEvent.handle(
-        ParserInitialized,
-        dependencies={'parser_service': mock_parser_service},
-    )
-
-    # Assert the parser service is returned.
-    assert result is mock_parser_service
-
-
-# ** test: parser_initialized_none_service
-def test_parser_initialized_none_service() -> None:
-    '''
-    Test that a None parser service raises TiferetError.
-    '''
-
-    # Attempt with None parser service.
-    with pytest.raises(TiferetError):
-        DomainEvent.handle(
-            ParserInitialized,
-            dependencies={'parser_service': None},
-        )
 
 # *** tests — PerformSyntacticAnalysis
 
@@ -124,11 +92,11 @@ def test_perform_syntactic_analysis_success(
         sample_ast: dict,
     ) -> None:
     '''
-    Test successful syntactic parsing of tokens into AST.
+    Test successful syntactic parsing of tokens into a valid Module AST.
 
     :param mock_parser_service: Mocked parser service.
     :type mock_parser_service: ParserService
-    :param sample_tokens: Sample token list.
+    :param sample_tokens: Sample tokens (List[TokenAggregate]).
     :type sample_tokens: list
     :param sample_ast: Expected AST result.
     :type sample_ast: dict
@@ -137,45 +105,38 @@ def test_perform_syntactic_analysis_success(
     # Arrange the parser service to return the sample AST.
     mock_parser_service.parse.return_value = sample_ast
 
-    # Build analysis_result as produced by PerformLexicalAnalysis.
-    analysis_result = {
-        'tokens': sample_tokens,
-        'token_count': len(sample_tokens),
-        'metrics': {},
-    }
-
-    # Execute via DomainEvent.handle with injected dependency.
+    # Execute via DomainEvent.handle (passes tokens directly).
     result = DomainEvent.handle(
         PerformSyntacticAnalysis,
         dependencies={'parser_service': mock_parser_service},
-        analysis_result={'tokens': sample_tokens},
+        tokens=sample_tokens,
     )
 
-    # Assert the AST structure is correct.
+    # Assert the returned value is the AST dict with Module root.
     assert isinstance(result, dict)
     assert result['type'] == 'Module'
-    assert len(result['groups']) == 1
+    assert len(result.get('groups', [])) == 1
 
-    # Verify the parser service was called with the tokens.
+    # Verify the parser service was called with the exact tokens list.
     mock_parser_service.parse.assert_called_once_with(sample_tokens)
 
 
-# ** test: perform_syntactic_analysis_missing_analysis_result
-def test_perform_syntactic_analysis_missing_analysis_result(
+# ** test: perform_syntactic_analysis_missing_tokens
+def test_perform_syntactic_analysis_missing_tokens(
         mock_parser_service: ParserService,
     ) -> None:
     '''
-    Test that missing analysis_result parameter raises TiferetError.
+    Test that missing 'tokens' parameter raises TiferetError (via parameters_required).
 
     :param mock_parser_service: Mocked parser service.
     :type mock_parser_service: ParserService
     '''
 
-    # Attempt without analysis_result.
     with pytest.raises(TiferetError):
         DomainEvent.handle(
             PerformSyntacticAnalysis,
             dependencies={'parser_service': mock_parser_service},
+            # tokens intentionally omitted
         )
 
 
@@ -185,31 +146,25 @@ def test_perform_syntactic_analysis_invalid_ast(
         sample_tokens: list,
     ) -> None:
     '''
-    Test that an invalid AST root raises TiferetError.
+    Test that an invalid AST root (not a Module) raises TiferetError via self.verify.
 
     :param mock_parser_service: Mocked parser service.
     :type mock_parser_service: ParserService
-    :param sample_tokens: Sample token list.
+    :param sample_tokens: Sample tokens.
     :type sample_tokens: list
     '''
 
-    # Arrange the parser to return a non-Module dict.
+    # Arrange parser to return something that fails the Module check.
     mock_parser_service.parse.return_value = {'type': 'InvalidRoot'}
 
-    # Build analysis_result with sample tokens.
-    analysis_result = {
-        'tokens': sample_tokens,
-        'token_count': len(sample_tokens),
-        'metrics': {},
-    }
-
-    # Attempt parsing with an invalid AST result.
-    with pytest.raises(TiferetError):
+    with pytest.raises(TiferetError) as exc_info:
         DomainEvent.handle(
             PerformSyntacticAnalysis,
             dependencies={'parser_service': mock_parser_service},
-            analysis_result={'tokens': sample_tokens},
+            tokens=sample_tokens,
         )
+
+    assert exc_info.value.error_code == 'INVALID_AST_STRUCTURE'
 
 
 # ** test: perform_syntactic_analysis_none_ast
@@ -218,84 +173,72 @@ def test_perform_syntactic_analysis_none_ast(
         sample_tokens: list,
     ) -> None:
     '''
-    Test that a None AST result raises TiferetError.
+    Test that returning None from the parser raises TiferetError.
 
     :param mock_parser_service: Mocked parser service.
     :type mock_parser_service: ParserService
-    :param sample_tokens: Sample token list.
+    :param sample_tokens: Sample tokens.
     :type sample_tokens: list
     '''
 
-    # Arrange the parser to return None.
     mock_parser_service.parse.return_value = None
 
-    # Build analysis_result with sample tokens.
-    analysis_result = {
-        'tokens': sample_tokens,
-        'token_count': len(sample_tokens),
-        'metrics': {},
-    }
-
-    # Attempt parsing with a None result.
-    with pytest.raises(TiferetError):
+    with pytest.raises(TiferetError) as exc_info:
         DomainEvent.handle(
             PerformSyntacticAnalysis,
             dependencies={'parser_service': mock_parser_service},
-            analysis_result={'tokens': sample_tokens},
+            tokens=sample_tokens,
         )
 
-# *** tests — SyntacticAnalysisCompleted
+    assert exc_info.value.error_code == 'INVALID_AST_STRUCTURE'
 
-# ** test: syntactic_analysis_completed_success
-def test_syntactic_analysis_completed_success(sample_ast: dict) -> None:
+
+# *** tests — EmitParseResult
+
+# ** test: emit_parse_result_default
+def test_emit_parse_result_default(
+        sample_ast: dict,
+        sample_tokens: list,
+    ) -> None:
     '''
-    Test successful finalization of syntactic analysis.
-
-    :param sample_ast: Sample Module AST.
-    :type sample_ast: dict
+    Test default EmitParseResult behavior (includes tokens, no summary-only).
     '''
 
-    # Execute the SyntacticAnalysisCompleted event.
     result = DomainEvent.handle(
-        SyntacticAnalysisCompleted,
+        EmitParseResult,
         ast=sample_ast,
+        tokens=sample_tokens,
+        source_file='test.py',
     )
 
-    # Assert the enriched payload structure.
-    assert result['event_type'] == 'SyntacticAnalysisCompleted'
-    assert result['ast'] is sample_ast
-    assert result['group_count'] == 1
+    assert result['event_type'] == 'ParseCompleted'
+    assert result['source_file'] == 'test.py'
+    assert result['token_count'] == len(sample_tokens)
+    assert result['ast'] == sample_ast
+    assert 'tokens' in result
+    assert len(result['tokens']) == len(sample_tokens)
+    assert 'timestamp' in result
 
 
-# ** test: syntactic_analysis_completed_empty_groups
-def test_syntactic_analysis_completed_empty_groups() -> None:
+# ** test: emit_parse_result_summary_only
+def test_emit_parse_result_summary_only(
+        sample_ast: dict,
+        sample_tokens: list,
+    ) -> None:
     '''
-    Test finalization with an AST that has no groups.
+    Test that summary_only=True omits the full tokens list.
     '''
 
-    # Create an AST with empty groups.
-    ast = {'type': 'Module', 'groups': []}
-
-    # Execute the event.
     result = DomainEvent.handle(
-        SyntacticAnalysisCompleted,
-        ast=ast,
+        EmitParseResult,
+        ast=sample_ast,
+        tokens=sample_tokens,
+        source_file='test.py',
+        summary_only=True,
     )
 
-    # Assert group_count is zero.
-    assert result['group_count'] == 0
-    assert result['ast'] is ast
+    assert 'tokens' not in result
+    assert 'metrics' in result
 
 
-# ** test: syntactic_analysis_completed_missing_ast
-def test_syntactic_analysis_completed_missing_ast() -> None:
-    '''
-    Test that a missing AST raises TiferetError.
-    '''
-
-    # Attempt without ast parameter.
-    with pytest.raises(TiferetError):
-        DomainEvent.handle(
-            SyntacticAnalysisCompleted,
-            ast=None,
-        )
+# ** test: emit_parse_result_with_extract
