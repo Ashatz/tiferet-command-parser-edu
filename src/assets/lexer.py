@@ -250,63 +250,63 @@ _python_keywords = {
 }
 
 # ** constant: artifact_imports_start
-def ARTIFACT_IMPORTS_START(self, t):
+def T_ARTIFACT_IMPORTS_START(self, t):
     r'\#\s*\*{3}\s+imports[^\S\n]*'
     return t
 
 # ** constant: artifact_import_group
-def ARTIFACT_IMPORT_GROUP(self, t):
+def T_ARTIFACT_IMPORT_GROUP(self, t):
     r'\#\s*\*{2}\s+(core|app|infra)\b.*'
     return t
 
 # ** constant: artifact_start
-def ARTIFACT_START(self, t):
+def T_ARTIFACT_START(self, t):
     r'\#\s*\*{3}\s+.*'
     return t
 
 # ** constant: artifact_section
-def ARTIFACT_SECTION(self, t):
+def T_ARTIFACT_SECTION(self, t):
     r'\#\s*\*{2}\s+.*'
     return t
 
 # ** constant: artifact_member
-def ARTIFACT_MEMBER(self, t):
+def T_ARTIFACT_MEMBER(self, t):
     r'\#\s*\*\s+.*'
     return t
 
 # ** constant: obsolete
-def OBSOLETE(self, t):
+def T_OBSOLETE(self, t):
     r'\#\s*-{1,2}\s+obsolete:[^\n]+'
     return t
 
 # ** constant: todo
-def TODO(self, t):
+def T_TODO(self, t):
     r'\#\s*\+{1,2}\s+todo:[^\n]+'
     return t
 
 # ** constant: docstring
-def DOCSTRING(self, t):
+def T_DOCSTRING(self, t):
     r'(\"\"\"[\s\S]*?\"\"\"|\'\'\'[\s\S]*?\'\'\')'
     t.lexer.lineno += t.value.count('\n')
     return t
 
 # ** constant: line_comment
-def LINE_COMMENT(self, t):
+def T_LINE_COMMENT(self, t):
     r'\#[^*\n].*'
     return t
 
 # ** constant: string_literal
-def STRING_LITERAL(self, t):
+def T_STRING_LITERAL(self, t):
     r'(\"([^\"\\]|\\.)*\"|\'([^\'\\]|\\.)*\')'
     return t
 
 # ** constant: arrow
-def ARROW(self, t):
+def T_ARROW(self, t):
     r'->'
     return t
 
 # ** constant: number_literal
-def NUMBER_LITERAL(self, t):
+def T_NUMBER_LITERAL(self, t):
     r'[0-9]+(\.[0-9]+)?([a-zA-Z_][a-zA-Z0-9_]*)?'
 
     # If trailing identifier characters are present, emit as UNKNOWN.
@@ -316,7 +316,7 @@ def NUMBER_LITERAL(self, t):
     return t
 
 # ** constant: identifier
-def IDENTIFIER(self, t):
+def T_IDENTIFIER(self, t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
 
     # Check for structural keywords first.
@@ -336,145 +336,145 @@ def IDENTIFIER(self, t):
     return t
 
 # ** constant: doublestar
-DOUBLESTAR = r'\*\*'
+T_DOUBLESTAR = r'\*\*'
 
 # ** constant: doubleslash
-DOUBLESLASH = r'//'
+T_DOUBLESLASH = r'//'
 
 # ** constant: lshift
-LSHIFT = r'<<'
+T_LSHIFT = r'<<'
 
 # ** constant: rshift
-RSHIFT = r'>>'
+T_RSHIFT = r'>>'
 
 # ** constant: eqeq
-EQEQ = r'=='
+T_EQEQ = r'=='
 
 # ** constant: noteq
-NOTEQ = r'!='
+T_NOTEQ = r'!='
 
 # ** constant: lteq
-LTEQ = r'<='
+T_LTEQ = r'<='
 
 # ** constant: gteq
-GTEQ = r'>='
+T_GTEQ = r'>='
 
 # ** constant: plus
-PLUS = r'\+'
+T_PLUS = r'\+'
 
 # ** constant: minus
-MINUS = r'-'
+T_MINUS = r'-'
 
 # ** constant: star
-STAR = r'\*'
+T_STAR = r'\*'
 
 # ** constant: slash
-SLASH = r'/'
+T_SLASH = r'/'
 
 # ** constant: percent
-PERCENT = r'%'
+T_PERCENT = r'%'
 
 # ** constant: pipe
-PIPE = r'\|'
+T_PIPE = r'\|'
 
 # ** constant: ampersand
-AMPERSAND = r'&'
+T_AMPERSAND = r'&'
 
 # ** constant: tilde
-TILDE = r'~'
+T_TILDE = r'~'
 
 # ** constant: caret
-CARET = r'\^'
+T_CARET = r'\^'
 
 # ** constant: lt
-LT = r'<'
+T_LT = r'<'
 
 # ** constant: gt
-GT = r'>'
+T_GT = r'>'
 
 # ** constant: at
-AT = r'@'
+T_AT = r'@'
 
-# ** constant: lparen
-LPAREN = r'\('
+# ** constant: t_lparen
+T_LPAREN = r'\('
 
-# ** constant: rparen
-RPAREN = r'\)'
+# ** constant: t_rparen
+T_RPAREN = r'\)'
 
-# ** constant: lbrack
-LBRACK = r'\['
+# ** constant: t_lbrack
+T_LBRACK = r'\['
 
-# ** constant: rbrack
-RBRACK = r'\]'
+# ** constant: t_rbrack
+T_RBRACK = r'\]'
 
-# ** constant: lbrace
-LBRACE = r'\{'
+# ** constant: t_lbrace
+T_LBRACE = r'\{'
 
-# ** constant: rbrace
-RBRACE = r'\}'
+# ** constant: t_rbrace
+T_RBRACE = r'\}'
 
 # ** constant: comma
-COMMA = r','
+T_COMMA = r','
 
 # ** constant: colon
-COLON = r':'
+T_COLON = r':'
 
 # ** constant: dot
-DOT = r'\.'
+T_DOT = r'\.'
 
 # ** constant: equals
-EQUALS = r'='
+T_EQUALS = r'='
 
 # ** constant: newline
-def NEWLINE(self, t):
+def T_NEWLINE(self, t):
     r'\n+'
     t.lexer.lineno += len(t.value)
     return t
 
 # ** constant: rules
 RULES = {
-    't_ARTIFACT_IMPORTS_START': ARTIFACT_IMPORTS_START,
-    't_ARTIFACT_IMPORT_GROUP': ARTIFACT_IMPORT_GROUP,
-    't_ARTIFACT_START': ARTIFACT_START,
-    't_ARTIFACT_SECTION': ARTIFACT_SECTION,
-    't_ARTIFACT_MEMBER': ARTIFACT_MEMBER,
-    't_OBSOLETE': OBSOLETE,
-    't_TODO': TODO,
-    't_DOCSTRING': DOCSTRING,
-    't_LINE_COMMENT': LINE_COMMENT,
-    't_STRING_LITERAL': STRING_LITERAL,
-    't_ARROW': ARROW,
-    't_NUMBER_LITERAL': NUMBER_LITERAL,
-    't_IDENTIFIER': IDENTIFIER,
-    't_DOUBLESTAR': DOUBLESTAR,
-    't_DOUBLESLASH': DOUBLESLASH,
-    't_LSHIFT': LSHIFT,
-    't_RSHIFT': RSHIFT,
-    't_EQEQ': EQEQ,
-    't_NOTEQ': NOTEQ,
-    't_LTEQ': LTEQ,
-    't_GTEQ': GTEQ,
-    't_PLUS': PLUS,
-    't_MINUS': MINUS,
-    't_STAR': STAR,
-    't_SLASH': SLASH,
-    't_PERCENT': PERCENT,
-    't_PIPE': PIPE,
-    't_AMPERSAND': AMPERSAND,
-    't_TILDE': TILDE,
-    't_CARET': CARET,
-    't_LT': LT,
-    't_GT': GT,
-    't_AT': AT,
-    't_LPAREN': LPAREN,
-    't_RPAREN': RPAREN,
-    't_LBRACK': LBRACK,
-    't_RBRACK': RBRACK,
-    't_LBRACE': LBRACE,
-    't_RBRACE': RBRACE,
-    't_COMMA': COMMA,
-    't_COLON': COLON,
-    't_DOT': DOT,
-    't_EQUALS': EQUALS,
-    't_NEWLINE': NEWLINE,
+    't_ARTIFACT_IMPORTS_START': T_ARTIFACT_IMPORTS_START,
+    't_ARTIFACT_IMPORT_GROUP': T_ARTIFACT_IMPORT_GROUP,
+    't_ARTIFACT_START': T_ARTIFACT_START,
+    't_ARTIFACT_SECTION': T_ARTIFACT_SECTION,
+    't_ARTIFACT_MEMBER': T_ARTIFACT_MEMBER,
+    't_OBSOLETE': T_OBSOLETE,
+    't_TODO': T_TODO,
+    't_DOCSTRING': T_DOCSTRING,
+    't_LINE_COMMENT': T_LINE_COMMENT,
+    't_STRING_LITERAL': T_STRING_LITERAL,
+    't_ARROW': T_ARROW,
+    't_NUMBER_LITERAL': T_NUMBER_LITERAL,
+    't_IDENTIFIER': T_IDENTIFIER,
+    't_DOUBLESTAR': T_DOUBLESTAR,
+    't_DOUBLESLASH': T_DOUBLESLASH,
+    't_LSHIFT': T_LSHIFT,
+    't_RSHIFT': T_RSHIFT,
+    't_EQEQ': T_EQEQ,
+    't_NOTEQ': T_NOTEQ,
+    't_LTEQ': T_LTEQ,
+    't_GTEQ': T_GTEQ,
+    't_PLUS': T_PLUS,
+    't_MINUS': T_MINUS,
+    't_STAR': T_STAR,
+    't_SLASH': T_SLASH,
+    't_PERCENT': T_PERCENT,
+    't_PIPE': T_PIPE,
+    't_AMPERSAND': T_AMPERSAND,
+    't_TILDE': T_TILDE,
+    't_CARET': T_CARET,
+    't_LT': T_LT,
+    't_GT': T_GT,
+    't_AT': T_AT,
+    't_LPAREN': T_LPAREN,
+    't_RPAREN': T_RPAREN,
+    't_LBRACK': T_LBRACK,
+    't_RBRACK': T_RBRACK,
+    't_LBRACE': T_LBRACE,
+    't_RBRACE': T_RBRACE,
+    't_COMMA': T_COMMA,
+    't_COLON': T_COLON,
+    't_DOT': T_DOT,
+    't_EQUALS': T_EQUALS,
+    't_NEWLINE': T_NEWLINE,
 }
