@@ -21,7 +21,7 @@ class ScanOutputWriter:
 
     # * method: detect_format (static)
     @staticmethod
-    def detect_format(output_path: str, output_format: str = 'yaml') -> str:
+    def detect_format(output_path: str, output_format: str = 'auto') -> str:
         '''
         Resolve the output format. If ``output_format`` is ``'auto'``,
         detect from the file extension; otherwise return ``output_format``
@@ -47,7 +47,7 @@ class ScanOutputWriter:
 
     # * method: write (static)
     @staticmethod
-    def write(result: Dict[str, Any], output_path: str, output_format: str = 'yaml') -> None:
+    def write(result: Dict[str, Any], output_path: str, output_format: str = 'auto') -> None:
         '''
         Write a result payload to a file in the specified format.
 

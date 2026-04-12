@@ -7,7 +7,6 @@ import os
 import json
 
 # ** infra
-import pytest
 import yaml
 
 # ** app
@@ -66,7 +65,6 @@ def test_detect_format_explicit() -> None:
     # Assert the explicit format is honored.
     assert result == 'json'
 
-# *** tests — write
 
 # ** test: write_yaml
 def test_write_yaml(tmp_path) -> None:
@@ -137,7 +135,6 @@ def test_write_auto_json(tmp_path) -> None:
         loaded = json.load(f)
     assert loaded['event_type'] == 'TokensScanned'
 
-# *** tests — parse_extract_names
 
 # ** test: parse_extract_names_none
 def test_parse_extract_names_none() -> None:
