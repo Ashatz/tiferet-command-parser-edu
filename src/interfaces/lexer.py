@@ -9,6 +9,9 @@ from typing import List, Dict, Any
 # ** infra
 from tiferet.interfaces.settings import Service
 
+# ** app
+from ..mappers import TokenAggregate
+
 # *** interfaces
 
 # ** interface: lexer_service
@@ -19,14 +22,14 @@ class LexerService(Service):
 
     # * method: tokenize
     @abstractmethod
-    def tokenize(self, text: str) -> List[Dict[str, Any]]:
+    def tokenize(self, text: str) -> List[TokenAggregate]:
         '''
         Tokenize a block of source text.
 
         :param text: A block of source text to tokenize.
         :type text: str
-        :return: A list of token dictionaries with type, value, line, and column.
-        :rtype: List[Dict[str, Any]]
+        :return: A list of token aggregates.
+        :rtype: List[TokenAggregate]
         '''
 
         raise NotImplementedError()
