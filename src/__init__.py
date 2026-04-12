@@ -3,11 +3,6 @@
 # *** exports
 
 # ** app
-from .events import (
-    DomainEvent, TiferetError,
-    ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult,
-    ParserInitialized, PerformSyntacticAnalysis, SyntacticAnalysisCompleted,
-)
 from .interfaces import LexerService, ParserService
 from .utils import TiferetLexer, TiferetParser
 
