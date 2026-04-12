@@ -2,15 +2,9 @@ attrs:
   perform_lexical_analysis_event:
     module_path: src.events.scan
     class_name: PerformLexicalAnalysis
-  parser_initialized_event:
-    module_path: src.events.parser
-    class_name: ParserInitialized
   perform_syntactic_analysis_event:
     module_path: src.events.parser
     class_name: PerformSyntacticAnalysis
-  syntactic_analysis_completed_event:
-    module_path: src.events.parser
-    class_name: SyntacticAnalysisCompleted
   emit_scan_result_event:
     module_path: src.events.scan
     class_name: EmitScanResult
@@ -32,7 +26,7 @@ features:
       commands:
         - attribute_id: perform_lexical_analysis_event
           name: Tokenize and compute lexical metrics
-          data_key: analysis_result
+          data_key: tokens
         - attribute_id: emit_scan_result_event
           name: Assemble and emit scan result
   parse:
@@ -42,9 +36,7 @@ features:
       commands:
         - attribute_id: perform_lexical_analysis_event
           name: Tokenize and compute lexical metrics
-          data_key: analysis_result
-        - attribute_id: parser_initialized_event
-          name: Verify parser service readiness
+          data_key: tokens
         - attribute_id: perform_syntactic_analysis_event
           name: Parse token stream into AST
           data_key: ast
@@ -102,7 +94,7 @@ cli:
           - name_or_flags:
               - --summary-only
             description: Output only metrics/summary (no token list).
-            
+
     parse:
       event:
         group_key: parse
