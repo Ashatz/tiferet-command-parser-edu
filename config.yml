@@ -1,10 +1,4 @@
 attrs:
-  extract_text_event:
-    module_path: src.events.scan
-    class_name: ExtractText
-  lexer_initialized_event:
-    module_path: src.events.scan
-    class_name: LexerInitialized
   perform_lexical_analysis_event:
     module_path: src.events.scan
     class_name: PerformLexicalAnalysis
@@ -36,36 +30,16 @@ features:
       name: 'Scan Event'
       description: 'Perform lexical scanning on a Tiferet event source file'
       commands:
-        - attribute_id: extract_text_event
-          name: Extract text blocks from source file
-          data_key: text_blocks
-        - attribute_id: lexer_initialized_event
-          name: Validate extracted text blocks
-          data_key: validated_blocks
         - attribute_id: perform_lexical_analysis_event
           name: Tokenize and compute lexical metrics
           data_key: analysis_result
-        - attribute_id: parser_initialized_event
-          name: Verify parser service readiness
-        - attribute_id: perform_syntactic_analysis_event
-          name: Parse token stream into AST
-          data_key: ast
-        - attribute_id: syntactic_analysis_completed_event
-          name: Finalize syntactic analysis result
-          data_key: syntactic_result
         - attribute_id: emit_scan_result_event
-          name: Format and emit scan result
+          name: Assemble and emit scan result
   parse:
     event:
       name: 'Parse Event'
       description: 'Perform syntactic parsing on a Tiferet event source file'
       commands:
-        - attribute_id: extract_text_event
-          name: Extract text blocks from source file
-          data_key: text_blocks
-        - attribute_id: lexer_initialized_event
-          name: Validate extracted text blocks
-          data_key: validated_blocks
         - attribute_id: perform_lexical_analysis_event
           name: Tokenize and compute lexical metrics
           data_key: analysis_result
@@ -78,32 +52,27 @@ features:
           name: Assemble and emit parse result
 
 errors:
-  source_file_not_found:
-    name: Source File Not Found
-    message:
-      - lang: en_US
-        text: 'Source file not found: {source_file}'
-  text_extraction_failed:
+  TEXT_EXTRACTION_FAILED:
     name: Text Extraction Failed
     message:
       - lang: en_US
         text: 'Failed to extract text blocks from source file: {source_file}'
-  lexical_error_detected:
+  LEXICAL_ERROR_DETECTED:
     name: Lexical Error Detected
     message:
       - lang: en_US
         text: 'Lexical error detected during tokenization'
-  parser_not_initialized:
+  PARSER_NOT_INITIALIZED:
     name: Parser Not Initialized
     message:
       - lang: en_US
         text: 'TiferetParser service failed to initialize'
-  invalid_ast_structure:
+  INVALID_AST_STRUCTURE:
     name: Invalid AST Structure
     message:
       - lang: en_US
         text: 'Syntactic parser did not return a valid Module AST'
-  missing_ast:
+  MISSING_AST:
     name: Missing AST
     message:
       - lang: en_US
@@ -131,18 +100,9 @@ cli:
               - --format
             description: "Output format: yaml, json, console, or auto."
           - name_or_flags:
-              - -x
-              - --extract
-            description: Comma-separated artifact names to extract.
-          - name_or_flags:
               - --summary-only
             description: Output only metrics/summary (no token list).
-          - name_or_flags:
-              - --with-metrics
-            description: Include detailed lexical metrics section.
-          - name_or_flags:
-              - --metrics-format
-            description: "Metrics rendering format: yaml, json, or text."
+            
     parse:
       event:
         group_key: parse
