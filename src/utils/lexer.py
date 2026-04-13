@@ -15,6 +15,11 @@ from ..events import a
 from ..interfaces import LexerService
 from ..mappers import TokenAggregate
 
+# *** constants
+
+# ** constant: tab_size
+TAB_SIZE = 4
+
 # *** utils
 
 # ** util: block_tracker
@@ -31,6 +36,21 @@ class BlockTracker:
     # * attribute: method_pattern (class)
     method_pattern = re.compile(r'#\s*\*\s+(method:|init\b)')
 
+    # * attribute: class_pattern
+    class_pattern = re.compile(r'#\s*\*\s+(events:\b)')
+
+    # * attribute: paren_depth
+    paren_depth: int
+
+    # * attribute: saw_class
+    saw_class: bool
+
+    # * attribute: saw_method
+    saw_method: bool
+
+    # * attribute: current_col
+    current_col: int
+
     # * init
     def __init__(self, text: str):
         '''
@@ -44,15 +64,11 @@ class BlockTracker:
         '''
         Reset all tracking state.
         '''
-        self.in_class_body: bool = False
-        self.in_method_body: bool = False
-        self.class_col: int | None = None
-        self.member_col: int | None = None
-        self.class_indent_stack: List[int] = []
-        self.method_indent_stack: List[int] = []
+
         self.paren_depth: int = 0
         self.saw_class: bool = False
         self.saw_method: bool = False
+        self.current_col: int = 0
 
     # * method: find_column
     def find_column(self, lexpos: int) -> int:
@@ -67,12 +83,18 @@ class BlockTracker:
         return lexpos - last_newline - 1
 
     # * method: process_token
-    def process_token(self, tok: TokenAggregate) -> None:
+    def process_token(self, tok: TokenAggregate, result: List[TokenAggregate] = []) -> None:
         '''
         Update internal state based on the current token.
+        
+        :param tok: The current token being processed.
+        :type tok: TokenAggregate
+        :param result: The list of tokens to which any injected INDENT/DEDENT tokens should be appended.
+        :type result: List[TokenAggregate]
         '''
+        
         ttype = tok.type
-        value = tok.value
+        lineno = tok.lineno
         lexpos = getattr(tok, 'lexpos', 0)
         column = self.find_column(lexpos)
 
@@ -83,142 +105,57 @@ class BlockTracker:
             self.paren_depth = max(0, self.paren_depth - 1)
 
         # CLASS detection
-        if ttype == a.lexer.CLASS:
-            self.saw_class = True
-            self.class_col = column
+        if ttype == a.lexer.CLASS or (ttype == a.lexer.ARTIFACT_SECTION and self.class_pattern.match(tok.value)):
+            if not self.saw_class:
+                self.saw_class = True
 
         # METHOD handling
-        if ttype == a.lexer.DEF:
-            self.saw_method = True
-            self.member_col = column
+        if ttype == a.lexer.DEF or (ttype == a.lexer.ARTIFACT_MEMBER and self.method_pattern.match(tok.value)):
+            if not self.saw_method:
+                self.saw_method = True
 
-        # CLASS hard block boundaries
-        elif ttype in {
-            a.lexer.ARTIFACT_SECTION,
-        }:
-            self.close_class_body()
-
-        # METHOD hard block boundaries
-        elif ttype in {
-            a.lexer.ARTIFACT_MEMBER,
-        }:
-            self.close_method_body()
-
-        # Annotations after method body
-        elif ttype in {a.lexer.OBSOLETE, a.lexer.TODO} and self.method_indent_stack:
-            self.close_method_body()
-
-        # COLON after CLASS
-        if self.saw_class and ttype == a.lexer.COLON and self.paren_depth == 0:
-            self.saw_class = False
-            self.in_class_body = True
-
-        # COLON after METHOD signature
-        if self.saw_method and ttype == a.lexer.COLON and self.paren_depth == 0:
-            self.saw_method = False
-            self.in_method_body = True
-
-    # * method: should_inject_class_indent
-    def should_inject_class_indent(self, next_lexpos: int) -> bool:
+    # * method: apply_block
+    def apply_block(self, next_lexpos: int, lineno: int, result: List[TokenAggregate]) -> None:
         '''
-        Return True if the next line should start a new class body indent.
+        Apply any necessary INDENT/DEDENT tokens based on the next token's lexpos.
         '''
-        if not self.in_class_body or self.class_indent_stack:
-            return False
-        next_col = self.find_column(next_lexpos)
-        return self.class_col is not None and next_col > self.class_col
+        
+        # Get the current column for the next token.
+        current_col = self.find_column(next_lexpos)
 
-    # * method: should_inject_method_indent
-    def should_inject_method_indent(self, next_lexpos: int) -> bool:
-        '''
-        Return True if the next line should push a new method indent level.
-        '''
-        if not self.in_method_body or self.paren_depth != 0:
-            return False
-        next_col = self.find_column(next_lexpos)
-        current = self.method_indent_stack[-1] if self.method_indent_stack else None
-        return current is None or next_col > current
+        # If this token is less than self.current_col, we need to inject DEDENT(s) for each level of indentation we've exited.
+        if current_col < self.current_col:
+            no_of_dedents = (self.current_col - current_col) // TAB_SIZE
+            result.extend([TokenAggregate.new_dedent(lineno, next_lexpos)] * no_of_dedents)
 
-    # * method: get_dedents_for_column
-    def get_dedents_for_column(self, next_lexpos: int) -> List[TokenAggregate]:
-        '''
-        Return list of DEDENT tokens when indentation level drops.
-        '''
-        dedents: List[TokenAggregate] = []
-        next_col = self.find_column(next_lexpos)
-        while self.method_indent_stack and self.method_indent_stack[-1] > next_col:
-            self.method_indent_stack.pop()
-            dedents.append(self.make_dedent())
-        return dedents
+            # Update current_col to the next token's column after processing.
+            self.current_col = current_col
 
-    # * method: get_and_flush_dedents_for_boundary
-    def get_and_flush_dedents_for_boundary(self) -> List[TokenAggregate]:
+        # If this token is greater than self.current_col, we need to check if we should inject an INDENT for a new class or method body.
+        elif current_col > self.current_col:
+
+            # If we previously saw a class or method declaration before the new line, inject an INDENT for it.
+            if self.saw_class or self.saw_method:
+                result.append(TokenAggregate.new_indent(lineno, next_lexpos))
+                self.saw_class = False
+                self.saw_method = False
+
+                # Update current_col to the next token's column after processing.
+                self.current_col = current_col
+
+    # * method: flush_dedents_for_boundary
+    def flush_dedents_for_boundary(self) -> List[TokenAggregate]:
         '''
         Return all pending DEDENT tokens for a boundary and clear state.
         '''
         dedents: List[TokenAggregate] = []
 
-        while self.method_indent_stack:
-            dedents.append(self.make_dedent())
-            self.method_indent_stack.pop()
-        self.close_method_body()
-
-        while self.class_indent_stack:
-            dedents.append(self.make_dedent())
-            self.class_indent_stack.pop()
-        self.close_class_body()
+        # If we are at the end of the file and there are still open indents, we need to close them all.
+        if self.current_col > 0:
+            dedents.extend([TokenAggregate.new_dedent()] * (self.current_col // TAB_SIZE))
+            self.current_col = 0
 
         return dedents
-
-    # * method: create_indent
-    def create_indent(self, lineno: int, lexpos: int) -> TokenAggregate:
-        '''
-        Create an INDENT token and record the column on the appropriate stack.
-        '''
-        column = self.find_column(lexpos)
-        if self.in_method_body and self.paren_depth == 0:
-            self.method_indent_stack.append(column)
-        elif self.in_class_body and not self.class_indent_stack:
-            self.class_indent_stack.append(column)
-
-        return TokenAggregate.new(
-            type=a.lexer.INDENT,
-            value='',
-            lineno=lineno,
-            lexpos=lexpos
-        )
-
-    # * method: make_dedent
-    def make_dedent(self, lineno: int = 0, lexpos: int = 0) -> TokenAggregate:
-        '''
-        Create a DEDENT token.
-        '''
-        return TokenAggregate.new(
-            type='DEDENT',
-            value='',
-            lineno=lineno,
-            lexpos=lexpos
-        )
-
-    # * method: close_method_body
-    def close_method_body(self):
-        '''
-        Close any open method body and clear its state.
-        '''
-        self.method_indent_stack.clear()
-        self.in_method_body = False
-        self.member_col = None
-
-    # * method: close_class_body
-    def close_class_body(self):
-        '''
-        Close any open class body and clear its state.
-        '''
-        self.class_indent_stack.clear()
-        self.in_class_body = False
-        self.class_col = None
-        self.saw_class = False
-
 
 # ** util: tiferet_lexer
 class TiferetLexer(LexerService):
@@ -238,10 +175,15 @@ class TiferetLexer(LexerService):
     t_ignore = ' \t'
 
     # * init
-    def __init__(self):
+    def __init__(self, include_indent_dedent: bool = True):
         '''
         Initialize the TiferetLexer and build the PLY lexer instance.
+
+        :param include_indent_dedent: Whether to include INDENT/DEDENT tokens in the output stream.
+        :type include_indent_dedent: bool
         '''
+
+        self.include_indent_dedent = include_indent_dedent
 
         # Load rules dynamically from the assets mapping.
         for name, rule in a.lexer.RULES.items():
@@ -253,10 +195,15 @@ class TiferetLexer(LexerService):
         # Build the PLY lexer from this module's token rules.
         self.lexer = Lex(module=self)
 
-    # * rule: t_error
+    # * method: t_error
     def t_error(self, t: LexToken) -> LexToken:
         '''
         Handle unrecognized characters by emitting UNKNOWN tokens.
+        
+        :param t: The LexToken that caused the error.
+        :type t: LexToken
+        :return: An UNKNOWN token with the same value and position as the original token.
+        :rtype: LexToken
         '''
 
         t.type = 'UNKNOWN'
@@ -272,6 +219,7 @@ class TiferetLexer(LexerService):
         Tokenize the provided source text and automatically inject
         INDENT / DEDENT tokens for class and method bodies.
         '''
+
         self.lexer.lineno = 1
         self.lexer.input(text)
 
@@ -281,21 +229,21 @@ class TiferetLexer(LexerService):
 
         for t in self.lexer:
             token = self.map_lex_token(t)
-            tracker.process_token(token)
+            tracker.process_token(token, result)
 
-            # If this token starts a new line, check if we need to inject INDENT/DEDENT
-            # before adding the token itself.
-            if token.lineno > prev_lineno:
-                # New line started — use this token's column for decision
-                if tracker.should_inject_class_indent(token.lexpos):
-                    result.append(tracker.create_indent(token.lineno, token.lexpos))
+            # If we are configured to include INDENT/DEDENT tokens and this token starts a new line,
+            # check if we need to inject INDENT/DEDENT before adding the token itself.
+            if self.include_indent_dedent and token.lineno > prev_lineno:
 
-                elif tracker.in_method_body:
-                    if tracker.should_inject_method_indent(token.lexpos):
-                        result.append(tracker.create_indent(token.lineno, token.lexpos))
-                    else:
-                        dedents = tracker.get_dedents_for_column(token.lexpos)
-                        result.extend(dedents)
+                # Continue the loop if the token is a NEWLINE, as we want to inject INDENT after it, not before.
+                if token.type == a.lexer.NEWLINE:
+                    prev_lineno = token.lineno
+                    result.append(token)
+                    continue
+
+                # Apply block logic for the new line before appending the token.
+                tracker.apply_block(token.lexpos, token.lineno, result)
+
 
                 prev_lineno = token.lineno
 
@@ -312,7 +260,7 @@ class TiferetLexer(LexerService):
                 lexpos=len(text)
             ))
 
-        result.extend(tracker.get_and_flush_dedents_for_boundary())
+        result.extend(tracker.flush_dedents_for_boundary())
         return result
 
     # * method: map_lex_token
