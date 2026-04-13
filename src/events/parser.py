@@ -39,12 +39,15 @@ class PerformSyntacticAnalysis(DomainEvent):
     # * method: execute
     @DomainEvent.parameters_required(['tokens'])
     def execute(self,
+            source_file: str,
             tokens: List[TokenAggregate],
             **kwargs,
         ) -> Dict[str, Any]:
         '''
         Parse token stream and produce structured AST.
 
+        :source_file: The original source file path.
+        :type source_file: str
         :param tokens: List of token aggregates from PerformLexicalAnalysis.
         :type tokens: List[TokenAggregate]
         :param kwargs: Additional keyword arguments.
@@ -53,8 +56,11 @@ class PerformSyntacticAnalysis(DomainEvent):
         :rtype: Dict[str, Any]
         '''
 
+        # Find the module name from the source file path for context (optional).
+        module_name = source_file.rsplit('/', 1)[-1].rsplit('.', 1)[0] if source_file else 'unknown_module'
+
         # Execute syntactic parsing via the injected parser service.
-        ast = self.parser_service.parse(tokens)
+        ast = self.parser_service.parse(module_name, tokens)
 
         # Validate the AST root structure is a Module.
         self.verify(
@@ -81,9 +87,8 @@ class EmitParseResult(DomainEvent):
             tokens: List[TokenAggregate] = None,
             source_file: str = None,
             extract: str = None,
-            summary_only: bool = False,
-            with_metrics: bool = False,
-            output_format: str = 'yaml',
+            include_tokens: bool = False,
+            output_format: str = 'auto',
             output: str = None,
             **kwargs,
         ) -> Dict[str, Any]:
@@ -98,10 +103,8 @@ class EmitParseResult(DomainEvent):
         :type tokens: List[TokenAggregate]
         :param extract: Original -x filter string.
         :type extract: str
-        :param summary_only: If truthy, omit tokens and include metrics.
-        :type summary_only: bool
-        :param with_metrics: If truthy, include metrics alongside tokens.
-        :type with_metrics: bool
+        :param include_tokens: If truthy, include tokens in the output.
+        :type include_tokens: bool
         :param output_format: Output format: yaml, json, or auto.
         :type output_format: str
         :param output: File path to write output to.
@@ -112,19 +115,11 @@ class EmitParseResult(DomainEvent):
         :rtype: Dict[str, Any]
         '''
 
-        # Default analysis if missing.
-        analysis = {
-            'tokens': tokens,
-            'token_count': len(tokens),
-            'metrics': {},
-        }
-
         # Build base payload with AST.
         result = {
             'event_type': 'ParseCompleted',
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'source_file': source_file,
-            'token_count': analysis['token_count'],
             'ast': ast,
         }
 
@@ -133,17 +128,15 @@ class EmitParseResult(DomainEvent):
         if extracted_names:
             result['extracted_artifacts'] = extracted_names
 
-        # Include metrics if requested.
-        if with_metrics or summary_only:
-            result['metrics'] = analysis['metrics']
-
-        # Include tokens unless summary-only.
-        if not summary_only:
-            result['tokens'] = analysis['tokens']
+        # Include tokens if requested.
+        if include_tokens:
+            result['tokens'] = [token.dump_model() for token in tokens] if tokens else []
+            result['token_count'] = len(tokens) if tokens else 0
 
         # Write to file if output path specified.
         if output:
             ScanOutputWriter.write(result, output, output_format)
-
-        # Return the result payload.
-        return result
+            return ''
+        else:
+            # Otherwise, return the result payload.
+            return result
