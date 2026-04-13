@@ -23,8 +23,9 @@ precedence = (
 # ** production: tier 1 — module / artifact groups (rules 1–6)
 
 # * rule: module (rule 1)
-# Module --> GroupList
+# Module --> GroupList | DOCSTRING NEWLINE GroupList
 p_module = 'module : group_list'
+p_module_doc = 'module : DOCSTRING NEWLINE group_list'
 
 # * rule: group_list (rules 2–3, PLY adapted: empty base case)
 # GroupList --> GroupList Group | ε
@@ -84,8 +85,16 @@ p_import_block_single = 'import_block : import_stmt'
 p_import_block_multi = 'import_block : import_block import_stmt'
 
 # * rule: import_stmt (rule 22)
-# ImportStmt --> PYTHON_KEYWORD TokenSeq NEWLINE
-p_import_stmt = 'import_stmt : PYTHON_KEYWORD token_seq NEWLINE'
+# ImportStmt --> IMPORT TokenSeq NEWLINE | FROM IDENTIFIER IMPORT TokenSeq NEWLINE
+p_import_stmt = 'import_stmt : IMPORT import_expr NEWLINE'
+p_import_stmt_from = 'import_stmt : FROM from_expr IMPORT import_expr NEWLINE'
+
+p_import_expr = 'import_expr : IDENTIFIER'
+p_import_expr_as = 'import_expr : import_expr AS IDENTIFIER'
+p_import_expr_multi = 'import_expr : import_expr COMMA IDENTIFIER'
+
+p_from_expr = 'from_expr : IDENTIFIER'
+p_from_expr_dot = 'from_expr : DOT from_expr'
 
 # ** production: class definition (rules 23–27)
 
@@ -269,6 +278,7 @@ p_token = '''token : IDENTIFIER
 RULES = {
     # -- Tier 1: Module / Artifact Groups (rules 1–6) --
     'p_module': p_module,
+    'p_module_doc': p_module_doc,
     'p_group_list': p_group_list,
     'p_group_list_empty': p_group_list_empty,
     'p_group': p_group,
@@ -295,6 +305,12 @@ RULES = {
     'p_import_block_single': p_import_block_single,
     'p_import_block_multi': p_import_block_multi,
     'p_import_stmt': p_import_stmt,
+    'p_import_stmt_from': p_import_stmt_from,
+    'p_import_expr': p_import_expr,
+    'p_import_expr_as': p_import_expr_as,
+    'p_import_expr_multi': p_import_expr_multi,
+    'p_from_expr': p_from_expr,
+    'p_from_expr_dot': p_from_expr_dot,
 
     # -- Class Definition (rules 23–27) --
     'p_class_def': p_class_def,
@@ -362,17 +378,19 @@ RULES = {
 # *** helpers
 
 # ** helper: build_module
-def build_module(groups):
+def build_module(groups, docstring=None):
     '''
     Build a Module AST node from a list of groups.
 
     :param groups: The list of Group nodes.
     :type groups: list
+    :param docstring: Optional module-level docstring text.
+    :type docstring: str | None
     :return: A Module AST node.
     :rtype: dict
     '''
 
-    return {'type': 'Module', 'groups': groups}
+    return {'type': 'Module', 'groups': groups, 'docstring': docstring}
 
 # ** helper: build_group
 def build_group(header, sections):
