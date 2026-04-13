@@ -4,3 +4,4 @@
 
 # ** app
 from .lexer import TokenAggregate
+from .ast import DeclarationAggregate, DeclarationAggregate as DeclAggragate
