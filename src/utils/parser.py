@@ -12,8 +12,57 @@ import ply.yacc as yacc
 # ** app
 from ..events import a
 from ..interfaces import ParserService
+from ..mappers import TokenAggregate, DeclAggragate as Decl
+from ..mappers.ast import ExpressionAggregate as Expr, StatementAggregate as Stmt
 
 # *** utils
+
+# ** util: token_stream
+class TokenStream:
+    '''
+    Adapter to convert a list of TokenAggregate objects into a token stream compatible with PLY's parsing interface. 
+    This allows us to feed the output of the TiferetLexer directly into the TiferetParser without needing to convert 
+    to an intermediate format. The TokenStream implements a .token() method that PLY expects, returning the next token 
+    or None at the end of the stream.
+    '''
+
+    # * attribute: iter
+    iter: Any
+
+    # * init
+    def __init__(self, tokens: List[TokenAggregate]):
+        '''
+        Initialize the token stream adapter.
+
+        :param tokens: The list of token aggregates to be adapted for PLY parsing.
+        :type tokens: List[TokenAggregate]
+        '''
+
+        self.iter = iter(tokens)
+
+    # * method: token
+    def token(self):
+        '''
+        Return the next token as a PLY-compatible object, or None at end of stream.
+
+        :return: A PLY-compatible token object or None.
+        :rtype: object | None
+        '''
+
+        # Define a simple PLY token class for compatibility. In a full implementation, this would need to include all attributes PLY expects.
+        class PLYToken:
+            pass
+
+        try:
+            token = next(self.iter)
+            ply_token = PLYToken()
+            ply_token.type = token.type
+            ply_token.value = token.value
+            ply_token.lineno = token.lineno
+            ply_token.lexpos = token.lexpos
+            return ply_token
+        except StopIteration:
+            return None
 
 # ** util: tiferet_parser
 class TiferetParser(ParserService):
@@ -52,23 +101,25 @@ class TiferetParser(ParserService):
         self.parser = yacc.yacc(module=self, start='module', debug=False, write_tables=False)
 
     # * method: parse
-    def parse(self, tokens: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def parse(self, module_name: str, tokens: List[TokenAggregate]) -> Dict[str, Any]:
         '''
         Parse a list of token dictionaries (post-IndentInjector) into AST.
 
+        :param module_name: The name of the module being parsed.
+        :type module_name: str
         :param tokens: Token stream with 'type' and 'value' keys.
-        :type tokens: List[Dict[str, Any]]
+        :type tokens: List[TokenAggregate]
         :return: Structured AST dict reflecting the three-tier artifact hierarchy.
         :rtype: Dict[str, Any]
         '''
-
-        # Create a thin adapter so PLY can consume our List[Dict] token stream.
-        stream = TokenStream(tokens)
+        
+        # Convert the list of TokenAggregate objects into a PLY-compatible token stream.
+        token_stream = TokenStream(tokens)
 
         # Parse the token stream and return the AST.
-        return self.parser.parse(lexer=stream)
+        return self.parser.parse(lexer=token_stream)
 
-    # * rule: error
+    # * method: error
     def p_error(self, p):
         '''
         Report syntax errors using Tiferet artifact hierarchy terminology.
@@ -86,67 +137,6 @@ class TiferetParser(ParserService):
                 "Unexpected end of input while parsing Tiferet Domain Event structure. "
                 "Ensure all # *** Group, # ** Section, and # * Member blocks are complete."
             )
-
-
-# *** classes
-
-# ** class: token_stream
-class TokenStream:
-    '''
-    Thin adapter that feeds a List[Dict] token stream to PLY's yacc parser.
-    PLY calls stream.token() repeatedly until it returns None.
-    '''
-
-    # * init
-    def __init__(self, tokens: List[Dict[str, Any]]):
-        '''
-        Initialize the token stream adapter.
-
-        :param tokens: The list of token dictionaries from the lexer + IndentInjector.
-        :type tokens: List[Dict[str, Any]]
-        '''
-
-        self._iter = iter(tokens)
-
-    # * method: token
-    def token(self):
-        '''
-        Return the next token as a PLY-compatible object, or None at end of stream.
-
-        :return: A PLY-compatible token object or None.
-        :rtype: object | None
-        '''
-
-        try:
-            t = next(self._iter)
-            tok = PLYToken()
-            tok.type = t['type']
-            tok.value = t.get('value')
-            tok.lineno = t.get('line', 0)
-            tok.lexpos = t.get('column', 0)
-            return tok
-        except StopIteration:
-            return None
-
-
-# ** class: ply_token
-class PLYToken:
-    '''
-    Minimal PLY-compatible token object used by TokenStream.
-    '''
-
-    # * attribute: type
-    type: str
-
-    # * attribute: value
-    value: Any
-
-    # * attribute: lineno
-    lineno: int
-
-    # * attribute: lexpos
-    lexpos: int
-
 
 # *** helpers
 
@@ -221,19 +211,32 @@ def _action_module(p):
     '''Build Module AST node from group list.'''
     p[0] = a.parser.build_module(p[1])
 
+def _action_module_doc(p):
+    '''Build Module AST node with docstring.'''
+    p[0] = a.parser.build_module(p[3], docstring=p[1])
+
 def _action_group(p):
     '''Build Group AST node: header NEWLINE section_list.'''
-    p[0] = a.parser.build_group(p[1], p[3])
+    p[0] = Stmt.new_artifact_stmt(p[1], p[3])
 
 def _action_group_header(p):
     '''Pass through the group header token value.'''
-    p[0] = p[1]
+    _, type, name = p[1].split()
+    p[0] = Decl.new_artifact_decl(name, type)
 
 # ** actions: tier 2 — artifact sections
 
+def _action_section_list(p):
+    '''Collect sections into a list.'''
+    if p[1]:
+        p[1].set_next(p[2])
+        p[0] = p[1]
+    else:
+        p[0] = p[2]
+
 def _action_section(p):
     '''Build Section AST node: header NEWLINE body.'''
-    p[0] = a.parser.build_section(p[1], p[3])
+    p[0] = Stmt.new_artifact_stmt(p[1], p[3])
 
 def _action_section_annotated(p):
     '''Build Section AST node with annotations: annots header NEWLINE body.'''
@@ -245,7 +248,11 @@ def _action_section_post_annotated(p):
 
 def _action_section_header(p):
     '''Pass through the section header token value.'''
-    p[0] = p[1]
+    try:
+        _, type, name = p[1].split()
+    except ValueError:
+        _, type, name = p[1].split(maxsplit=2)
+    p[0] = Decl.new_artifact_decl(name, type)
 
 def _action_annots_single(p):
     '''Start an annotation list from a single annotation.'''
@@ -270,17 +277,42 @@ def _action_section_body(p):
     p[0] = p[1]
 
 def _action_import_block_single(p):
-    '''Start an import block with a single import statement.'''
-    p[0] = {'type': 'ImportBlock', 'statements': [p[1]]}
+    '''Pass through a single import statement as an import block.'''
+    p[0] = p[1]
 
 def _action_import_block_multi(p):
     '''Extend an import block with an additional import statement.'''
-    p[1]['statements'].append(p[2])
+    p[1].set_next(p[2])
     p[0] = p[1]
 
 def _action_import_stmt(p):
     '''Build ImportStmt: PYTHON_KEYWORD token_seq NEWLINE.'''
-    p[0] = a.parser.build_import_stmt(p[1], p[2])
+    p[0] = Stmt.new_import_stmt(p[2])
+
+def _action_import_stmt_from(p):
+    '''Build ImportFromStmt: FROM IDENTIFIER IMPORT token_seq NEWLINE.'''
+    p[0] = Stmt.new_import_stmt_from(p[2], p[4])
+
+def _action_import_expr(p):
+    '''Build ImportExpr: IDENTIFIER.'''
+    p[0] = Expr.new_name_expr(p[1])
+
+def _action_import_expr_as(p):
+    '''Build ImportExpr with alias: import_expr AS IDENTIFIER.'''
+    p[0] = Expr.new_import_expr_as(p[1], p[3])
+
+def _action_import_expr_multi(p):
+    '''Build ImportExpr with multiple names: import_expr COMMA IDENTIFIER.'''
+    p[0] = Expr.new_import_expr_multi(p[1], p[3])
+
+def _action_from_expr(p):
+    '''Build FromExpr: IDENTIFIER.'''
+    p[0] = Expr.new_name_expr(p[1])
+
+def _action_from_expr_dot(p):
+    '''Build FromExpr with dot notation: DOT from_expr.'''
+    p[2].name = '.' + p[2].name
+    p[0] = p[2]
 
 # ** actions: class definition
 
@@ -497,6 +529,7 @@ def _parse_member_kind(artifact_member_value: str) -> str:
 _SEMANTIC_ACTIONS = {
     # -- Tier 1: Module / Artifact Groups --
     'p_module': _action_module,
+    'p_module_doc': _action_module_doc,
     'p_group_list': _collect_list,
     'p_group_list_empty': _empty_list,
     'p_group': _action_group,
@@ -504,7 +537,7 @@ _SEMANTIC_ACTIONS = {
     'p_group_header_start': _action_group_header,
 
     # -- Tier 2: Artifact Sections --
-    'p_section_list': _collect_list,
+    'p_section_list': _action_section_list,
     'p_section_list_empty': _empty_list,
     'p_section': _action_section,
     'p_section_annotated': _action_section_annotated,
@@ -523,6 +556,12 @@ _SEMANTIC_ACTIONS = {
     'p_import_block_single': _action_import_block_single,
     'p_import_block_multi': _action_import_block_multi,
     'p_import_stmt': _action_import_stmt,
+    'p_import_stmt_from': _action_import_stmt_from,
+    'p_import_expr': _action_import_expr,
+    'p_import_expr_as': _action_import_expr_as,
+    'p_import_expr_multi': _action_import_expr_multi,
+    'p_from_expr': _action_from_expr,
+    'p_from_expr_dot': _action_from_expr_dot,
 
     # -- Class Definition --
     'p_class_def': _action_class_def,
