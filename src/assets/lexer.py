@@ -34,6 +34,15 @@ DOCSTRING = 'DOCSTRING'
 # ** constant: line_comment
 LINE_COMMENT = 'LINE_COMMENT'
 
+# ** constant: from
+FROM = 'FROM'
+
+# ** constant: import
+IMPORT = 'IMPORT'
+
+# * constant: as
+AS = 'AS'
+
 # ** constant: class
 CLASS = 'CLASS'
 
@@ -181,6 +190,11 @@ TOKENS = (
     DOCSTRING,
     LINE_COMMENT,
 
+    # Import statements
+    FROM,
+    IMPORT,
+    AS,
+
     # Structural keywords
     CLASS,
     DEF,
@@ -242,9 +256,9 @@ TOKENS = (
 
 # ** constant: _python_keywords
 _python_keywords = {
-    'and', 'as', 'assert', 'break', 'continue', 'del',
+    'and',  'assert', 'break', 'continue', 'del',
     'elif', 'else', 'except', 'False', 'finally', 'for',
-    'from', 'global', 'if', 'import', 'in', 'is', 'lambda',
+    'global', 'if', 'in', 'is', 'lambda',
     'None', 'nonlocal', 'not', 'or', 'pass', 'raise',
     'True', 'try', 'while', 'with', 'yield',
 }
@@ -330,6 +344,12 @@ def T_IDENTIFIER(self, t):
         t.type = 'RETURN'
     elif t.value == 'self':
         t.type = 'SELF'
+    elif t.value == 'from':
+        t.type = 'FROM'
+    elif t.value == 'import':
+        t.type = 'IMPORT'
+    elif t.value == 'as':
+        t.type = 'AS'
     elif t.value in _python_keywords:
         t.type = 'PYTHON_KEYWORD'
 
