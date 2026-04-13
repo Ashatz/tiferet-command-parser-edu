@@ -13,7 +13,7 @@ from tiferet.events import TiferetError, DomainEvent
 # ** app
 from ...interfaces import LexerService
 from ...mappers import TokenAggregate
-from ..scan import PerformLexicalAnalysis, EmitScanResult
+from ..lexer import PerformLexicalAnalysis, EmitScanResult
 
 # *** fixtures
 
