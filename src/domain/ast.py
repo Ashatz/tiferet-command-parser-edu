@@ -24,6 +24,8 @@ class TypeKind(str, Enum):
     DICT = 'dict'
     CLASS = 'class'
     FUNC = 'func'
+    ARTIFACT = 'artifact'
+    MODULE = 'module'
 
 # ** enum: statement_kind
 class StatementKind(str, Enum):
@@ -37,6 +39,9 @@ class StatementKind(str, Enum):
     PRINT = 'print'
     RETURN = 'return'
     BLOCK = 'block'
+    IMPORT = 'import'
+    IMPORT_FROM = 'import_from'
+    ARTIFACT = 'artifact'
 
 # ** enum: expr_kind
 class ExprKind(str, Enum):
@@ -51,37 +56,12 @@ class ExprKind(str, Enum):
     STR_VAL = 'str_val'
     ASSIGN = 'assign'
     CALL = 'call'
+    IMPORT = 'import'
+    IMPORT_AS = 'import_as'
+    IMPORT_MULTI = 'import_multi'
 
 # *** objects
 
-# ** object: type
-class Type(BaseModel):
-    """A type in the Tiferet AST, representing the type of a declaration (e.g., class type, method return type, constant type)"""
-
-    # * attribute: name
-    name: str = Field(
-        ...,
-        description='The name of the type (e.g., class name for class types, return type for methods).'
-    )
-
-    # * attribute: kind
-    kind: TypeKind = Field(
-        ...,
-        description='The kind of the type (e.g., "class", "function", "int", "str").'
-    )
-
-    # * attribute: subtype
-    subtype: Optional['Type'] = Field(
-        ...,
-        description='The subtype of the type, if applicable (e.g., element type for list types).'
-    )
-
-    # * attribute: params
-    params: List['ParamList'] = Field(
-        ...,
-        description='The list of parameters for function types, if applicable.'
-    )
-    
 # ** object: param_list
 class ParamList(BaseModel):
     """A parameter in the Tiferet AST, representing a parameter in a method or function declaration"""
@@ -93,8 +73,8 @@ class ParamList(BaseModel):
     )
 
     # * attribute: type
-    type: Type = Field(
-        ...,
+    type: Optional['Type'] = Field(
+        None,
         description='The type of the parameter currently on the list.'
     )
 
@@ -116,6 +96,27 @@ class ParamList(BaseModel):
         description='The next parameter in the list, if applicable (for multiple parameters).'
     )
 
+# ** object: type
+class Type(BaseModel):
+    """A type in the Tiferet AST, representing the type of a declaration (e.g., class type, method return type, constant type)"""
+
+    # * attribute: kind
+    kind: TypeKind = Field(
+        ...,
+        description='The kind of the type (e.g., "class", "function", "int", "str").'
+    )
+
+    # * attribute: subtype
+    subtype: Optional['Type'] = Field(
+        None,
+        description='The subtype of the type, if applicable (e.g., element type for list types).'
+    )
+
+    # * attribute: params
+    params: Optional['ParamList'] = Field(
+        None,
+        description='The list of parameters for function types, if applicable.'
+    )
 
 # ** object: expression
 class Expression(BaseModel):
@@ -162,8 +163,8 @@ class Declaration(BaseModel):
     )
 
     # * attribute: type
-    type: Type = Field(
-        ...,
+    type: Optional[Type] = Field(
+        None,
         description='The type of the declaration (e.g., class type, method return type, constant type).'
     )
 
@@ -213,10 +214,10 @@ class Statement(BaseModel):
         description='The declaration associated with this statement, if applicable (e.g., for "decl" statements).'
     )
 
-    # * attribute: inner_expr
-    inner_expr: Optional[Expression] = Field(
+    # * attribute: init_expr
+    init_expr: Optional[Expression] = Field(
         None,
-        description='The inner expression of the statement, if applicable (e.g., for "expr" statements).'
+        description='The initial expression of the statement, if applicable (e.g., for "import" and "for" statements).'
     )
 
     # * attribute: expr

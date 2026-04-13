@@ -1,5 +1,5 @@
 # *** exports
 
 # ** app
-from .ast import Type, ParamList
+from .ast import TypeKind, ExprKind, StatementKind, Type, ParamList, Expression, Declaration, Statement
 from .lexer import Token
