@@ -105,6 +105,26 @@ class ParserBase(ParserService):
         # Parse the token stream and return the AST.
         return self.parser_service.parse(lexer=token_stream)
     
+    # * method: parse_member_kind (helper)
+    @staticmethod
+    def parse_member_kind(artifact_member_value: str) -> str:
+        '''
+        Extract the member kind from an ARTIFACT_MEMBER token value.
+        E.g. "# * attribute: error_service" -> "attribute",
+             "# * init" -> "init",
+             "# * method: execute" -> "method".
+
+        :param artifact_member_value: The raw ARTIFACT_MEMBER token value.
+        :type artifact_member_value: str
+        :return: The member kind string.
+        :rtype: str
+        '''
+
+        # Strip the "# * " prefix and extract the first word.
+        stripped = artifact_member_value.lstrip('# *').strip()
+        kind = stripped.split(':')[0].split()[0] if stripped else 'unknown'
+        return kind
+
     # * method: p_error
     def p_error(self, p):
         '''
@@ -425,7 +445,7 @@ class TiferetParser(ParserBase):
         '''member : ARTIFACT_MEMBER NEWLINE member_body'''
 
         # Build Member AST node.
-        kind = _parse_member_kind(p[1])
+        kind = self.parse_member_kind(p[1])
         p[0] = a.parser.build_member(kind, p[3])
 
     # * method: p_member_annotated (rule)
@@ -433,7 +453,7 @@ class TiferetParser(ParserBase):
         '''member : annots ARTIFACT_MEMBER NEWLINE member_body'''
 
         # Build Member AST node with annotations.
-        kind = _parse_member_kind(p[2])
+        kind = self.parse_member_kind(p[2])
         p[0] = a.parser.build_member(kind, p[4], annotations=p[1])
 
     # * method: p_member_post_annotated (rule)
@@ -441,7 +461,7 @@ class TiferetParser(ParserBase):
         '''member : ARTIFACT_MEMBER NEWLINE annots member_body'''
 
         # Build Member AST node with post-header annotations.
-        kind = _parse_member_kind(p[1])
+        kind = self.parse_member_kind(p[1])
         p[0] = a.parser.build_member(kind, p[4], annotations=p[3])
 
     # * method: p_member_body_attr (rule)
@@ -781,23 +801,3 @@ class TiferetParser(ParserBase):
         # Pass through a content terminal value.
         p[0] = p[1]
 
-# *** helpers
-
-# ** helper: _parse_member_kind
-def _parse_member_kind(artifact_member_value: str) -> str:
-    '''
-    Extract the member kind from an ARTIFACT_MEMBER token value.
-    E.g. "# * attribute: error_service" -> "attribute",
-         "# * init" -> "init",
-         "# * method: execute" -> "method".
-
-    :param artifact_member_value: The raw ARTIFACT_MEMBER token value.
-    :type artifact_member_value: str
-    :return: The member kind string.
-    :rtype: str
-    '''
-
-    # Strip the "# * " prefix and extract the first word.
-    stripped = artifact_member_value.lstrip('# *').strip()
-    kind = stripped.split(':')[0].split()[0] if stripped else 'unknown'
-    return kind
