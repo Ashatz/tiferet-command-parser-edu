@@ -177,28 +177,33 @@ class TiferetParser(ParserBase):
         '''module : group_list'''
 
         # Build Module AST node from group list.
-        p[0] = a.parser.build_module(p[1])
+        p[0] = Decl.new_module_decl(name='__main__', code=p[1])
 
     # * method: p_module_doc (rule)
     def p_module_doc(self, p):
-        '''module : DOCSTRING NEWLINE group_list'''
+        '''module : DOCSTRING NEWLINE module'''
 
-        # Build Module AST node with docstring.
-        p[0] = a.parser.build_module(p[3], docstring=p[1])
+        # Set the module docstring and pass through the module body.
+        p[3].set_doc_string(p[1])
+        p[0] = p[3]
 
     # * method: p_group_list (rule)
     def p_group_list(self, p):
         '''group_list : group_list group'''
 
         # Collect groups into a list via left-recursive accumulation.
-        p[0] = p[1] + [p[2]]
+        if p[1]:
+            p[1].set_next(p[2])
+            p[0] = p[1]
+        else:
+            p[0] = p[2]
 
     # * method: p_group_list_empty (rule)
     def p_group_list_empty(self, p):
         '''group_list : '''
 
         # Initialize an empty group list.
-        p[0] = []
+        p[0] = None
 
     # * method: p_group (rule)
     def p_group(self, p):
@@ -241,7 +246,7 @@ class TiferetParser(ParserBase):
         '''section_list : '''
 
         # Initialize an empty section list.
-        p[0] = []
+        p[0] = None
 
     # * method: p_section (rule)
     def p_section(self, p):
@@ -321,7 +326,7 @@ class TiferetParser(ParserBase):
         '''section_body : class_def'''
 
         # Pass through the section body.
-        p[0] = p[1]
+        p[0] = Stmt.new_decl_stmt(p[1])
 
     # * method: p_section_body_import (rule)
     def p_section_body_import(self, p):
@@ -399,14 +404,14 @@ class TiferetParser(ParserBase):
 
     # * method: p_class_def (rule)
     def p_class_def(self, p):
-        '''class_def : CLASS IDENTIFIER LPAREN name_list RPAREN COLON NEWLINE INDENT class_body DEDENT'''
+        '''class_def : CLASS IDENTIFIER LPAREN super_cls_list RPAREN COLON NEWLINE INDENT class_body DEDENT'''
 
         # Build ClassDef AST node.
         p[0] = Decl.new_class_decl(
             name=p[2],
             subclasses=p[4],
             doc_string=p[9].get('docstring', None),
-            members=p[9].get('members', [])
+            members=Stmt.new_decl_stmt(p[9].get('members', None))
         )
 
 
@@ -424,20 +429,34 @@ class TiferetParser(ParserBase):
         # Build ClassBody without docstring.
         p[0] = {'docstring': None, 'members': p[1]}
 
-    # * method: p_name_list_single (rule)
-    def p_name_list_single(self, p):
-        '''name_list : IDENTIFIER'''
+    # * method: p_super_cls_list_empty (rule)
+    def p_super_cls_list_empty(self, p):
+        '''super_cls_list : '''
 
-        # Start a name list with a single identifier.
-        p[0] = Type.new_class_type()
+        # Initialize an empty super class list.
+        p[0] = None
 
-    # * method: p_name_list_multi (rule)
-    def p_name_list_multi(self, p):
-        '''name_list : name_list COMMA IDENTIFIER'''
+    # * method: p_super_cls_list_single (rule)
+    def p_super_cls_list_single(self, p):
+        '''super_cls_list : super_cls'''
 
-        # Add the subtype to the name list.
+        # Start a super class list with a single class.
+        p[0] = p[1]
+
+    # * method: p_super_cls_multi (rule)
+    def p_super_cls_multi(self, p):
+        '''super_cls : super_cls COMMA super_cls'''
+
+        # Add the subtype to the super class list.
         p[1].set_subtype(p[3])
         p[0] = p[1]
+
+    # * method: p_super_cls (rule)
+    def p_super_cls(self, p):
+        '''super_cls : IDENTIFIER'''
+
+        # Start a super class list with a single identifier.
+        p[0] = Type.new_class_type(name=p[1])
 
     # -- Tier 3: Artifact Members --
 
@@ -585,11 +604,7 @@ class TiferetParser(ParserBase):
 
     # * p_decorator_param (rule)
     def p_decorator_param_literal(self, p):
-        '''decorator_param : IDENTIFIER
-                           | NUMBER_LITERAL
-                           | STRING_LITERAL
-                           | TRUE
-                           | FALSE'''
+        '''decorator_param : name_or_literal_expr'''
 
         # Build a single decorator parameter as a literal expression.
         p[0] = Expr.new_name_or_literal_expr(p[1])
@@ -603,7 +618,7 @@ class TiferetParser(ParserBase):
         # Build MethodDecl AST node.
         p[0] = Decl.new_func_decl(
              name=p[2],
-             type=p[4],
+             type=p[3],
              doc_string=p[7],
              body=p[8]
         )
@@ -617,7 +632,7 @@ class TiferetParser(ParserBase):
 
     # * method: p_method_doc_string (rule)
     def p_method_doc_string(self, p):
-        '''method_doc_string : DOCSTRING'''
+        '''method_doc_string : DOCSTRING NEWLINE'''
 
         # Pass through the method docstring.
         p[0] = p[1]
@@ -658,6 +673,20 @@ class TiferetParser(ParserBase):
 
         # Build a single parameter as a name expression.
         p[0] = ParamList.new(name=p[1])
+
+    # * method: p_method_param_args (rule)
+    def p_method_param_args(self, p):
+        '''param : STAR IDENTIFIER'''
+
+        # Build a single parameter as a *args name expression.
+        p[0] = ParamList.new_args_param(name=p[2])
+
+    # * method: p_method_param_kwargs (rule)
+    def p_method_param_kwargs(self, p):
+        '''param : DOUBLESTAR IDENTIFIER'''
+
+        # Build a single parameter as a **kwargs name expression.
+        p[0] = ParamList.new_kwargs_param(name=p[2])
 
     # * method: p_method_param_type (rule)
     def p_method_param_type(self, p):
@@ -732,23 +761,27 @@ class TiferetParser(ParserBase):
     def p_snippet_list(self, p):
         '''snippet_list : snippet_list snippet'''
 
-        # Collect snippets into a list via left-recursive accumulation.
-        p[0] = p[1] + [p[2]]
+        # Collect snippets into a list via left-recursive accumulation. Otherwise, start a snippet list with the single snippet.
+        if p[1]:
+            p[1].set_next(p[2])
+            p[0] = p[1]
+        else:
+            p[0] = p[2]
 
     # * method: p_snippet_list_empty (rule)
     def p_snippet_list_empty(self, p):
         '''snippet_list : '''
 
         # Initialize an empty snippet list.
-        p[0] = []
+        p[0] = None
 
     # * method: p_snippet_comment (rule)
     def p_snippet_comment(self, p):
         '''snippet : comment_list NEWLINE stmt_list'''
 
         # Build Snippet with comment.
-        pass
-
+        p[0] = Stmt.new_snippet_stmt(comments=p[1], code_stmts=p[3])
+        
     # * method: p_comment_list_single (rule)
     def p_comment_list_single(self, p):
         '''comment_list : comment_stmt'''
@@ -777,6 +810,13 @@ class TiferetParser(ParserBase):
         '''snippet : stmt_list'''
 
         # Build Snippet without comment.
+        p[0] = Stmt.new_snippet_stmt(code_stmts=p[1])
+
+    # * method: p_stmt_list_single (rule)
+    def p_stmt_list_single(self, p):
+        '''stmt_list : stmt'''
+
+        # Start a statement list with a single statement.
         p[0] = p[1]
 
     # * method: p_stmt_list (rule)
@@ -784,14 +824,15 @@ class TiferetParser(ParserBase):
         '''stmt_list : stmt_list stmt'''
 
         # Collect statements into a list via left-recursive accumulation.
-        p[0] = p[1] + [p[2]]
+        p[1].set_next(p[2])
+        p[0] = p[1]
 
     # * method: p_stmt_list_empty (rule)
     def p_stmt_list_empty(self, p):
         '''stmt_list : '''
 
         # Initialize an empty statement list.
-        p[0] = []
+        p[0] = None
 
     # * method: p_stmt_simple (rule)
     def p_stmt_simple(self, p):
