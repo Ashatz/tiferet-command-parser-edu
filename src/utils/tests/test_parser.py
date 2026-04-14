@@ -7,14 +7,14 @@ import pytest
 
 # ** app
 from ..parser import TiferetParser, ParserBase, TokenStream
-from ...mappers import TokenAggregate
+from ...mappers import Tok
 from ...domain import TypeKind, ExprKind, StatementKind
 
 # *** helpers
 
 def tok(type, value=None, lineno=1, lexpos=0):
     '''Create a TokenAggregate for test token streams.'''
-    return TokenAggregate.new(
+    return Tok.new(
         type=type,
         value=value if value is not None else type,
         lineno=lineno,
