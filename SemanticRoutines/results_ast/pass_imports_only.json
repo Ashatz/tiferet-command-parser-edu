@@ -1,0 +1,97 @@
+{
+  "event_type": "ParseCompleted",
+  "timestamp": "2026-04-14T16:16:24.736948+00:00",
+  "source_file": "SemanticRoutines/samples/pass_imports_only.py",
+  "ast": {
+    "name": "pass_imports_only",
+    "doc_string": "\"\"\"Tiferet Empty Events Sample \u2014 imports section with no event definitions\"\"\"",
+    "code": {
+      "kind": "artifact",
+      "decl": {
+        "name": "imports",
+        "type": {
+          "kind": "artifact"
+        },
+        "metadata": {
+          "type": "***"
+        }
+      },
+      "body": {
+        "kind": "artifact",
+        "decl": {
+          "name": "core",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "**"
+          }
+        },
+        "body": {
+          "kind": "import_from",
+          "init_expr": {
+            "kind": "name",
+            "name": "typing"
+          },
+          "expr": {
+            "kind": "name",
+            "name": "Any"
+          }
+        },
+        "next": {
+          "kind": "artifact",
+          "decl": {
+            "name": "app",
+            "type": {
+              "kind": "artifact"
+            },
+            "metadata": {
+              "type": "**"
+            }
+          },
+          "body": {
+            "kind": "import_from",
+            "init_expr": {
+              "kind": "name",
+              "name": ".settings"
+            },
+            "expr": {
+              "kind": "import_multi",
+              "left": {
+                "kind": "name",
+                "name": "DomainEvent"
+              },
+              "right": {
+                "kind": "name",
+                "name": "a"
+              }
+            },
+            "next": {
+              "kind": "import_from",
+              "init_expr": {
+                "kind": "name",
+                "name": "..interfaces"
+              },
+              "expr": {
+                "kind": "name",
+                "name": "ErrorService"
+              }
+            }
+          }
+        }
+      },
+      "next": {
+        "kind": "artifact",
+        "decl": {
+          "name": "events",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "***"
+          }
+        }
+      }
+    }
+  }
+}
