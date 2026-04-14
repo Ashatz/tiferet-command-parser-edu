@@ -54,6 +54,8 @@ class ExprKind(str, Enum):
     SUB = 'sub'
     MUL = 'mul'
     DIV = 'div'
+    MOD = 'mod'
+    EXP = 'exp'
     NAME = 'name'
     INT_VAL = 'int_val'
     STR_VAL = 'str_val'
