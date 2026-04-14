@@ -1,133 +1,205 @@
-# Tiferet Command Parser — Educational Scanner & Parser
+# Tiferet Command Parser — Educational Compiler Front-End
 
 **Repository:** tiferet-command-parser-edu
-**Version:** 0.3.0
-**Branch:** v0.3-release
-**Framework:** Tiferet (DDD, Domain Events)
-**Purpose:** Educational compiler front-end for ECE 506 (Compiler Design) — performs lexical scanning and syntactic parsing on Python source files written in the Tiferet framework's Domain Event pattern.
+**Version:** 0.3.2
+**Branch:** ece-506-submission
+**Framework:** Tiferet (DDD, Domain Events) + Pydantic (AST domain objects)
+**Python:** >= 3.10
+**Purpose:** Educational compiler front-end for ECE 506 (Compiler Design) — performs lexical scanning, syntactic parsing, and AST construction on Python source files written in the Tiferet framework's Domain Event dialect.
 
 ## Architecture
 
-This project is a Tiferet application. It uses Domain Events as the primary operational units, wired via YAML configuration (`config.yml`), and executed through the Tiferet CLI context. The compiler reads Tiferet-patterned Python source files, extracts artifact blocks (including imports), tokenizes them using a PLY-based lexer, injects synthetic layout tokens, parses the token stream into a structured AST via a PLY yacc-based parser, computes domain metrics, and emits structured output (YAML/JSON).
+This project has two layers:
 
-The compiler has two bounded contexts:
-- **Lexical scanning** (`src/events/scan.py`) — text extraction, tokenization, metrics, and scan result emission.
-- **Syntactic parsing** (`src/events/parser.py`) — parser initialization, AST construction, and parse result emission.
+1. **Tiferet pipeline layer** (`src/`) — A Tiferet application using Domain Events wired via `config.yml` and executed through the Tiferet CLI context. Handles lexical analysis, syntactic parsing, and structured output emission.
+2. **Semantic routines layer** (`SemanticRoutines/`) — A standalone Pydantic-based AST domain model and mapper layer. Consumes the JSON AST output from the Tiferet pipeline and provides typed domain objects for semantic analysis (e.g., symbol table construction, name resolution).
+
+### Bounded Contexts
+
+- **Lexical scanning** (`src/events/lexer.py`) — Source file reading, tokenization via PLY, INDENT/DEDENT injection via `BlockTracker`.
+- **Syntactic parsing** (`src/events/parser.py`) — Token stream parsing into a Pydantic AST via PLY yacc, AST validation, result emission.
+- **Semantic analysis** (`SemanticRoutines/`) — AST domain objects and mappers for downstream analysis (symbol table, name resolution). Currently in development.
 
 ### Pipeline (Feature: `scan.event`)
 
-The `scan.event` pipeline chains lexical and syntactic events:
+Defined in `config.yml`. Two chained commands:
 
-1. **ExtractText** — Reads source file, extracts `# *** imports` block and `# ** event:` artifact blocks. Supports `-x` filtering; imports are always included.
-2. **LexerInitialized** — Validates that extracted text blocks are non-empty and ready for tokenization.
-3. **PerformLexicalAnalysis** — Tokenizes blocks via `LexerService`, injects `INDENT`/`DEDENT` tokens via `IndentInjector`, and computes domain metrics.
-4. **ParserInitialized** — Validates that the `ParserService` is properly instantiated.
-5. **PerformSyntacticAnalysis** — Parses the token stream into a structured AST via `ParserService`.
-6. **SyntacticAnalysisCompleted** — Finalizes the AST and enriches the result payload.
-7. **EmitScanResult** — Assembles the final payload with optional metrics, summary-only mode, extracted artifact names, and file output.
+1. **PerformLexicalAnalysis** — Reads the source file via `tiferet.File`, tokenizes the full text via `LexerService` (which internally uses `BlockTracker` for INDENT/DEDENT injection). Returns `List[TokenAggregate]`.
+2. **EmitScanResult** — Assembles the scan result payload (tokens, count, timestamp) and optionally writes to YAML/JSON file.
 
 ### Pipeline (Feature: `parse.event`)
 
-The `parse.event` pipeline shares lexical steps but uses a dedicated parse result emitter:
+Defined in `config.yml`. Three chained commands:
 
-1. **ExtractText** — Same as `scan.event`.
-2. **LexerInitialized** — Same as `scan.event`.
-3. **PerformLexicalAnalysis** — Same as `scan.event`.
-4. **ParserInitialized** — Same as `scan.event`.
-5. **PerformSyntacticAnalysis** — Same as `scan.event`.
-6. **EmitParseResult** — Assembles the parse result payload with AST, optional metrics, and file output.
+1. **PerformLexicalAnalysis** — Same as `scan.event`.
+2. **PerformSyntacticAnalysis** — Parses token stream via `ParserService` (PLY yacc). Produces a `DeclarationAggregate` AST root, serialized to dict via `model_dump()`.
+3. **EmitParseResult** — Assembles parse result payload with AST, optional token list, and delegates file output to `ScanOutputWriter`.
 
 ## Project Structure
 
 ```
 compiler.py              — Entry point: loads Tiferet CLI app from config.yml
 config.yml               — Tiferet app configuration (attrs, features, errors, cli, interfaces)
-pyproject.toml           — Project metadata, dependencies (tiferet, ply, pyyaml)
+pyproject.toml           — Project metadata, dependencies (tiferet, ply, pyyaml, pydantic)
+PROJECT_PROPOSAL.md      — ECE 506 project proposal
+PROJECT_SUMMARY.md       — ECE 506 project summary
+README.md                — Project readme
+
 docs/
   guides/
-    lexical_spec.md      — Formal lexical specification for all 53 token types
-    grammar_spec.md      — Context-free grammar specification and LR(1)/LALR verification
+    lexical_spec.md      — Formal lexical specification for all token types
+    grammar_spec.md      — Context-free grammar specification
     utils/
-      parser.md          — Parser utility guide (TiferetParser, ParserService, AST structure)
-samples/
-  empty_events.py                    — Empty placeholder events module (success case)
-  add_error_event.py                 — Single AddError event with service injection (success case)
-  error_events.py                    — Multi-event module: AddError, GetError, ListErrors, RenameError (success case)
-  obsolete_rename_error_event.py     — RenameError with OBSOLETE-annotated method (success case)
-  todo_get_error_event.py            — GetError with TODO-annotated method (success case)
-  invalid_identifier_names_event.py  — Digit-prefixed class and member names (failure case)
+      lexer.md           — Lexer utility guide
+      parser.md          — Parser utility guide (TiferetParser, AST structure)
+
+samples/                 — End-to-end sample Tiferet source files for CLI testing
+  add_error_event.py                 — Single AddError event with service injection
+  error_events.py                    — Multi-event module: AddError, GetError, ListErrors, RenameError
+  obsolete_rename_error_event.py     — RenameError with OBSOLETE-annotated method
+  todo_get_error_event.py            — GetError with TODO-annotated method
+  invalid_identifier_names_event.py  — Digit-prefixed class/member names (failure case)
   invalid_annotation_event.py        — Malformed OBSOLETE/TODO annotations (failure case)
 
+Scanner/                 — Standalone scanner deliverable (ECE 506 submission)
+  LEXICAL_SPEC.md        — Lexical specification document
+  SCANNER_PROCESS.md     — Scanner design process document
+  lexer.py               — Standalone PLY lexer implementation
+  lexer_assets.py        — Standalone lexer token constants and rules
+  samples/               — Scanner-specific test samples (pass/fail cases)
+
+Parser/                  — Standalone parser deliverable (ECE 506 submission)
+  README.md              — Parser documentation
+  grammar_specification.md — Grammar specification document
+  parser.py              — Standalone PLY yacc parser implementation
+  parser_assets.py       — Standalone parser grammar constants and AST builders
+  test_parser.py         — Parser unit tests
+  samples/               — Parser-specific test samples (pass/fail cases)
+
+SemanticRoutines/        — Semantic analysis layer (ECE 506 submission)
+  ast_domain.py          — Pydantic AST domain objects (Type, Expression, Declaration, Statement, ParamList)
+  ast_mapper.py          — Pydantic AST mapper aggregates with mutation methods
+  samples/               — Tiferet source files for semantic analysis testing
+    pass_imports_only.py
+    pass_minimal_event.py
+    pass_minimal_injection_event.py
+    pass_multiple_operator_events.py
+  results_ast/           — Pre-computed JSON AST outputs from the parse pipeline
+    pass_imports_only.json
+    pass_minimal_event_parse.json
+    pass_minimal_injection_event.json
+    pass_minimal_injection_event_parse.json
+    pass_multiple_operator_events.json
+  results_symbol/        — Expected symbol table outputs (to be populated)
+
 src/
-  __init__.py            — Package exports and version (0.3.0)
+  __init__.py            — Package exports and version (0.3.2)
   assets/
-    __init__.py          — Assets package exports
-    lexer.py             — Token constants (53 types), rule handlers (functions/regexes), RULES mapping dict
-    parser.py            — Grammar constants (69 productions), precedence, RULES mapping, AST builders
+    __init__.py          — Exports `lexer` and `parser` asset modules
+    lexer.py             — Token constants (55 types), rule handlers, RULES mapping dict
+    parser.py            — Grammar precedence, AST builder helpers (build_module, build_group, etc.)
   domain/
-    __init__.py          — Reserved for future domain objects
+    __init__.py          — Exports: TypeKind, ExprKind, StatementKind, Type, ParamList, Expression, Declaration, Statement, Token
+    ast.py               — Pydantic AST domain objects (TypeKind, ExprKind, StatementKind enums; Type, ParamList, Expression, Declaration, Statement models)
+    lexer.py             — Pydantic Token domain object (type, value, lineno, lexpos)
+    tests/
+      test_ast.py        — 13 tests for AST domain object instantiation and validation
+      test_lexer.py      — 6 tests for Token domain object
   events/
-    settings.py          — Re-exports DomainEvent, TiferetError; imports local assets as `a`
-    scan.py              — Scanner domain events: ExtractText, LexerInitialized, PerformLexicalAnalysis, EmitScanResult
-    parser.py            — Parser domain events: ParserInitialized, PerformSyntacticAnalysis, SyntacticAnalysisCompleted, EmitParseResult
-    __init__.py          — Events package exports
+    __init__.py          — Exports: DomainEvent, TiferetError, a (assets)
+    settings.py          — Re-exports DomainEvent, TiferetError from tiferet; imports local assets as `a`
+    lexer.py             — Lexer domain events: PerformLexicalAnalysis, EmitScanResult
+    parser.py            — Parser domain events: PerformSyntacticAnalysis, EmitParseResult
     tests/
-      test_scan.py       — 17 tests for all scanner events (DomainEvent.handle pattern)
-      test_parser.py     — 9 tests for parser domain events
+      test_lexer.py      — 6 tests for lexer events (DomainEvent.handle pattern)
+      test_parser.py     — 6 tests for parser events
   interfaces/
-    lexer.py             — LexerService abstract interface (extends tiferet Service)
-    parser.py            — ParserService abstract interface (extends tiferet Service)
-    __init__.py          — Interfaces package exports
-  utils/
-    lexer.py             — TiferetLexer: generic PLY host that loads tokens and rules dynamically from assets
-    parser.py            — TiferetParser: PLY yacc-based parser with dynamic grammar loading from assets
-    artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
-    output.py            — ScanOutputWriter: file output with YAML/JSON format auto-detection
-    indent.py            — IndentInjector: post-tokenization INDENT/DEDENT injection for method bodies
-    __init__.py          — Utils package exports
+    __init__.py          — Exports: LexerService, ParserService
+    lexer.py             — LexerService(Service): abstract `tokenize(text) -> List[TokenAggregate]`
+    parser.py            — ParserService(Service): abstract `parse(tokens) -> Dict[str, Any]`
+  mappers/
+    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList
+    lexer.py             — TokenAggregate: extends Token with factory methods (new, new_indent, new_dedent)
+    ast.py               — AST mappers: TypeAggregate, ParamListAggregate, ExpressionAggregate, DeclarationAggregate, StatementAggregate — all with mutation methods and static factories
     tests/
-      test_lexer.py      — 43 tests for all lexer token rules
-      test_parser.py     — 16 tests for parser grammar rules and AST structure
-      test_artifact.py   — 13 tests for artifact block parser utility
-      test_output.py     — 11 tests for scan output writer utility
-      test_indent.py     — 12 tests for IndentInjector
+      test_lexer.py      — 9 tests for TokenAggregate mapper
+  utils/
+    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter
+    lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
+    parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
+    artifact.py          — ArtifactBlockParser: static methods for block extraction and filtering
+    output.py            — ScanOutputWriter: YAML/JSON file output with format auto-detection
+    tests/
+      test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
+      test_parser.py     — 45 tests for TiferetParser grammar rules and AST structure
+      test_artifact.py   — 13 tests for ArtifactBlockParser
+      test_output.py     — 11 tests for ScanOutputWriter
 ```
+
+## Key Concepts
+
+### AST Domain Model (Pydantic)
+
+The AST is built from Pydantic `BaseModel` classes defined in `src/domain/ast.py` and extended with mutation methods in `src/mappers/ast.py`. This is separate from the Tiferet framework's `schematics`-based DomainObject system.
+
+- **TypeKind** — Enum: `unknown`, `None`, `bool`, `str`, `int`, `float`, `list`, `dict`, `class`, `func`, `artifact`, `module`
+- **ExprKind** — Enum: `add`, `sub`, `mul`, `div`, `mod`, `exp`, `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `name`, `num_val`, `int_val`, `str_val`, `bool_val`, `assign`, `args_list`, `call`, `import`, `import_as`, `import_multi`, `artifact`, `comment`
+- **StatementKind** — Enum: `decl`, `expr`, `if_else`, `for`, `while`, `print`, `return`, `block`, `import`, `import_from`, `artifact`, `comment`, `snippet`
+
+AST nodes use linked-list chaining via `.next` fields (not Python lists). Mapper aggregates provide `set_next()`, `set_left()`, `set_right()`, `set_return_type()`, and static factories like `Decl.new_module_decl()`, `Stmt.new_artifact_stmt()`, `Expr.new_name_expr()`, etc.
+
+### SemanticRoutines Layer
+
+`SemanticRoutines/` contains a parallel copy of the AST domain/mapper files (`ast_domain.py`, `ast_mapper.py`) that mirrors `src/domain/ast.py` and `src/mappers/ast.py` but is importable as a standalone package for semantic analysis work. It also contains:
+
+- `samples/` — Tiferet source files designed for semantic analysis testing
+- `results_ast/` — Pre-computed JSON AST outputs produced by running `python compiler.py parse event <sample> -o <output>.json`
+- `results_symbol/` — Directory for expected symbol table outputs (currently empty, to be populated during symbol table implementation)
+
+### INDENT/DEDENT Injection
+
+The `BlockTracker` class in `src/utils/lexer.py` handles indentation tracking. Unlike the previous `IndentInjector` (which was a separate post-processing step), `BlockTracker` is integrated directly into `TiferetLexer.tokenize()`. It:
+- Tracks parenthesis depth to skip multi-line signatures
+- Detects CLASS and METHOD boundaries via regex patterns on artifact tokens
+- Computes column positions from `lexpos` against the original source text
+- Injects `INDENT`/`DEDENT` `TokenAggregate` instances inline during tokenization
+
+### Parser Architecture
+
+`TiferetParser` extends `ParserBase` which implements `ParserService`. Grammar rules are defined as `p_*` methods directly on `TiferetParser` (PLY convention). The parser:
+- Receives `List[TokenAggregate]` from the lexer
+- Adapts them to PLY via `TokenStream` (wraps each in a `PLYToken`)
+- Builds Pydantic `DeclarationAggregate` / `StatementAggregate` / `ExpressionAggregate` AST nodes in semantic actions
+- Returns a `DeclarationAggregate` root (module declaration) which is serialized via `.model_dump(exclude_none=True, exclude_unset=True)`
 
 ## Key Files
 
-### `src/events/scan.py`
-Scanner domain events. Each event follows the Tiferet pattern: `@DomainEvent.parameters_required` for validation, `self.verify()` for domain rules, service injection via constructor. Parsing and output concerns are delegated to utility classes.
-
-- **ExtractText** — Reads source file, delegates artifact extraction to `ArtifactBlockParser`. The imports block (`__imports__`) is always included, even with `-x` extract filtering.
-- **LexerInitialized** — Validates block content is non-empty.
-- **PerformLexicalAnalysis** — Injects `LexerService`, tokenizes blocks, runs `IndentInjector.inject()` post-tokenization, computes metrics via `Counter`.
-- **EmitScanResult** — Builds output payload. Delegates file writing to `ScanOutputWriter`. Supports `--summary-only` and `--with-metrics` flags.
+### `src/events/lexer.py`
+Two domain events:
+- **PerformLexicalAnalysis** — Injects `LexerService`, reads source file via `tiferet.File`, tokenizes full text. Returns `List[TokenAggregate]`.
+- **EmitScanResult** — Assembles result payload with tokens and metadata. Delegates file writing to `ScanOutputWriter`.
 
 ### `src/events/parser.py`
-Parser domain events. Dedicated bounded context for syntactic analysis, separate from lexical scanning.
+Two domain events:
+- **PerformSyntacticAnalysis** — Injects `ParserService`, parses tokens into AST, validates root is a `Decl`, returns serialized dict.
+- **EmitParseResult** — Assembles parse result with AST, optional tokens, and delegates file output.
 
-- **ParserInitialized** — Validation gate: verifies `ParserService` is properly instantiated before parsing.
-- **PerformSyntacticAnalysis** — Core analytical event: parses token stream via injected `ParserService`, validates the resulting AST root is a Module.
-- **SyntacticAnalysisCompleted** — Terminal event: finalizes AST, enriches result with group count metadata.
-- **EmitParseResult** — Final event in `parse.event` pipeline: assembles result payload with AST, optional metrics, and delegates file output to `ScanOutputWriter`.
+### `src/utils/lexer.py`
+Two classes:
+- **BlockTracker** — State machine for INDENT/DEDENT injection. Tracks paren depth, CLASS/METHOD boundaries, column positions.
+- **TiferetLexer** — PLY lexer host implementing `LexerService`. Loads token rules dynamically from `src/assets/lexer.py`. Integrates `BlockTracker` for layout token injection.
 
 ### `src/utils/parser.py`
-PLY yacc-based syntactic parser (`TiferetParser`) implementing `ParserService`. Dynamically loads grammar rules from `src/assets/parser.py`, mirroring the `TiferetLexer` pattern. Includes `TokenStream` adapter (feeds `List[Dict]` to PLY), `PLYToken` wrapper, semantic action dispatch table (`_SEMANTIC_ACTIONS`), and AST-building helper functions.
-
-### `src/interfaces/parser.py`
-Abstract `ParserService(Service)` with single method `parse(tokens) -> Dict[str, Any]`.
-
-### `src/assets/parser.py`
-Grammar assets: `TOKENS` (re-exported from lexer), `precedence` tuple, 69 BNF production rules as string constants, `RULES` mapping dict, and AST builder helper functions (`build_module`, `build_group`, `build_section`, `build_class_def`, `build_member`, `build_method_def`, etc.).
-
-### `src/utils/indent.py`
-Post-tokenization utility (`IndentInjector`) with a single static method:
-- **`inject(tokens)`** — Injects `INDENT`/`DEDENT` tokens at method-body indentation boundaries. Enters body mode on `ARTIFACT_MEMBER` matching `# * method:` or `# * init`, tracks paren depth to skip multi-line signatures, manages a column stack to handle nested indentation.
+Three classes:
+- **TokenStream** — Adapter converting `List[TokenAggregate]` to PLY-compatible token stream.
+- **ParserBase** — Base class with shared utilities (`parse_member_kind`, `get_attribute_type`, `p_error`). Loads precedence and tokens from `src/assets/parser.py`.
+- **TiferetParser** — Full grammar implementation with `p_*` rule methods. Builds Pydantic AST nodes in semantic actions.
 
 ### `src/utils/artifact.py`
 Artifact block parser (`ArtifactBlockParser`) with static methods:
 - **`parse_extract_filter`** — Converts comma-separated extract string to a set of names.
 - **`extract_imports_block`** — Locates and extracts the `# *** imports` section.
+- **`extract_group_header`** — Extracts the first non-imports top-level group header.
 - **`extract_artifact_blocks`** — Walks source lines to extract all blocks matching a group type.
 - **`filter_blocks`** — Applies an optional name filter to a list of blocks.
 
@@ -137,55 +209,49 @@ Scan output writer (`ScanOutputWriter`) with static methods:
 - **`write`** — Writes a result payload to file as YAML or JSON.
 - **`parse_extract_names`** — Converts comma-separated extract string to a list for payload inclusion.
 
-### `src/utils/lexer.py`
-Generic PLY lexer host (`TiferetLexer`) with 53 token types organized by category:
-
-- **Artifact comments:** `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`, `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`, `OBSOLETE`, `TODO`
-- **Documentation:** `DOCSTRING`, `LINE_COMMENT`
-- **Structural:** `CLASS`, `DEF`, `INIT`, `RETURN`, `SELF`
-- **Generic:** `PYTHON_KEYWORD`, `IDENTIFIER`, `STRING_LITERAL`, `NUMBER_LITERAL`
-- **Operators:** `DOUBLESTAR`, `PLUS`, `MINUS`, `STAR`, `SLASH`, `DOUBLESLASH`, `PERCENT`, `PIPE`, `AMPERSAND`, `TILDE`, `CARET`, `LSHIFT`, `RSHIFT`, `EQEQ`, `NOTEQ`, `LTEQ`, `GTEQ`, `LT`, `GT`, `AT`
-- **Punctuation/Layout:** `LPAREN`, `RPAREN`, `LBRACK`, `RBRACK`, `LBRACE`, `RBRACE`, `COMMA`, `COLON`, `ARROW`, `DOT`, `EQUALS`, `NEWLINE`, `UNKNOWN`
-- **Indentation (injected):** `INDENT`, `DEDENT`
-
-### `src/interfaces/lexer.py`
-Abstract `LexerService(Service)` with single method `tokenize(text) -> List[Dict]`.
-
 ### `config.yml`
 Tiferet YAML configuration defining:
-- **attrs** — Container attributes mapping event classes, lexer service, and parser service
-- **features** — `scan.event` pipeline (7 chained commands: lexical + syntactic + emit) and `parse.event` pipeline (6 chained commands: lexical + syntactic + parse emit)
-- **errors** — Structured error definitions (SOURCE_FILE_NOT_FOUND, TEXT_EXTRACTION_FAILED, LEXICAL_ERROR_DETECTED, PARSER_NOT_INITIALIZED, INVALID_AST_STRUCTURE, MISSING_AST)
-- **cli** — CLI command definition with args (source_file, -o, --format, -x, --summary-only, --with-metrics, --metrics-format)
-- **interfaces** — `compiler` (AppInterfaceContext) and `compiler_cli` (CliContext) configurations
+- **attrs** — Container attributes: `perform_lexical_analysis_event`, `perform_syntactic_analysis_event`, `emit_scan_result_event`, `emit_parse_result_event`, `lexer_service`, `parser_service`
+- **features** — `scan.event` (2 commands: lex + emit) and `parse.event` (3 commands: lex + parse + emit)
+- **errors** — `TEXT_EXTRACTION_FAILED`, `LEXICAL_ERROR_DETECTED`, `PARSER_NOT_INITIALIZED`, `INVALID_AST_STRUCTURE`, `MISSING_AST`
+- **cli** — `scan event` and `parse event` commands with args (source_file, -o, --output-format, --summary-only, --include-tokens)
+- **interfaces** — `compiler` (AppInterfaceContext) and `compiler_cli` (CliContext)
 
 ## CLI Usage
 
 ```bash
-# Full scan with lexical + syntactic analysis (YAML output)
+# Scan: tokenize and emit token list
 python compiler.py scan event <source_file> -o output.yaml
+python compiler.py scan event <source_file> -o output.json --output-format json
 
-# JSON output
-python compiler.py scan event <source_file> -o output.json --format json
-
-# Summary with metrics only
-python compiler.py scan event <source_file> -o output.yaml --summary-only true --with-metrics true
-
-# Extract specific artifacts (imports always included)
-python compiler.py scan event <source_file> -o output.yaml -x add_error,get_error
+# Parse: tokenize + parse into AST
+python compiler.py parse event <source_file> -o output.json
+python compiler.py parse event <source_file> -o output.json --include-tokens true
 ```
 
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 121 tests (43 lexer + 16 parser util + 13 artifact + 11 output + 12 indent + 17 scanner events + 9 parser events)
+python -m pytest src/ -v    # 122 tests total
 ```
 
-Tests use `DomainEvent.handle` for event invocation and mock `LexerService`/`ParserService` for isolation. Utility tests validate lexing, parsing, and output logic independently of domain events.
+Test breakdown:
+- `src/domain/tests/test_ast.py` — 13 tests (AST domain objects)
+- `src/domain/tests/test_lexer.py` — 6 tests (Token domain object)
+- `src/mappers/tests/test_lexer.py` — 9 tests (TokenAggregate mapper)
+- `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
+- `src/utils/tests/test_parser.py` — 45 tests (TiferetParser grammar rules)
+- `src/utils/tests/test_artifact.py` — 13 tests (ArtifactBlockParser)
+- `src/utils/tests/test_output.py` — 11 tests (ScanOutputWriter)
+- `src/events/tests/test_lexer.py` — 6 tests (lexer domain events)
+- `src/events/tests/test_parser.py` — 6 tests (parser domain events)
+
+Tests use `DomainEvent.handle` for event invocation and mock `LexerService`/`ParserService` for isolation. Utility tests validate lexing, parsing, and output logic independently.
 
 ## Dependencies
 
 - `tiferet>=1.9.5` — DDD framework (Domain Events, CLI context, DI container)
-- `ply>=3.11` — Lexer and parser generator
+- `ply>=3.11` — Lexer and parser generator (PLY lex + yacc)
 - `pyyaml>=6.0` — YAML output
+- `pydantic` — AST domain objects and mappers (BaseModel, Field)
 - `pytest>=7.0` — Testing (dev)
