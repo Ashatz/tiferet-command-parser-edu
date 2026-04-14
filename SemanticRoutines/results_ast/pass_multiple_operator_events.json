@@ -1,0 +1,602 @@
+{
+  "event_type": "ParseCompleted",
+  "timestamp": "2026-04-14T17:12:35.490151+00:00",
+  "source_file": "SemanticRoutines/samples/pass_multiple_operator_events.py",
+  "ast": {
+    "name": "pass_multiple_operator_events",
+    "doc_string": "\"\"\"This module demonstrates how to define multiple operator events in the Tiferet Dialect, and how to parse them using the event parser\"\"\"",
+    "code": {
+      "kind": "artifact",
+      "decl": {
+        "name": "imports",
+        "type": {
+          "kind": "artifact"
+        },
+        "metadata": {
+          "type": "***"
+        }
+      },
+      "body": {
+        "kind": "artifact",
+        "decl": {
+          "name": "infra",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "**"
+          }
+        },
+        "body": {
+          "kind": "import_from",
+          "init_expr": {
+            "kind": "name",
+            "name": "tiferet.events"
+          },
+          "expr": {
+            "kind": "name",
+            "name": "DomainEvent"
+          }
+        }
+      },
+      "next": {
+        "kind": "artifact",
+        "decl": {
+          "name": "events",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "***"
+          }
+        },
+        "body": {
+          "kind": "artifact",
+          "decl": {
+            "name": "event: add",
+            "type": {
+              "kind": "artifact"
+            },
+            "metadata": {
+              "type": "**"
+            }
+          },
+          "body": {
+            "kind": "decl",
+            "decl": {
+              "name": "Add",
+              "type": {
+                "kind": "class",
+                "name": "Add",
+                "subtype": {
+                  "kind": "class",
+                  "name": "DomainEvent"
+                }
+              },
+              "doc_string": "\"\"\"An event that performs addition of two numbers.\"\"\"",
+              "code": {
+                "kind": "decl",
+                "decl": {
+                  "name": "method",
+                  "type": {
+                    "kind": "artifact"
+                  },
+                  "metadata": {
+                    "type": "ARTIFACT_MEMBER"
+                  },
+                  "code": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "execute",
+                      "type": {
+                        "kind": "func",
+                        "return_type": {
+                          "kind": "int"
+                        },
+                        "params": {
+                          "name": "self",
+                          "type": {
+                            "kind": "unknown"
+                          },
+                          "required": true,
+                          "next": {
+                            "name": "a",
+                            "type": {
+                              "kind": "int"
+                            },
+                            "required": true,
+                            "next": {
+                              "name": "b",
+                              "type": {
+                                "kind": "int"
+                              },
+                              "required": true
+                            }
+                          }
+                        }
+                      },
+                      "doc_string": "\"\"\"Return the sum of a and b.\"\"\"",
+                      "code": {
+                        "kind": "snippet",
+                        "body": {
+                          "kind": "return",
+                          "expr": {
+                            "kind": "add",
+                            "value": "+",
+                            "left": {
+                              "kind": "str_val",
+                              "value": "a"
+                            },
+                            "right": {
+                              "kind": "str_val",
+                              "value": "b"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "next": {
+            "kind": "artifact",
+            "decl": {
+              "name": "event: subtract",
+              "type": {
+                "kind": "artifact"
+              },
+              "metadata": {
+                "type": "**"
+              }
+            },
+            "body": {
+              "kind": "decl",
+              "decl": {
+                "name": "Subtract",
+                "type": {
+                  "kind": "class",
+                  "name": "Subtract",
+                  "subtype": {
+                    "kind": "class",
+                    "name": "DomainEvent"
+                  }
+                },
+                "doc_string": "\"\"\"An event that performs subtraction of two numbers.\"\"\"",
+                "code": {
+                  "kind": "decl",
+                  "decl": {
+                    "name": "method",
+                    "type": {
+                      "kind": "artifact"
+                    },
+                    "metadata": {
+                      "type": "ARTIFACT_MEMBER"
+                    },
+                    "code": {
+                      "kind": "decl",
+                      "decl": {
+                        "name": "execute",
+                        "type": {
+                          "kind": "func",
+                          "return_type": {
+                            "kind": "int"
+                          },
+                          "params": {
+                            "name": "self",
+                            "type": {
+                              "kind": "unknown"
+                            },
+                            "required": true,
+                            "next": {
+                              "name": "a",
+                              "type": {
+                                "kind": "int"
+                              },
+                              "required": true,
+                              "next": {
+                                "name": "b",
+                                "type": {
+                                  "kind": "int"
+                                },
+                                "required": true
+                              }
+                            }
+                          }
+                        },
+                        "doc_string": "\"\"\"Return the difference of a and b.\"\"\"",
+                        "code": {
+                          "kind": "snippet",
+                          "body": {
+                            "kind": "return",
+                            "expr": {
+                              "kind": "sub",
+                              "value": "-",
+                              "left": {
+                                "kind": "str_val",
+                                "value": "a"
+                              },
+                              "right": {
+                                "kind": "str_val",
+                                "value": "b"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "next": {
+              "kind": "artifact",
+              "decl": {
+                "name": "event: multiply",
+                "type": {
+                  "kind": "artifact"
+                },
+                "metadata": {
+                  "type": "**"
+                }
+              },
+              "body": {
+                "kind": "decl",
+                "decl": {
+                  "name": "Multiply",
+                  "type": {
+                    "kind": "class",
+                    "name": "Multiply",
+                    "subtype": {
+                      "kind": "class",
+                      "name": "DomainEvent"
+                    }
+                  },
+                  "doc_string": "\"\"\"An event that performs multiplication of two numbers.\"\"\"",
+                  "code": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "method",
+                      "type": {
+                        "kind": "artifact"
+                      },
+                      "metadata": {
+                        "type": "ARTIFACT_MEMBER"
+                      },
+                      "code": {
+                        "kind": "decl",
+                        "decl": {
+                          "name": "execute",
+                          "type": {
+                            "kind": "func",
+                            "return_type": {
+                              "kind": "int"
+                            },
+                            "params": {
+                              "name": "self",
+                              "type": {
+                                "kind": "unknown"
+                              },
+                              "required": true,
+                              "next": {
+                                "name": "a",
+                                "type": {
+                                  "kind": "int"
+                                },
+                                "required": true,
+                                "next": {
+                                  "name": "b",
+                                  "type": {
+                                    "kind": "int"
+                                  },
+                                  "required": true
+                                }
+                              }
+                            }
+                          },
+                          "doc_string": "\"\"\"Return the product of a and b.\"\"\"",
+                          "code": {
+                            "kind": "snippet",
+                            "body": {
+                              "kind": "return",
+                              "expr": {
+                                "kind": "mul",
+                                "value": "*",
+                                "left": {
+                                  "kind": "str_val",
+                                  "value": "a"
+                                },
+                                "right": {
+                                  "kind": "str_val",
+                                  "value": "b"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "next": {
+                "kind": "artifact",
+                "decl": {
+                  "name": "event: divide",
+                  "type": {
+                    "kind": "artifact"
+                  },
+                  "metadata": {
+                    "type": "**"
+                  }
+                },
+                "body": {
+                  "kind": "decl",
+                  "decl": {
+                    "name": "Divide",
+                    "type": {
+                      "kind": "class",
+                      "name": "Divide",
+                      "subtype": {
+                        "kind": "class",
+                        "name": "DomainEvent"
+                      }
+                    },
+                    "doc_string": "\"\"\"An event that performs division of two numbers.\"\"\"",
+                    "code": {
+                      "kind": "decl",
+                      "decl": {
+                        "name": "method",
+                        "type": {
+                          "kind": "artifact"
+                        },
+                        "metadata": {
+                          "type": "ARTIFACT_MEMBER"
+                        },
+                        "code": {
+                          "kind": "decl",
+                          "decl": {
+                            "name": "execute",
+                            "type": {
+                              "kind": "func",
+                              "return_type": {
+                                "kind": "float"
+                              },
+                              "params": {
+                                "name": "self",
+                                "type": {
+                                  "kind": "unknown"
+                                },
+                                "required": true,
+                                "next": {
+                                  "name": "a",
+                                  "type": {
+                                    "kind": "int"
+                                  },
+                                  "required": true,
+                                  "next": {
+                                    "name": "b",
+                                    "type": {
+                                      "kind": "int"
+                                    },
+                                    "required": true
+                                  }
+                                }
+                              }
+                            },
+                            "doc_string": "\"\"\"Return the quotient of a and b.\"\"\"",
+                            "code": {
+                              "kind": "snippet",
+                              "body": {
+                                "kind": "return",
+                                "expr": {
+                                  "kind": "div",
+                                  "value": "/",
+                                  "left": {
+                                    "kind": "str_val",
+                                    "value": "a"
+                                  },
+                                  "right": {
+                                    "kind": "str_val",
+                                    "value": "b"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "kind": "artifact",
+                  "decl": {
+                    "name": "event: modulus",
+                    "type": {
+                      "kind": "artifact"
+                    },
+                    "metadata": {
+                      "type": "**"
+                    }
+                  },
+                  "body": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "Modulus",
+                      "type": {
+                        "kind": "class",
+                        "name": "Modulus",
+                        "subtype": {
+                          "kind": "class",
+                          "name": "DomainEvent"
+                        }
+                      },
+                      "doc_string": "\"\"\"An event that performs modulus of two numbers.\"\"\"",
+                      "code": {
+                        "kind": "decl",
+                        "decl": {
+                          "name": "method",
+                          "type": {
+                            "kind": "artifact"
+                          },
+                          "metadata": {
+                            "type": "ARTIFACT_MEMBER"
+                          },
+                          "code": {
+                            "kind": "decl",
+                            "decl": {
+                              "name": "execute",
+                              "type": {
+                                "kind": "func",
+                                "return_type": {
+                                  "kind": "int"
+                                },
+                                "params": {
+                                  "name": "self",
+                                  "type": {
+                                    "kind": "unknown"
+                                  },
+                                  "required": true,
+                                  "next": {
+                                    "name": "a",
+                                    "type": {
+                                      "kind": "int"
+                                    },
+                                    "required": true,
+                                    "next": {
+                                      "name": "b",
+                                      "type": {
+                                        "kind": "int"
+                                      },
+                                      "required": true
+                                    }
+                                  }
+                                }
+                              },
+                              "doc_string": "\"\"\"Return the modulus of a and b.\"\"\"",
+                              "code": {
+                                "kind": "snippet",
+                                "body": {
+                                  "kind": "return",
+                                  "expr": {
+                                    "kind": "mod",
+                                    "value": "%",
+                                    "left": {
+                                      "kind": "str_val",
+                                      "value": "a"
+                                    },
+                                    "right": {
+                                      "kind": "str_val",
+                                      "value": "b"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "next": {
+                    "kind": "artifact",
+                    "decl": {
+                      "name": "event: exponentiate",
+                      "type": {
+                        "kind": "artifact"
+                      },
+                      "metadata": {
+                        "type": "**"
+                      }
+                    },
+                    "body": {
+                      "kind": "decl",
+                      "decl": {
+                        "name": "Exponentiate",
+                        "type": {
+                          "kind": "class",
+                          "name": "Exponentiate",
+                          "subtype": {
+                            "kind": "class",
+                            "name": "DomainEvent"
+                          }
+                        },
+                        "doc_string": "\"\"\"An event that performs exponentiation of two numbers.\"\"\"",
+                        "code": {
+                          "kind": "decl",
+                          "decl": {
+                            "name": "method",
+                            "type": {
+                              "kind": "artifact"
+                            },
+                            "metadata": {
+                              "type": "ARTIFACT_MEMBER"
+                            },
+                            "code": {
+                              "kind": "decl",
+                              "decl": {
+                                "name": "execute",
+                                "type": {
+                                  "kind": "func",
+                                  "return_type": {
+                                    "kind": "float"
+                                  },
+                                  "params": {
+                                    "name": "self",
+                                    "type": {
+                                      "kind": "unknown"
+                                    },
+                                    "required": true,
+                                    "next": {
+                                      "name": "a",
+                                      "type": {
+                                        "kind": "int"
+                                      },
+                                      "required": true,
+                                      "next": {
+                                        "name": "b",
+                                        "type": {
+                                          "kind": "int"
+                                        },
+                                        "required": true
+                                      }
+                                    }
+                                  }
+                                },
+                                "doc_string": "\"\"\"Return a raised to the power of b.\"\"\"",
+                                "code": {
+                                  "kind": "snippet",
+                                  "body": {
+                                    "kind": "return",
+                                    "expr": {
+                                      "kind": "name",
+                                      "value": "**",
+                                      "left": {
+                                        "kind": "str_val",
+                                        "value": "a"
+                                      },
+                                      "right": {
+                                        "kind": "str_val",
+                                        "value": "b"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
