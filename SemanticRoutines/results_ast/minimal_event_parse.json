@@ -1,0 +1,218 @@
+{
+  "event_type": "ParseCompleted",
+  "timestamp": "2026-04-14T08:04:52.255963+00:00",
+  "source_file": "SemanticRoutines/samples/pass_minimal_injection_event.py",
+  "ast": {
+    "name": "pass_minimal_injection_event",
+    "doc_string": "\"\"\"Sample event for testing minimal injection and execution of a domain event.\"\"\"",
+    "code": {
+      "kind": "artifact",
+      "decl": {
+        "name": "imports",
+        "type": {
+          "kind": "artifact"
+        },
+        "metadata": {
+          "type": "***"
+        }
+      },
+      "body": {
+        "kind": "artifact",
+        "decl": {
+          "name": "app",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "**"
+          }
+        },
+        "body": {
+          "kind": "import_from",
+          "init_expr": {
+            "kind": "name",
+            "name": ".settings"
+          },
+          "expr": {
+            "kind": "name",
+            "name": "DomainEvent"
+          }
+        }
+      },
+      "next": {
+        "kind": "artifact",
+        "decl": {
+          "name": "events",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "***"
+          }
+        },
+        "body": {
+          "kind": "artifact",
+          "decl": {
+            "name": "event: ping",
+            "type": {
+              "kind": "artifact"
+            },
+            "metadata": {
+              "type": "**"
+            }
+          },
+          "body": {
+            "kind": "decl",
+            "decl": {
+              "name": "Ping",
+              "type": {
+                "kind": "class",
+                "name": "Ping",
+                "subtype": {
+                  "kind": "class",
+                  "name": "DomainEvent"
+                }
+              },
+              "code": {
+                "kind": "decl",
+                "decl": {
+                  "name": "attribute",
+                  "type": {
+                    "kind": "artifact"
+                  },
+                  "metadata": {
+                    "type": "ARTIFACT_MEMBER"
+                  },
+                  "code": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "pong",
+                      "type": {
+                        "kind": "str"
+                      }
+                    }
+                  },
+                  "next": {
+                    "name": "init",
+                    "type": {
+                      "kind": "artifact"
+                    },
+                    "metadata": {
+                      "type": "ARTIFACT_MEMBER"
+                    },
+                    "code": {
+                      "kind": "decl",
+                      "decl": {
+                        "name": "__init__",
+                        "type": {
+                          "kind": "func",
+                          "return_type": {
+                            "kind": "None"
+                          },
+                          "params": {
+                            "name": "self",
+                            "type": {
+                              "kind": "unknown"
+                            },
+                            "required": true,
+                            "next": {
+                              "name": "pong",
+                              "type": {
+                                "kind": "str"
+                              },
+                              "required": true
+                            }
+                          }
+                        },
+                        "doc_string": "\"\"\"Initialize with a pong string.\"\"\"",
+                        "code": {
+                          "kind": "snippet",
+                          "body": {
+                            "kind": "comment",
+                            "expr": {
+                              "kind": "comment",
+                              "value": "# Set the pong attribute."
+                            },
+                            "next": {
+                              "kind": "expr",
+                              "expr": {
+                                "kind": "assign",
+                                "left": {
+                                  "kind": "name",
+                                  "name": "self.pong"
+                                },
+                                "right": {
+                                  "kind": "str_val",
+                                  "value": "pong"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "next": {
+                      "name": "method",
+                      "type": {
+                        "kind": "artifact"
+                      },
+                      "metadata": {
+                        "type": "ARTIFACT_MEMBER"
+                      },
+                      "code": {
+                        "kind": "decl",
+                        "decl": {
+                          "name": "execute",
+                          "type": {
+                            "kind": "func",
+                            "return_type": {
+                              "kind": "str"
+                            },
+                            "params": {
+                              "name": "self",
+                              "type": {
+                                "kind": "unknown"
+                              },
+                              "required": true,
+                              "next": {
+                                "name": "kwargs",
+                                "type": {
+                                  "kind": "dict",
+                                  "subtype": {
+                                    "kind": "unknown"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "doc_string": "\"\"\"Return the injected pong string.\"\"\"",
+                          "code": {
+                            "kind": "snippet",
+                            "body": {
+                              "kind": "comment",
+                              "expr": {
+                                "kind": "comment",
+                                "value": "# Return the pong string."
+                              },
+                              "next": {
+                                "kind": "return",
+                                "expr": {
+                                  "kind": "str_val",
+                                  "value": "self.pong"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
