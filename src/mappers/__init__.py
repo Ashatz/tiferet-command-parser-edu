@@ -3,7 +3,7 @@
 # *** exports
 
 # ** app
-from .lexer import TokenAggregate
+from .lexer import TokenAggregate, TokenAggregate as Tok
 from .ast import (
     DeclarationAggregate, 
     DeclarationAggregate as Decl,
