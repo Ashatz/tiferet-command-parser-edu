@@ -70,6 +70,12 @@ STRING_LITERAL = 'STRING_LITERAL'
 # ** constant: number_literal
 NUMBER_LITERAL = 'NUMBER_LITERAL'
 
+# ** constant: true
+TRUE = 'TRUE'
+
+# ** constant: false
+FALSE = 'FALSE'
+
 # ** constant: doublestar
 DOUBLESTAR = 'DOUBLESTAR'
 
@@ -211,6 +217,8 @@ TOKENS = (
     NUMBER_LITERAL,
 
     # Operators
+    TRUE,
+    FALSE,
     DOUBLESTAR,
     PLUS,
     MINUS,
@@ -249,7 +257,7 @@ TOKENS = (
     NEWLINE,
     UNKNOWN,
 
-    # Indentation (synthetic — injected by IndentInjector, not produced by PLY lexer)
+    # Indentation (synthetic — injected by TiferetLexer, not produced by PLY lexer)
     INDENT,
     DEDENT,
 )
@@ -257,10 +265,10 @@ TOKENS = (
 # ** constant: _python_keywords
 _python_keywords = {
     'and',  'assert', 'break', 'continue', 'del',
-    'elif', 'else', 'except', 'False', 'finally', 'for',
+    'elif', 'else', 'except', 'finally', 'for',
     'global', 'if', 'in', 'is', 'lambda',
     'None', 'nonlocal', 'not', 'or', 'pass', 'raise',
-    'True', 'try', 'while', 'with', 'yield',
+    'try', 'while', 'with', 'yield',
 }
 
 # ** constant: artifact_imports_start
@@ -354,6 +362,12 @@ def T_IDENTIFIER(self, t):
         t.type = 'PYTHON_KEYWORD'
 
     return t
+
+# ** constant: true
+T_TRUE = r'\bTrue\b'
+
+# ** constant: false
+T_FALSE = r'\bFalse\b'
 
 # ** constant: doublestar
 T_DOUBLESTAR = r'\*\*'
@@ -466,6 +480,8 @@ RULES = {
     't_ARROW': T_ARROW,
     't_NUMBER_LITERAL': T_NUMBER_LITERAL,
     't_IDENTIFIER': T_IDENTIFIER,
+    't_TRUE': T_TRUE,
+    't_FALSE': T_FALSE,
     't_DOUBLESTAR': T_DOUBLESTAR,
     't_DOUBLESLASH': T_DOUBLESLASH,
     't_LSHIFT': T_LSHIFT,
