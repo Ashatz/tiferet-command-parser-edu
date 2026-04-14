@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 # ** app
 from ..interfaces import ParserService
-from ..mappers import TokenAggregate
+from ..mappers import TokenAggregate, Decl
 from ..utils import ScanOutputWriter
 from .settings import DomainEvent, a
 
@@ -60,18 +60,20 @@ class PerformSyntacticAnalysis(DomainEvent):
         module_name = source_file.rsplit('/', 1)[-1].rsplit('.', 1)[0] if source_file else 'unknown_module'
 
         # Execute syntactic parsing via the injected parser service.
-        ast = self.parser_service.parse(module_name, tokens)
+        ast: Decl = self.parser_service.parse(module_name, tokens)
+        ast.set_name(module_name)
+
 
         # Validate the AST root structure is a Module.
         self.verify(
-            expression=isinstance(ast, dict) and ast.get('type') == 'Module',
+            expression=isinstance(ast, Decl) ,
             error_code='INVALID_AST_STRUCTURE',
             message='Syntactic parser did not return a valid Module AST',
             ast_type=str(type(ast)),
         )
 
         # Return the AST for downstream events.
-        return ast
+        return ast.model_dump(exclude_none=True, exclude_unset=True)
 
 # ** event: emit_parse_result
 class EmitParseResult(DomainEvent):
