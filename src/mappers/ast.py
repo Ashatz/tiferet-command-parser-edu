@@ -450,6 +450,55 @@ class ExpressionAggregate(Expression):
             left=target,
             right=value
         )
+    
+    # * method: new_operator_expr
+    @staticmethod
+    def new_operator_expr(operator: str, left: 'ExpressionAggregate', right: 'ExpressionAggregate') -> 'ExpressionAggregate':
+        """
+        Create a new ExpressionAggregate representing an operator expression.
+
+        :param operator: The operator symbol.
+        :type operator: str
+        :param left: The left operand expression.
+        :type left: ExpressionAggregate
+        :param right: The right operand expression.
+        :type right: ExpressionAggregate
+        :return: A new ExpressionAggregate instance representing the operator expression.
+        :rtype: ExpressionAggregate
+        """
+
+        # Map the operator symbol to the corresponding expression kind. For example, '+' maps to an ADD expression, '-' maps to a SUB expression, etc. If the operator is not recognized as a valid operator, default to creating a NAME expression with the operator symbol as the name.
+        if operator == '+':
+            kind = ExprKind.ADD
+        elif operator == '-':
+            kind = ExprKind.SUB
+        elif operator == '*':
+            kind = ExprKind.MUL
+        elif operator == '/':
+            kind = ExprKind.DIV
+        elif operator == '%':
+            kind = ExprKind.MOD
+        elif operator == '==':
+            kind = ExprKind.EQ
+        elif operator == '!=':
+            kind = ExprKind.NEQ
+        elif operator == '<':
+            kind = ExprKind.LT
+        elif operator == '<=':
+            kind = ExprKind.LTE
+        elif operator == '>':
+            kind = ExprKind.GT
+        elif operator == '>=':
+            kind = ExprKind.GTE
+        else:
+            kind = ExprKind.NAME
+
+        return ExpressionAggregate(
+            kind=kind,
+            value=operator,
+            left=left,
+            right=right
+        )
 
     # * method: new_comment_expr
     @staticmethod
