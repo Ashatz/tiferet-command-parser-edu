@@ -1,4 +1,4 @@
-"""Tests for Symbol Table Mapper Objects"""
+"""Tests for Semantic Analysis Mapper Objects"""
 
 # *** imports
 
@@ -6,8 +6,8 @@
 import pytest
 
 # ** app
-from ...domain.symbol import SymbolKind, Symbol
-from ..symbol import ScopeAggregate
+from ...domain.semantic import SymbolKind, Symbol
+from ..semantic import ScopeAggregate
 
 # *** tests
 

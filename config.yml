@@ -17,6 +17,12 @@ attrs:
   parser_service:
     module_path: src.utils.parser
     class_name: TiferetParser
+  perform_semantic_analysis_event:
+    module_path: src.events.semantic
+    class_name: PerformSemanticAnalysis
+  emit_semantic_result_event:
+    module_path: src.events.semantic
+    class_name: EmitSemanticResult
 
 features:
   scan:
@@ -42,6 +48,22 @@ features:
           data_key: ast
         - attribute_id: emit_parse_result_event
           name: Assemble and emit parse result
+  analyze:
+    event:
+      name: 'Analyze Event'
+      description: 'Perform semantic analysis on a Tiferet event source file'
+      commands:
+        - attribute_id: perform_lexical_analysis_event
+          name: Tokenize and compute lexical metrics
+          data_key: tokens
+        - attribute_id: perform_syntactic_analysis_event
+          name: Parse token stream into AST
+          data_key: ast
+        - attribute_id: perform_semantic_analysis_event
+          name: Build symbol table and resolve names
+          data_key: semantic
+        - attribute_id: emit_semantic_result_event
+          name: Assemble and emit semantic analysis result
 
 errors:
   TEXT_EXTRACTION_FAILED:
@@ -116,6 +138,31 @@ cli:
           - name_or_flags:
               - --include-tokens
             description: Include tokens in the output.
+
+    analyze:
+      event:
+        group_key: analyze
+        key: event
+        name: Analyze Event Command
+        description: Perform semantic analysis on a Tiferet event source file.
+        args:
+          - name_or_flags:
+              - source_file
+            description: Path to the Python source file to analyze.
+          - name_or_flags:
+              - -o
+              - --output
+            description: Path to output YAML/JSON file.
+          - name_or_flags:
+              - --output-format
+            default: auto
+            description: "Output format: yaml, json, console, or auto."
+          - name_or_flags:
+              - --include-tokens
+            description: Include tokens in the output.
+          - name_or_flags:
+              - --include-ast
+            description: Include the AST in the output.
 
 interfaces:
   compiler:

@@ -1,4 +1,7 @@
 {
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-14T21:49:26.547142+00:00",
+  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/SemanticRoutines/samples/pass_minimal_event.py",
   "symbol_table": {
     "module_name": "pass_minimal_event",
     "scopes": {

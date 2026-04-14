@@ -1,4 +1,4 @@
-"""Tests for Symbol Table Builder and Name Resolver"""
+"""Tests for Semantic Analysis Builder and Name Resolver"""
 
 # *** imports
 
@@ -6,7 +6,7 @@
 import pytest
 
 # ** app
-from ...domain.symbol import SymbolKind
+from ...domain.semantic import SymbolKind
 from ...mappers.ast import (
     DeclarationAggregate as Decl,
     StatementAggregate as Stmt,
@@ -14,8 +14,8 @@ from ...mappers.ast import (
     TypeAggregate as Type,
     ParamListAggregate as ParamList,
 )
-from ...mappers.symbol import ScopeAggregate
-from ..symbol import SymbolTableBuilder, NameResolver
+from ...mappers.semantic import ScopeAggregate
+from ..semantic import SymbolTableBuilder, NameResolver
 
 # *** fixtures
 

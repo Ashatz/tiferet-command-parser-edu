@@ -1,4 +1,4 @@
-"""Symbol Table Builder and Name Resolver Utilities"""
+"""Semantic Analysis Builder and Name Resolver Utilities"""
 
 # *** imports
 
@@ -15,14 +15,14 @@ from ..domain.ast import (
     Expression,
     ParamList,
 )
-from ..domain.symbol import (
+from ..domain.semantic import (
     SymbolKind,
     Symbol,
     ResolvedName,
     UnresolvedName,
     ResolutionResult,
 )
-from ..mappers.symbol import ScopeAggregate
+from ..mappers.semantic import ScopeAggregate
 
 # *** utils
 

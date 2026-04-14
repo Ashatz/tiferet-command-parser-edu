@@ -1,4 +1,4 @@
-"""Tiferet Compiler Symbol Table Domain Objects"""
+"""Tiferet Compiler Semantic Analysis Domain Objects"""
 
 # *** imports
 

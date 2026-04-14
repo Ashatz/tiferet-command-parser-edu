@@ -1,4 +1,4 @@
-"""Tests for Symbol Table Domain Objects"""
+"""Tests for Semantic Analysis Domain Objects"""
 
 # *** imports
 
@@ -6,7 +6,7 @@
 import pytest
 
 # ** app
-from ..symbol import SymbolKind, Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult
+from ..semantic import SymbolKind, Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult
 
 # *** tests
 

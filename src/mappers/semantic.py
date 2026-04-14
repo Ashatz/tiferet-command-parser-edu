@@ -1,4 +1,4 @@
-"""Tiferet Compiler Symbol Table Mapper Objects"""
+"""Tiferet Compiler Semantic Analysis Mapper Objects"""
 
 # *** imports
 
@@ -6,7 +6,7 @@
 from typing import Optional
 
 # ** app
-from ..domain.symbol import SymbolKind, Symbol, Scope
+from ..domain.semantic import SymbolKind, Symbol, Scope
 
 # *** mappers
 
