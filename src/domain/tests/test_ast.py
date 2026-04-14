@@ -33,7 +33,7 @@ def simple_string_type() -> Type:
         name='str',
         kind=TypeKind.STR,
         subtype=None,
-        params=[]
+        params=None
     )
 
 # ** fixture: simple_int_type
@@ -49,7 +49,7 @@ def simple_int_type() -> Type:
         name='int',
         kind=TypeKind.INT,
         subtype=None,
-        params=[]
+        params=None
     )
 
 # ** fixture: list_of_str_type
@@ -66,7 +66,7 @@ def list_of_str_type(simple_string_type: Type) -> Type:
         name='list',
         kind=TypeKind.LIST,
         subtype=simple_string_type,
-        params=[]
+        params=None
     )
 
 # ** fixture: single_param
@@ -198,7 +198,7 @@ def simple_statement_expr(simple_expression_name: Expression) -> Statement:
     return Statement(
         kind=StatementKind.EXPR,
         decl=None,
-        inner_expr=simple_expression_name,
+        init_expr=simple_expression_name,
         expr=None,
         next_expr=None,
         body=None,
@@ -241,7 +241,7 @@ def test_type_creation_and_validation(simple_string_type: Type, list_of_str_type
     assert simple_string_type.name == 'str'
     assert simple_string_type.kind == TypeKind.STR
     assert simple_string_type.subtype is None
-    assert simple_string_type.params == []
+    assert simple_string_type.params is None
 
     assert list_of_str_type.kind == TypeKind.LIST
     assert list_of_str_type.subtype.name == 'str'
@@ -257,7 +257,7 @@ def test_type_all_kinds_accepted() -> None:
             name=kind.value,
             kind=kind,
             subtype=None,
-            params=[]
+            params=None
         )
         # Pydantic v2 auto-validates on creation
 
@@ -296,7 +296,7 @@ def test_param_list_validation_missing_required() -> None:
     '''
     
     with pytest.raises(Exception):
-        ParamList(name='value', required=False, default=None, next=None)  # missing type
+        ParamList(required=False, default=None, next=None)  # missing name
 
 # ** test: declaration_creation_and_validation
 def test_declaration_creation_and_validation(basic_declaration: Declaration) -> None:
@@ -356,15 +356,7 @@ def test_declaration_validation_missing_required(simple_string_type: Type) -> No
             next=None
         )  # missing name
 
-    with pytest.raises(Exception):
-        Declaration(
-            name='foo',
-            metadata={},
-            doc_string=None,
-            value=None,
-            code=None,
-            next=None
-        )  # missing type
+    # Note: Declaration.type is Optional, so omitting it does not raise.
 
 # ** test: expression_creation_and_validation
 def test_expression_creation_and_validation(
@@ -413,7 +405,7 @@ def test_statement_creation_and_validation(
     '''
     
     assert simple_statement_expr.kind == StatementKind.EXPR
-    assert simple_statement_expr.inner_expr is not None
+    assert simple_statement_expr.init_expr is not None
 
     assert simple_statement_decl.kind == StatementKind.DECL
     assert simple_statement_decl.decl is not None

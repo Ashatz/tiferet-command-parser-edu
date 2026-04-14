@@ -132,7 +132,7 @@ class EmitParseResult(DomainEvent):
 
         # Include tokens if requested.
         if include_tokens:
-            result['tokens'] = [token.dump_model() for token in tokens] if tokens else []
+            result['tokens'] = [token.model_dump() for token in tokens] if tokens else []
             result['token_count'] = len(tokens) if tokens else 0
 
         # Write to file if output path specified.
