@@ -170,7 +170,7 @@ class TiferetParser(ParserBase):
     PLY-based parser for the Tiferet Domain Event dialect. Implements ParserService and defines the grammar rules to parse the token stream into a structured AST reflecting the three-tier artifact hierarchy.
     '''
 
-    # -- Tier 1: Module / Artifact Groups --
+    # -- Tier 1: Module & Artifact Groups --
 
     # * method: p_module (rule)
     def p_module(self, p):
@@ -228,7 +228,7 @@ class TiferetParser(ParserBase):
         _, type, name = p[1].split()
         p[0] = Decl.new_artifact_decl(name, type)
 
-    # -- Tier 2: Artifact Sections --
+    # -- Tier 2: Artifact Sections & Annotations --
 
     # * method: p_section_list (rule)
     def p_section_list(self, p):
@@ -335,6 +335,8 @@ class TiferetParser(ParserBase):
         # Pass through the section body.
         p[0] = p[1]
 
+    # -- Import Statements --
+
     # * method: p_import_block_single (rule)
     def p_import_block_single(self, p):
         '''import_block : import_stmt'''
@@ -400,7 +402,15 @@ class TiferetParser(ParserBase):
         p[2].name = '.' + p[2].name
         p[0] = p[2]
 
-    # -- Class Definition --
+    # * method: p_from_expr_dot_middle (rule)
+    def p_from_expr_dot_middle(self, p):
+        '''from_expr : from_expr DOT IDENTIFIER'''
+
+        # Build FromExpr with dot notation and additional identifier.
+        p[1].name += '.' + p[3]
+        p[0] = p[1]
+
+    # -- Class Definitions --
 
     # * method: p_class_def (rule)
     def p_class_def(self, p):
@@ -413,7 +423,6 @@ class TiferetParser(ParserBase):
             doc_string=p[9].get('docstring', None),
             members=Stmt.new_decl_stmt(p[9].get('members', None))
         )
-
 
     # * method: p_class_body_doc (rule)
     def p_class_body_doc(self, p):
@@ -529,6 +538,8 @@ class TiferetParser(ParserBase):
         p[1].set_next(p[3])
         p[0] = p[1]
 
+    # -- Attribute Declarations --
+
     # * method: p_attr_decl (rule)
     def p_attr_decl(self, p):
         '''attr_decl : IDENTIFIER NEWLINE'''
@@ -604,13 +615,12 @@ class TiferetParser(ParserBase):
 
     # * method: p_decorator_arg_literal (rule)
     def p_decorator_arg_literal(self, p):
-        '''decorator_arg : name_or_literal_expr
-                        | ident_expr'''
+        '''decorator_arg : name_or_literal_expr'''
 
-        # Build a single decorator argument as a literal expression.
-        p[0] = Expr.new_name_or_literal_expr(p[1])
+        # Pass through the resolved name or literal expression.
+        p[0] = p[1]
 
-    # -- Method Definition --
+    # -- Method Definitions --
 
     # * method: p_method_decl (rule)
     def p_method_decl(self, p):
@@ -653,6 +663,9 @@ class TiferetParser(ParserBase):
         # Build empty method docstring.
         p[0] = None
 
+    # -- Parameters & Type Annotations --
+
+    # * method: p_method_param_list (rule)
     def p_method_param_list(self, p):
         '''method_param_list : SELF COMMA param_list'''
 
@@ -660,6 +673,13 @@ class TiferetParser(ParserBase):
         param_list = ParamList.new(name=p[1], type=Type.new_unknown_type())
         param_list.set_next(p[3])
         p[0] = param_list
+
+    # * method: p_method_param_list_self_only (rule)
+    def p_method_param_list_self_only(self, p):
+        '''method_param_list : SELF'''
+
+        # Build a self-only parameter list for methods that take no additional parameters.
+        p[0] = ParamList.new(name=p[1], type=Type.new_unknown_type())
 
     # * method: p_method_param_list_single (rule)
     def p_method_param_list_single(self, p):
@@ -676,7 +696,7 @@ class TiferetParser(ParserBase):
         p[1].set_next(p[3])
         p[0] = p[1]
 
-    # * method: p_method_param
+    # * method: p_method_param (rule)
     def p_method_param(self, p):
         '''param : IDENTIFIER'''
 
@@ -705,13 +725,15 @@ class TiferetParser(ParserBase):
         p[1].set_type(p[3])
         p[0] = p[1]
 
+    # * method: p_param_default (rule)
     def p_param_default(self, p):
-        '''param : param EQUALS token_seq'''
+        '''param : param EQUALS name_or_literal_expr'''
 
         # Build a single parameter with default value.
         p[1].set_default(p[3])    
         p[0] = p[1]
 
+    # * method: p_param_newline (rule)
     def p_param_newline(self, p):
         '''param : NEWLINE param'''
 
@@ -764,7 +786,7 @@ class TiferetParser(ParserBase):
         p[1].set_return_type(ret_type)
         p[0] = p[1]
 
-    # -- Body / Snippets --
+    # -- Method Body & Snippets --
 
     # * method: p_snippet_list (rule)
     def p_snippet_list(self, p):
@@ -777,6 +799,13 @@ class TiferetParser(ParserBase):
         else:
             p[0] = p[2]
 
+    # * method: p_snippet_list_newline (rule)
+    def p_snippet_list_newline(self, p):
+        '''snippet_list : snippet_list NEWLINE'''
+
+        # Consume stray NEWLINEs (blank lines) between snippets.
+        p[0] = p[1]
+
     # * method: p_snippet_list_empty (rule)
     def p_snippet_list_empty(self, p):
         '''snippet_list : '''
@@ -786,11 +815,18 @@ class TiferetParser(ParserBase):
 
     # * method: p_snippet_comment (rule)
     def p_snippet_comment(self, p):
-        '''snippet : comment_list NEWLINE stmt_list'''
+        '''snippet : comment_list stmt_list'''
 
         # Build Snippet with comment.
-        p[0] = Stmt.new_snippet_stmt(comments=p[1], code=p[3])
-        
+        p[0] = Stmt.new_snippet_stmt(comments=p[1], code=p[2])
+
+    # * method: p_snippet_nocomment (rule)
+    def p_snippet_nocomment(self, p):
+        '''snippet : stmt_list'''
+
+        # Build Snippet without comment.
+        p[0] = Stmt.new_snippet_stmt(code=p[1])
+
     # * method: p_comment_list_single (rule)
     def p_comment_list_single(self, p):
         '''comment_list : comment_stmt'''
@@ -800,26 +836,21 @@ class TiferetParser(ParserBase):
 
     # * method: p_comment_list_multi (rule)
     def p_comment_list_multi(self, p):
-        '''comment_list : comment_list NEWLINE comment_stmt'''
+        '''comment_list : comment_list comment_stmt'''
 
         # Extend a comment list with an additional comment.
-        p[1].set_next(p[3])
+        p[1].set_next(p[2])
         p[0] = p[1]
 
     # * method: p_comment_stmt (rule)
     def p_comment_stmt(self, p):
-        '''comment_stmt : LINE_COMMENT'''
+        '''comment_stmt : LINE_COMMENT NEWLINE'''
 
         # Build Comment AST node.
         expr = Expr.new_comment_expr(p[1])
         p[0] = Stmt.new_comment_stmt(expr)
 
-    # * method: p_snippet_nocomment (rule)
-    def p_snippet_nocomment(self, p):
-        '''snippet : stmt_list'''
-
-        # Build Snippet without comment.
-        p[0] = Stmt.new_snippet_stmt(code=p[1])
+    # -- Statements --
 
     # * method: p_stmt_list_single (rule)
     def p_stmt_list_single(self, p):
@@ -843,22 +874,6 @@ class TiferetParser(ParserBase):
         # Initialize an empty statement list.
         p[0] = None
 
-    # * method: p_stmt_simple (rule)
-    def p_stmt_simple(self, p):
-        '''stmt : token_seq NEWLINE'''
-
-        # Build simple Stmt.
-        p[0] = a.parser.build_stmt(p[1])
-
-    # * method: p_stmt_compound (rule)
-    def p_stmt_compound(self, p):
-        '''stmt : token_seq NEWLINE INDENT stmt_list DEDENT'''
-
-        # Build compound Stmt with indented sub-block.
-        p[0] = a.parser.build_stmt(p[1], block=p[4])
-
-    # -- Snippet Statement Types --
-
     # * method: p_stmt_return (rule)
     def p_stmt_return(self, p):
         '''stmt : RETURN return_expr NEWLINE'''
@@ -868,125 +883,114 @@ class TiferetParser(ParserBase):
 
     # * method: p_stmt_assign (rule)
     def p_stmt_assign(self, p):
-        '''stmt : ident_expr EQUALS name_or_literal_expr NEWLINE'''
+        '''stmt : assign_expr NEWLINE'''
 
         # Build AssignStmt.
-        p[0] = Stmt.new_expr_stmt(
-            Expr.new_assign_expr(target=p[1], value=p[3])
-        )
+        p[0] = Stmt.new_expr_stmt(p[1])
+
+    # * method: p_stmt_operator (rule)
+    def p_stmt_operator(self, p):
+        '''stmt : operation_expr NEWLINE'''
+
+        # Build an expression statement for the operator expression.
+        p[0] = Stmt.new_expr_stmt(p[1])
+
+    # * method: p_stmt_call (rule)
+    def p_stmt_call(self, p):
+        '''stmt : call_expr NEWLINE'''
+
+        # Build a call expression statement.
+        p[0] = Stmt.new_expr_stmt(p[1])
+
+    # -- Expressions --
+
+    # * method: p_asign_expr (rule)
+    def p_assign_expr(self, p):
+        '''assign_expr : ident_expr EQUALS name_or_literal_expr'''
+
+        # Build an assignment expression.
+        p[0] = Expr.new_assign_expr(target=p[1], value=p[3])
 
     # * method: p_return_expr (rule)
     def p_return_expr(self, p):
         '''return_expr : name_or_literal_expr
-                 | ident_expr'''
+                 | operation_expr
+                 | call_expr'''
 
         # Pass through the return expression.
         p[0] = p[1]
 
+    # * method: p_return_empty_expr (rule)
     def p_return_empty_expr(self, p):
         '''return_expr : '''
 
         # Build empty return expression.
         p[0] = None
 
-    # -- Token Sequence --
+    # * method: p_operation_expr (rule)
+    def p_operation_expr(self, p):
+        '''operation_expr : name_or_literal_expr operator name_or_literal_expr'''
 
-    # * method: p_token_seq_single (rule)
-    def p_token_seq_single(self, p):
-        '''token_seq : token_item'''
+        # Build a binary operator expression.
+        p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3])
 
-        # Start a token sequence with a single item.
-        p[0] = [p[1]]
+    # * method: p_call_expr (rule)
+    def p_call_expr(self, p):
+        '''call_expr : ident_expr LPAREN call_args RPAREN'''
 
-    # * method: p_token_seq_multi (rule)
-    def p_token_seq_multi(self, p):
-        '''token_seq : token_seq token_item'''
+        # Build a call expression.
+        p[0] = Expr.new_call_expr(p[1], p[3])
 
-        # Extend a token sequence with an additional item.
-        p[0] = p[1] + [p[2]]
+    # * method: p_call_args_single (rule)
+    def p_call_args_single(self, p):
+        '''call_args : call_arg'''
 
-    # * method: p_token_item_token (rule)
-    def p_token_item_token(self, p):
-        '''token_item : token'''
+        # Build a single call argument as an argument list with one element.
+        p[0] = Expr.new_args_list_expr(p[1])
 
-        # Pass through token item.
+    # * method: p_call_args_multi (rule)
+    def p_call_args_multi(self, p):
+        '''call_args : call_args COMMA call_arg'''
+
+        # Build multiple call arguments into an argument list.
+        p[0] = Expr.new_args_list_expr(p[1], p[3])
+
+    # * method: p_call_arg (rule)
+    def p_call_arg(self, p):
+        '''call_arg : name_or_literal_expr'''
+
+        # Pass through a call argument as a name or literal expression.
         p[0] = p[1]
 
-    # * method: p_token_item_enclosed (rule)
-    def p_token_item_enclosed(self, p):
-        '''token_item : enclosed'''
-
-        # Pass through token item.
-        p[0] = p[1]
-
-    # * method: p_enclosed_paren (rule)
-    def p_enclosed_paren(self, p):
-        '''enclosed : LPAREN inner RPAREN'''
-
-        # Build Enclosed AST node.
-        p[0] = a.parser.build_enclosed(p[1], p[2], p[3])
-
-    # * method: p_enclosed_brack (rule)
-    def p_enclosed_brack(self, p):
-        '''enclosed : LBRACK inner RBRACK'''
-
-        # Build Enclosed AST node.
-        p[0] = a.parser.build_enclosed(p[1], p[2], p[3])
-
-    # * method: p_enclosed_brace (rule)
-    def p_enclosed_brace(self, p):
-        '''enclosed : LBRACE inner RBRACE'''
-
-        # Build Enclosed AST node.
-        p[0] = a.parser.build_enclosed(p[1], p[2], p[3])
-
-    # * method: p_inner (rule)
-    def p_inner(self, p):
-        '''inner : inner inner_item'''
-
-        # Extend inner items.
-        p[0] = p[1] + [p[2]]
-
-    # * method: p_inner_empty (rule)
-    def p_inner_empty(self, p):
-        '''inner : '''
-
-        # Initialize empty inner.
-        p[0] = []
-
-    # * method: p_inner_item_token (rule)
-    def p_inner_item_token(self, p):
-        '''inner_item : token_item'''
-
-        # Pass through inner item.
-        p[0] = p[1]
-
-    # * method: p_inner_item_newline (rule)
-    def p_inner_item_newline(self, p):
-        '''inner_item : NEWLINE'''
-
-        # Pass through inner item.
-        p[0] = p[1]
-
-    # * method: p_name_or_literal_expr (rule)
-    def p_name_or_literal_expr(self, p):
-        '''name_or_literal_expr : ident
-                 | STRING_LITERAL
+    # * method: p_literal_expr (rule)
+    def p_literal_expr(self, p):
+        '''literal_expr : STRING_LITERAL
                  | NUMBER_LITERAL
                  | TRUE
                  | FALSE'''
 
-        # Build a token as either a name or a literal expression.
+        # Build a literal expression from a string, number, or boolean token.
         p[0] = Expr.new_name_or_literal_expr(p[1])
 
-    # method: ident_expr (rule)
-    def p_ident_expr(self, p):
-        '''ident_expr : ident'''
+    # * method: p_name_or_literal_expr (rule)
+    def p_name_or_literal_expr(self, p):
+        '''name_or_literal_expr : ident_expr
+                 | literal_expr'''
 
-        # Build an identifier as a name expression.
+        # Pass through the resolved identity or literal expression.
+        p[0] = p[1]
+
+    # * method: p_ident_expr (rule)
+    def p_ident_expr(self, p):
+        '''ident_expr : ident
+                 | ident_dot'''
+
+        # Build an identifier expression from either a simple identifier or a dotted identifier.
         p[0] = Expr.new_name_expr(p[1])
 
-    # * method: p_ident
+    # -- Code Elements & Structures --
+
+    # * method: p_ident (rule)
     def p_ident(self, p):
         '''ident : IDENTIFIER
                 | SELF'''
@@ -996,51 +1000,28 @@ class TiferetParser(ParserBase):
 
     # * method: p_ident_dot (rule)
     def p_ident_dot(self, p):
-        '''ident : ident DOT IDENTIFIER'''
+        '''ident_dot : ident DOT IDENTIFIER
+                     | ident_dot DOT IDENTIFIER'''
 
-        # Build a dotted identifier expression.
+        # Build a dotted identifier expression (supports chained dots like self.a.b).
         p[0] = p[1] + '.' + p[3]
 
-    # -- Token Catch-All --
+    # * method: p_operator (rule)
+    def p_operator(self, p):
+        '''operator : PLUS
+                    | MINUS
+                    | LT
+                    | GT
+                    | LTEQ
+                    | GTEQ
+                    | NOTEQ
+                    | STAR
+                    | SLASH
+                    | PERCENT
+                    | DOUBLESTAR
+                    | PIPE
+                    | AMPERSAND
+                    | EQEQ'''
 
-    # * method: p_token (rule)
-    def p_token(self, p):
-        '''token : IDENTIFIER
-                 | SELF
-                 | INIT
-                 | CLASS
-                 | DEF
-                 | STRING_LITERAL
-                 | NUMBER_LITERAL
-                 | DOCSTRING
-                 | PYTHON_KEYWORD
-                 | DOT
-                 | COMMA
-                 | COLON
-                 | EQUALS
-                 | ARROW
-                 | PLUS
-                 | MINUS
-                 | STAR
-                 | DOUBLESTAR
-                 | SLASH
-                 | DOUBLESLASH
-                 | PERCENT
-                 | PIPE
-                 | AMPERSAND
-                 | TILDE
-                 | CARET
-                 | LSHIFT
-                 | RSHIFT
-                 | EQEQ
-                 | NOTEQ
-                 | LTEQ
-                 | GTEQ
-                 | LT
-                 | GT
-                 | AT
-                 | UNKNOWN'''
-
-        # Pass through a content terminal value.
+        # Pass through an operator token.
         p[0] = p[1]
-

@@ -56,7 +56,14 @@ class ExprKind(str, Enum):
     DIV = 'div'
     MOD = 'mod'
     EXP = 'exp'
+    EQ = 'eq'
+    NEQ = 'neq'
+    LT = 'lt'
+    LTE = 'lte'
+    GT = 'gt'
+    GTE = 'gte'
     NAME = 'name'
+    NUM_VAL = 'num_val'
     INT_VAL = 'int_val'
     STR_VAL = 'str_val'
     BOOL_VAL = 'bool_val'
@@ -65,7 +72,7 @@ class ExprKind(str, Enum):
     CALL = 'call'
     IMPORT = 'import'
     IMPORT_AS = 'import_as'
-    IMPORT_MULTI = 'import_multi',
+    IMPORT_MULTI = 'import_multi'
     ARTIFACT = 'artifact'
     COMMENT = 'comment'
 
