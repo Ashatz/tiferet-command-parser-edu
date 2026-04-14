@@ -1,4 +1,4 @@
-"""Utilities – BlockTracker and TiferetLexer"""
+"""Utilities - BlockTracker and TiferetLexer"""
 
 # *** imports
 
@@ -243,7 +243,6 @@ class TiferetLexer(LexerService):
 
                 # Apply block logic for the new line before appending the token.
                 tracker.apply_block(token.lexpos, token.lineno, result)
-
 
                 prev_lineno = token.lineno
 
