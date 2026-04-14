@@ -59,7 +59,7 @@ class ExprKind(str, Enum):
     STR_VAL = 'str_val'
     BOOL_VAL = 'bool_val'
     ASSIGN = 'assign'
-    PARAM_LIST = 'param_list'
+    ARGS_LIST = 'args_list'
     CALL = 'call'
     IMPORT = 'import'
     IMPORT_AS = 'import_as'
