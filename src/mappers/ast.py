@@ -350,23 +350,23 @@ class ExpressionAggregate(Expression):
         else:
             return ExpressionAggregate.new_name_expr(name=str(value))
         
-    # * method: new_param_list_expr
+    # * method: new_args_list_expr
     @staticmethod
-    def new_param_list_expr(param_list: 'ExpressionAggregate', param: Optional['ExpressionAggregate'] = None) -> 'ExpressionAggregate':
+    def new_args_list_expr(args_list: 'ExpressionAggregate', arg: Optional['ExpressionAggregate'] = None) -> 'ExpressionAggregate':
         """
-        Create a new ExpressionAggregate representing a list of parameters for a decorator.
-        :param param_list: The existing ExpressionAggregate representing the list of parameters (if any).
-        :type param_list: ExpressionAggregate
-        :param param: The new ExpressionAggregate representing a single parameter to add to the list.
-        :type param: ExpressionAggregate | None
-        :return: A new ExpressionAggregate instance representing the updated list of parameters.
+        Create a new ExpressionAggregate representing a list of arguments for a call expression.
+        :param args_list: The existing ExpressionAggregate representing the list of arguments (if any).
+        :type args_list: ExpressionAggregate
+        :param arg: The new ExpressionAggregate representing a single argument to add to the list.
+        :type arg: ExpressionAggregate | None
+        :return: A new ExpressionAggregate instance representing the updated list of arguments.
         :rtype: ExpressionAggregate
         """
 
         return ExpressionAggregate(
-            kind=ExprKind.PARAM_LIST,
-            left=param_list,
-            right=param
+            kind=ExprKind.ARGS_LIST,
+            left=args_list,
+            right=arg
         )
 
     # * method: new_import_expr_as
@@ -413,23 +413,42 @@ class ExpressionAggregate(Expression):
             right=new_name_expr
         )
     
-    # * method: new_decorator_call_expr
+    # * method: new__call_expr
     @staticmethod
-    def new_decorator_call_expr(decorator_ident: 'ExpressionAggregate', decorator_params: Optional['ExpressionAggregate'] = None) -> 'ExpressionAggregate':
+    def new_call_expr(caller: 'ExpressionAggregate', arguments: Optional['ExpressionAggregate'] = None) -> 'ExpressionAggregate':
         """
-        Create a new ExpressionAggregate representing a decorator call expression.
-        :param decorator_ident: The expression representing the decorator identifier.
-        :type decorator_ident: ExpressionAggregate
-        :param decorator_params: The expression representing the decorator parameters (optional).
-        :type decorator_params: ExpressionAggregate | None
-        :return: A new ExpressionAggregate instance representing the decorator call expression.
+        Create a new ExpressionAggregate representing a call expression.
+        :param caller: The expression representing the caller.
+        :type caller: ExpressionAggregate
+        :param arguments: The expression representing the call arguments (optional).
+        :type arguments: ExpressionAggregate | None
+        :return: A new ExpressionAggregate instance representing the call expression.
         :rtype: ExpressionAggregate
         """
 
         return ExpressionAggregate(
-            kind=ExprKind.DECORATOR_CALL,
-            left=decorator_ident,
-            right=decorator_params
+            kind=ExprKind.CALL,
+            left=caller,
+            right=arguments
+        )
+
+    # * method: new_assign_expr
+    @staticmethod
+    def new_assign_expr(target: 'ExpressionAggregate', value: 'ExpressionAggregate') -> 'ExpressionAggregate':
+        """
+        Create a new ExpressionAggregate representing an assignment expression.
+        :param target: The name of the variable being assigned to.
+        :type target: ExpressionAggregate
+        :param value: The expression representing the value being assigned.
+        :type value: ExpressionAggregate
+        :return: A new ExpressionAggregate instance representing the assignment expression.
+        :rtype: ExpressionAggregate
+        """
+
+        return ExpressionAggregate(
+            kind=ExprKind.ASSIGN,
+            left=target,
+            right=value
         )
 
     # * method: new_comment_expr
@@ -734,48 +753,32 @@ class StatementAggregate(Statement):
             decl=section_header,
             body=section_body
         )
-
-    # * method: new_member_stmt
-    @staticmethod
-    def new_member_stmt(member_decl: DeclarationAggregate) -> 'StatementAggregate':
-        """
-        Create a new StatementAggregate representing a member statement (e.g., method body or attribute declaration).
-        :param member_decl: The declaration of the artifact member.
-        :type member_decl: DeclarationAggregate
-        :return: A new StatementAggregate instance representing the member body statement.
-        :rtype: StatementAggregate
-        """
-
-        return StatementAggregate(
-            kind=StatementKind.DECL,
-            decl=member_decl
-        )
     
-    # * method: new_decorator_stmt
+    # * method: new_expr_stmt
     @staticmethod
-    def new_decorator_stmt(decorator_call: ExpressionAggregate) -> 'StatementAggregate':
+    def new_expr_stmt(expr: ExpressionAggregate) -> 'StatementAggregate':
         """
-        Create a new StatementAggregate representing a decorator statement.
-        :param decorator_call: The expression representing the decorator call.
-        :type decorator_call: ExpressionAggregate
-        :return: A new StatementAggregate instance representing the decorator statement.
+        Create a new StatementAggregate representing an expression statement.
+        :param expr: The expression representing the statement.
+        :type expr: ExpressionAggregate
+        :return: A new StatementAggregate instance representing the expression statement.
         :rtype: StatementAggregate
         """
 
         return StatementAggregate(
             kind=StatementKind.EXPR,
-            expr=decorator_call
+            expr=expr
         )
     
     # * method: new_snippet_stmt
     @staticmethod
-    def new_snippet_stmt(comments: Optional['StatementAggregate'] = None, code_stmts: Optional['StatementAggregate'] = None) -> 'StatementAggregate':
+    def new_snippet_stmt(comments: Optional['StatementAggregate'] = None, code: Optional['StatementAggregate'] = None) -> 'StatementAggregate':
         """
         Create a new StatementAggregate representing a snippet statement.
         :param comments: Optional comments associated with the snippet.
         :type comments: StatementAggregate | None
-        :param code_stmts: Optional code statements associated with the snippet.
-        :type code_stmts: StatementAggregate | None
+        :param code: Optional code statements associated with the snippet.
+        :type code: StatementAggregate | None
         :return: A new StatementAggregate instance representing the snippet statement.
         :rtype: StatementAggregate
         """
@@ -783,10 +786,10 @@ class StatementAggregate(Statement):
         # If there are comments, they will be set as the body of the snippet statement. If there are code statements, they will be linked to the end of the comments (if any) or set as the body of the snippet statement if there are no comments.
         if comments:
             body = comments
-            if code_stmts:
-                body.set_next(code_stmts)
+            if code:
+                body.set_next(code)
         else:
-            body = code_stmts
+            body = code
 
         return StatementAggregate(
             kind=StatementKind.SNIPPET,
