@@ -3,7 +3,7 @@
 # *** imports
 
 # ** core
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # ** infra
 import ply.yacc as yacc
@@ -11,8 +11,8 @@ import ply.yacc as yacc
 # ** app
 from ..events import a
 from ..interfaces import ParserService
-from ..mappers import TokenAggregate, DeclAggragate as Decl
-from ..mappers.ast import ExpressionAggregate as Expr, StatementAggregate as Stmt
+from ..mappers import TokenAggregate, Decl, Stmt, Expr, Type, ParamList
+from ..mappers.ast import TypeKind
 
 # *** utils
 
@@ -124,6 +124,26 @@ class ParserBase(ParserService):
         stripped = artifact_member_value.lstrip('# *').strip()
         kind = stripped.split(':')[0].split()[0] if stripped else 'unknown'
         return kind
+    
+    # * method: get_attribute_type (helper)
+    @staticmethod
+    def get_attribute_type(type_str: str, additional_types: Optional[Type] = None) -> Type:
+        
+        if type_str == 'int':
+            return Type.new(TypeKind.INT)
+        elif type_str == 'str':
+            return Type.new(TypeKind.STR)
+        elif type_str == 'float':
+            return Type.new(TypeKind.FLOAT)
+        elif type_str == 'bool':
+            return Type.new(TypeKind.BOOL)
+        elif type_str == 'list':
+            return Type.new(TypeKind.LIST)
+        elif type_str == 'dict':
+            return Type.new(TypeKind.DICT)
+        else:
+            return Type.new_class_type(subclasses=additional_types)
+
 
     # * method: p_error
     def p_error(self, p):
@@ -303,13 +323,6 @@ class TiferetParser(ParserBase):
         # Pass through the section body.
         p[0] = p[1]
 
-    # * method: p_section_body_func (rule)
-    def p_section_body_func(self, p):
-        '''section_body : func_def'''
-
-        # Pass through the section body.
-        p[0] = p[1]
-
     # * method: p_section_body_import (rule)
     def p_section_body_import(self, p):
         '''section_body : import_block'''
@@ -389,12 +402,13 @@ class TiferetParser(ParserBase):
         '''class_def : CLASS IDENTIFIER LPAREN name_list RPAREN COLON NEWLINE INDENT class_body DEDENT'''
 
         # Build ClassDef AST node.
-        p[0] = a.parser.build_class_def(
+        p[0] = Decl.new_class_decl(
             name=p[2],
-            bases=p[4],
-            body=p[9]['members'],
-            docstring=p[9].get('docstring'),
+            subclasses=p[4],
+            doc_string=p[9].get('docstring', None),
+            members=p[9].get('members', [])
         )
+
 
     # * method: p_class_body_doc (rule)
     def p_class_body_doc(self, p):
@@ -415,14 +429,15 @@ class TiferetParser(ParserBase):
         '''name_list : IDENTIFIER'''
 
         # Start a name list with a single identifier.
-        p[0] = [p[1]]
+        p[0] = Type.new_class_type()
 
     # * method: p_name_list_multi (rule)
     def p_name_list_multi(self, p):
         '''name_list : name_list COMMA IDENTIFIER'''
 
-        # Extend a name list.
-        p[0] = p[1] + [p[3]]
+        # Add the subtype to the name list.
+        p[1].set_subtype(p[3])
+        p[0] = p[1]
 
     # -- Tier 3: Artifact Members --
 
@@ -430,121 +445,260 @@ class TiferetParser(ParserBase):
     def p_member_list(self, p):
         '''member_list : member_list member'''
 
-        # Collect members into a list via left-recursive accumulation.
-        p[0] = p[1] + [p[2]]
+        # Collect members via linked-list accumulation.
+        if p[1]:
+            p[1].set_next(p[2])
+        p[0] = p[1]
+
+    # * method: p_member_list_single (rule)
+    def p_member_list_single(self, p):
+        '''member_list : member'''
+
+        # Start a member list with a single member.
+        p[0] = p[1]
 
     # * method: p_member_list_empty (rule)
     def p_member_list_empty(self, p):
         '''member_list : '''
 
         # Initialize an empty member list.
-        p[0] = []
+        p[0] = None
 
-    # * method: p_member (rule)
-    def p_member(self, p):
-        '''member : ARTIFACT_MEMBER NEWLINE member_body'''
+    # * method: p_member_decl (rule)
+    def p_member_decl(self, p):
+        '''member : ARTIFACT_MEMBER NEWLINE member_stmt'''
 
         # Build Member AST node.
         kind = self.parse_member_kind(p[1])
-        p[0] = a.parser.build_member(kind, p[3])
+        p[0] = Decl.new_member_decl(kind, p[3])
 
     # * method: p_member_annotated (rule)
     def p_member_annotated(self, p):
-        '''member : annots ARTIFACT_MEMBER NEWLINE member_body'''
+        '''member : annots ARTIFACT_MEMBER NEWLINE member_stmt'''
 
         # Build Member AST node with annotations.
         kind = self.parse_member_kind(p[2])
-        p[0] = a.parser.build_member(kind, p[4], annotations=p[1])
+        p[0] = Decl.new_member_decl(kind, p[4], annots=p[1])
 
     # * method: p_member_post_annotated (rule)
     def p_member_post_annotated(self, p):
-        '''member : ARTIFACT_MEMBER NEWLINE annots member_body'''
+        '''member : ARTIFACT_MEMBER NEWLINE annots member_stmt'''
 
         # Build Member AST node with post-header annotations.
         kind = self.parse_member_kind(p[1])
-        p[0] = a.parser.build_member(kind, p[4], annotations=p[3])
+        p[0] = Decl.new_member_decl(kind, p[4], annots=p[3])
 
-    # * method: p_member_body_attr (rule)
-    def p_member_body_attr(self, p):
-        '''member_body : attr_decl'''
+    # * method: p_member_attr_stmt (rule)
+    def p_member_attr_stmt(self, p):
+        '''member_stmt : attr_decl'''
 
         # Pass through the member body.
-        p[0] = p[1]
+        p[0] = Stmt.new_member_stmt(p[1])
 
     # * method: p_member_body_method (rule)
     def p_member_body_method(self, p):
-        '''member_body : method_def'''
+        '''member_stmt : method_decl'''
 
         # Pass through the member body.
+        p[0] = Stmt.new_member_stmt(p[1])
+
+    # * method: p_member_stmt_method_decorated (rule)
+    def p_member_stmt_method_decorated(self, p):
+        '''member_stmt : decorator_stmt NEWLINE member_stmt'''
+
+        # Build decorated member statement node.
+        p[1].set_next(p[3])
         p[0] = p[1]
 
     # * method: p_attr_decl (rule)
     def p_attr_decl(self, p):
-        '''attr_decl : IDENTIFIER COLON token_seq NEWLINE'''
+        '''attr_decl : IDENTIFIER NEWLINE'''
 
         # Build AttrDecl AST node.
-        p[0] = a.parser.build_attr_decl(p[1], p[3])
+        p[0] = Decl.new_attr_decl(name=p[1])
+
+    # * method: p_attr_decl_type (rule)
+    def p_attr_decl_type(self, p):
+        '''attr_decl : IDENTIFIER COLON attr_types NEWLINE'''
+
+        # Build AttrDecl AST node with type annotation.
+        p[0] = Decl.new_attr_decl(name=p[1], types=p[3])
+
+    # * method: p_attr_types_single (rule)
+    def p_attr_types_single(self, p):
+        '''attr_types : IDENTIFIER'''
+
+        # Build a single type annotation for the attribute.
+        p[0] = self.get_attribute_type(p[1])
+
+    # * method: p_attr_types_multi (rule)
+    def p_attr_types_multi(self, p):
+        '''attr_types : attr_types PIPE IDENTIFIER'''
+
+        # Build multiple type annotations for the attribute.
+        p[1].set_subtype(self.get_attribute_type(p[3]))
+        p[0] = p[1]
+
+    # -- Decorators --
+
+    # * method: p_decorator_stmt (rule)
+    def p_decorator_stmt(self, p):
+        '''decorator_stmt : AT decorator_call NEWLINE'''
+
+        # Build Decorator AST node.
+        p[0] = Stmt.new_decorator_stmt(p[2])
+
+    # * method: p_decorator_call (rule)
+    def p_decorator_call(self, p):
+        '''decorator_call : decorator_ident LPAREN decorator_params RPAREN'''
+
+        # Build Decorator call node.
+        p[0] = Expr.new_decorator_call_expr(p[1], p[3])
+
+    # * method: p_decorator_ident (rule)
+    def p_decorator_ident(self, p):
+        '''decorator_ident : IDENTIFIER'''
+
+        # Pass through decorator identifier.
+        p[0] = Expr.new_name_expr(p[1])
+
+    # * method: p_decorator_ident_dot (rule)
+    def p_decorator_ident_dot(self, p):
+        '''decorator_ident : decorator_ident DOT IDENTIFIER'''
+
+        # Build Decorator identifier with dot notation.
+        p[0] = Expr.new_name_expr(left=p[1], right=Expr.new_name_expr(name=p[3]))
+
+    # * method: p_decorator_params_single (rule)
+    def p_decorator_params_single(self, p):
+        '''decorator_params : decorator_param'''
+
+        # Pass through single decorator parameter sequence.
+        p[0] = Expr.new_param_list_expr(p[1])
+
+    # * method: p_decorator_params_multi (rule)
+    def p_decorator_params_multi(self, p):
+        '''decorator_params : decorator_params COMMA decorator_param'''
+
+        # Build multiple decorator parameter sequence.
+        p[0] = Expr.new_param_list_expr(p[1], p[3])
+
+    # * p_decorator_param (rule)
+    def p_decorator_param_literal(self, p):
+        '''decorator_param : IDENTIFIER
+                           | NUMBER_LITERAL
+                           | STRING_LITERAL
+                           | TRUE
+                           | FALSE'''
+
+        # Build a single decorator parameter as a literal expression.
+        p[0] = Expr.new_name_or_literal_expr(p[1])
 
     # -- Method Definition --
 
-    # * method: p_method_def (rule)
-    def p_method_def(self, p):
-        '''method_def : DEF method_name LPAREN SELF param_tail RPAREN ret_annot COLON NEWLINE INDENT body DEDENT'''
+    # * method: p_method_decl (rule)
+    def p_method_decl(self, p):
+        '''method_decl : DEF IDENTIFIER method_type COLON NEWLINE INDENT method_doc_string snippet_list DEDENT'''
 
-        # Build MethodDef AST node.
-        p[0] = a.parser.build_method_def(
-            name=p[2],
-            params=p[5],
-            body=p[11]['snippets'],
-            return_type=p[7],
-            docstring=p[11].get('docstring'),
+        # Build MethodDecl AST node.
+        p[0] = Decl.new_func_decl(
+             name=p[2],
+             type=p[4],
+             doc_string=p[7],
+             body=p[8]
         )
 
-    # * method: p_method_def_decorated (rule)
-    def p_method_def_decorated(self, p):
-        '''method_def : decorator DEF method_name LPAREN SELF param_tail RPAREN ret_annot COLON NEWLINE INDENT body DEDENT'''
+    # * method: p_method_type (rule)
+    def p_method_type(self, p):
+        '''method_type : LPAREN method_param_list RPAREN ret_annot'''
 
-        # Build decorated MethodDef AST node.
-        p[0] = a.parser.build_method_def(
-            name=p[3],
-            params=p[6],
-            body=p[12]['snippets'],
-            return_type=p[8],
-            decorator=p[1],
-            docstring=p[12].get('docstring'),
-        )
+        # Build a method type annotation from the parameter list and return type annotation.
+        p[0] = Type.new_func_type(params=p[2], return_type=p[4])
 
-    # * method: p_method_name_id (rule)
-    def p_method_name_id(self, p):
-        '''method_name : IDENTIFIER'''
+    # * method: p_method_doc_string (rule)
+    def p_method_doc_string(self, p):
+        '''method_doc_string : DOCSTRING'''
 
-        # Pass through method name.
+        # Pass through the method docstring.
         p[0] = p[1]
 
-    # * method: p_method_name_init (rule)
-    def p_method_name_init(self, p):
-        '''method_name : INIT'''
+    # * method: p_method_doc_string_empty (rule)
+    def p_method_doc_string_empty(self, p):
+        '''method_doc_string : '''
 
-        # Pass through method name.
+        # Build empty method docstring.
+        p[0] = None
+
+    def p_method_param_list(self, p):
+        '''method_param_list : SELF COMMA param_list'''
+
+        # Pass through the parameter list, ensuring 'self' is included as the first parameter for method definitions.
+        param_list = ParamList.new(name=p[1], type=Type.new_unknown_type())
+        param_list.set_next(p[3])
+        p[0] = param_list
+
+    # * method: p_method_param_list_single (rule)
+    def p_method_param_list_single(self, p):
+        '''param_list : param'''
+
+        # Start a parameter list with a single parameter.
         p[0] = p[1]
 
-    # * method: p_param_tail (rule)
-    def p_param_tail(self, p):
-        '''param_tail : COMMA token_seq'''
+    # * method: p_method_param_list_multi (rule)
+    def p_method_param_list_multi(self, p):
+        '''param_list : param_list COMMA param'''
 
-        # Build param tail.
+        # Extend a parameter list with an additional parameter.
+        p[1].set_next(p[3])
+        p[0] = p[1]
+
+    # * method: p_method_param
+    def p_method_param(self, p):
+        '''param : IDENTIFIER'''
+
+        # Build a single parameter as a name expression.
+        p[0] = ParamList.new(name=p[1])
+
+    # * method: p_method_param_type (rule)
+    def p_method_param_type(self, p):
+        '''param : param COLON param_types'''
+
+        # Build a single parameter with type annotation.
+        p[1].set_type(p[3])
+        p[0] = p[1]
+
+    def p_param_default(self, p):
+        '''param : param EQUALS token_seq'''
+
+        # Build a single parameter with default value.
+        p[1].set_default(p[3])    
+        p[0] = p[1]
+
+    def p_param_newline(self, p):
+        '''param : NEWLINE param'''
+
+        # Pass through a parameter followed by a newline (for multi-line parameter lists).
         p[0] = p[2]
 
-    # * method: p_param_tail_empty (rule)
-    def p_param_tail_empty(self, p):
-        '''param_tail : '''
+    # * method: p_method_param_types_single (rule)
+    def p_method_param_types_single(self, p):
+        '''param_types : IDENTIFIER'''
 
-        # Build empty param tail.
-        p[0] = []
+        # Build a single type annotation for the parameter.
+        p[0] = self.get_attribute_type(p[1])
+
+    # * method: p_method_param_types_multi (rule)
+    def p_method_param_types_multi(self, p):
+        '''param_types : param_types PIPE IDENTIFIER'''
+
+        # Build multiple type annotations for the parameter.
+        subtype = self.get_attribute_type(p[3])
+        p[1].set_subtype(subtype)
+        p[0] = p[1]
 
     # * method: p_ret_annot (rule)
     def p_ret_annot(self, p):
-        '''ret_annot : ARROW token_seq'''
+        '''ret_annot : ARROW ret_types'''
 
         # Build return annotation.
         p[0] = p[2]
@@ -554,73 +708,25 @@ class TiferetParser(ParserBase):
         '''ret_annot : '''
 
         # Build empty return annotation.
-        p[0] = None
+        p[0] = Type.new_null_type()
 
-    # * method: p_decorator (rule)
-    def p_decorator(self, p):
-        '''decorator : AT token_seq NEWLINE'''
+    # * method: p_ret_types_single (rule)
+    def p_ret_types_single(self, p):
+        '''ret_types : IDENTIFIER'''
 
-        # Build Decorator AST node.
-        p[0] = a.parser.build_decorator(p[2])
+        # Build a single return type annotation.
+        p[0] = self.get_attribute_type(p[1])
 
-    # -- Function Definition --
+    # * method: p_ret_types_multi (rule)
+    def p_ret_types_multi(self, p):
+        '''ret_types : ret_types PIPE IDENTIFIER'''
 
-    # * method: p_func_def (rule)
-    def p_func_def(self, p):
-        '''func_def : DEF IDENTIFIER LPAREN param_body RPAREN ret_annot COLON NEWLINE INDENT body DEDENT'''
-
-        # Build FuncDef AST node.
-        p[0] = a.parser.build_func_def(
-            name=p[2],
-            params=p[4],
-            body=p[10]['snippets'],
-            return_type=p[6],
-            docstring=p[10].get('docstring'),
-        )
-
-    # * method: p_func_def_decorated (rule)
-    def p_func_def_decorated(self, p):
-        '''func_def : decorator DEF IDENTIFIER LPAREN param_body RPAREN ret_annot COLON NEWLINE INDENT body DEDENT'''
-
-        # Build decorated FuncDef AST node.
-        p[0] = a.parser.build_func_def(
-            name=p[3],
-            params=p[5],
-            body=p[11]['snippets'],
-            return_type=p[7],
-            decorator=p[1],
-            docstring=p[11].get('docstring'),
-        )
-
-    # * method: p_param_body (rule)
-    def p_param_body(self, p):
-        '''param_body : token_seq'''
-
-        # Pass through param body.
+        # Build multiple return type annotations.
+        ret_type = self.get_attribute_type(p[3])
+        p[1].set_return_type(ret_type)
         p[0] = p[1]
 
-    # * method: p_param_body_empty (rule)
-    def p_param_body_empty(self, p):
-        '''param_body : '''
-
-        # Build empty param body.
-        p[0] = []
-
     # -- Body / Snippets --
-
-    # * method: p_body_doc (rule)
-    def p_body_doc(self, p):
-        '''body : DOCSTRING NEWLINE snippet_list'''
-
-        # Build Body with docstring.
-        p[0] = a.parser.build_body(p[3], docstring=p[1])
-
-    # * method: p_body_nodoc (rule)
-    def p_body_nodoc(self, p):
-        '''body : snippet_list'''
-
-        # Build Body without docstring.
-        p[0] = a.parser.build_body(p[1])
 
     # * method: p_snippet_list (rule)
     def p_snippet_list(self, p):
@@ -638,17 +744,40 @@ class TiferetParser(ParserBase):
 
     # * method: p_snippet_comment (rule)
     def p_snippet_comment(self, p):
-        '''snippet : LINE_COMMENT NEWLINE stmt_list'''
+        '''snippet : comment_list NEWLINE stmt_list'''
 
         # Build Snippet with comment.
-        p[0] = a.parser.build_snippet(p[3], comment=p[1])
+        pass
+
+    # * method: p_comment_list_single (rule)
+    def p_comment_list_single(self, p):
+        '''comment_list : comment_stmt'''
+
+        # Start a comment list with a single comment.
+        p[0] = p[1]
+
+    # * method: p_comment_list_multi (rule)
+    def p_comment_list_multi(self, p):
+        '''comment_list : comment_list NEWLINE comment_stmt'''
+
+        # Extend a comment list with an additional comment.
+        p[1].set_next(p[3])
+        p[0] = p[1]
+
+    # * method: p_comment_stmt (rule)
+    def p_comment_stmt(self, p):
+        '''comment_stmt : LINE_COMMENT'''
+
+        # Build Comment AST node.
+        expr = Expr.new_comment_expr(p[1])
+        p[0] = Stmt.new_comment_stmt(expr)
 
     # * method: p_snippet_nocomment (rule)
     def p_snippet_nocomment(self, p):
         '''snippet : stmt_list'''
 
         # Build Snippet without comment.
-        p[0] = a.parser.build_snippet(p[1])
+        p[0] = p[1]
 
     # * method: p_stmt_list (rule)
     def p_stmt_list(self, p):
@@ -677,6 +806,22 @@ class TiferetParser(ParserBase):
 
         # Build compound Stmt with indented sub-block.
         p[0] = a.parser.build_stmt(p[1], block=p[4])
+
+    # -- Snippet Statement Types --
+
+    # * method: p_stmt_return (rule)
+    def p_stmt_return(self, p):
+        '''stmt : RETURN return_expr NEWLINE'''
+
+        # Build ReturnStmt.
+        p[0] = Stmt.new_return_stmt(return_expr=p[2])
+
+    # * method: p_return_expr (rule)
+    def p_return_expr(self, p):
+        '''return_expr : name_or_literal_expr'''
+
+        # Pass through the return expression.
+        p[0] = p[1]
 
     # -- Token Sequence --
 
@@ -759,12 +904,22 @@ class TiferetParser(ParserBase):
 
     # -- Token Catch-All --
 
+    # * method: p_name_or_literal_expr (rule)
+    def p_name_or_literal_expr(self, p):
+        '''name_or_literal_expr : IDENTIFIER
+                 | STRING_LITERAL
+                 | NUMBER_LITERAL
+                 | TRUE
+                 | FALSE'''
+
+        # Build a token as either a name or a literal expression.
+        p[0] = Expr.new_name_or_literal_expr(p[1])
+
     # * method: p_token (rule)
     def p_token(self, p):
         '''token : IDENTIFIER
                  | SELF
                  | INIT
-                 | RETURN
                  | CLASS
                  | DEF
                  | STRING_LITERAL
