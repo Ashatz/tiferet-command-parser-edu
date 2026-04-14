@@ -511,15 +511,15 @@ class TiferetParser(ParserBase):
     def p_member_attr_stmt(self, p):
         '''member_stmt : attr_decl'''
 
-        # Pass through the member body.
-        p[0] = Stmt.new_member_stmt(p[1])
+        # Create an attribute member statement from the attribute declaration.
+        p[0] = Stmt.new_decl_stmt(p[1])
 
     # * method: p_member_body_method (rule)
     def p_member_body_method(self, p):
         '''member_stmt : method_decl'''
 
-        # Pass through the member body.
-        p[0] = Stmt.new_member_stmt(p[1])
+        # Create a method member statement from the method declaration.
+        p[0] = Stmt.new_decl_stmt(p[1])
 
     # * method: p_member_stmt_method_decorated (rule)
     def p_member_stmt_method_decorated(self, p):
@@ -565,14 +565,14 @@ class TiferetParser(ParserBase):
         '''decorator_stmt : AT decorator_call NEWLINE'''
 
         # Build Decorator AST node.
-        p[0] = Stmt.new_decorator_stmt(p[2])
+        p[0] = Stmt.new_expr_stmt(p[2])
 
     # * method: p_decorator_call (rule)
     def p_decorator_call(self, p):
-        '''decorator_call : decorator_ident LPAREN decorator_params RPAREN'''
+        '''decorator_call : decorator_ident LPAREN decorator_args RPAREN'''
 
         # Build Decorator call node.
-        p[0] = Expr.new_decorator_call_expr(p[1], p[3])
+        p[0] = Expr.new_call_expr(p[1], p[3])
 
     # * method: p_decorator_ident (rule)
     def p_decorator_ident(self, p):
@@ -590,30 +590,31 @@ class TiferetParser(ParserBase):
 
     # * method: p_decorator_params_single (rule)
     def p_decorator_params_single(self, p):
-        '''decorator_params : decorator_param'''
+        '''decorator_args : decorator_arg'''
 
         # Pass through single decorator parameter sequence.
-        p[0] = Expr.new_param_list_expr(p[1])
+        p[0] = Expr.new_args_list_expr(p[1])
 
-    # * method: p_decorator_params_multi (rule)
-    def p_decorator_params_multi(self, p):
-        '''decorator_params : decorator_params COMMA decorator_param'''
+    # * method: p_decorator_args_multi (rule)
+    def p_decorator_args_multi(self, p):
+        '''decorator_args : decorator_args COMMA decorator_arg'''
 
-        # Build multiple decorator parameter sequence.
-        p[0] = Expr.new_param_list_expr(p[1], p[3])
+        # Build multiple decorator argument sequence.
+        p[0] = Expr.new_args_list_expr(p[1], p[3])
 
-    # * p_decorator_param (rule)
-    def p_decorator_param_literal(self, p):
-        '''decorator_param : name_or_literal_expr'''
+    # * method: p_decorator_arg_literal (rule)
+    def p_decorator_arg_literal(self, p):
+        '''decorator_arg : name_or_literal_expr
+                        | ident_expr'''
 
-        # Build a single decorator parameter as a literal expression.
+        # Build a single decorator argument as a literal expression.
         p[0] = Expr.new_name_or_literal_expr(p[1])
 
     # -- Method Definition --
 
     # * method: p_method_decl (rule)
     def p_method_decl(self, p):
-        '''method_decl : DEF IDENTIFIER method_type COLON NEWLINE INDENT method_doc_string snippet_list DEDENT'''
+        '''method_decl : DEF method_name method_type COLON NEWLINE INDENT method_doc_string snippet_list DEDENT'''
 
         # Build MethodDecl AST node.
         p[0] = Decl.new_func_decl(
@@ -622,6 +623,14 @@ class TiferetParser(ParserBase):
              doc_string=p[7],
              body=p[8]
         )
+
+    # * method: p_method_name (rule)
+    def p_method_name(self, p):
+        '''method_name : IDENTIFIER 
+                    | INIT'''
+
+        # Pass through the method name identifier.
+        p[0] = p[1]
 
     # * method: p_method_type (rule)
     def p_method_type(self, p):
@@ -780,7 +789,7 @@ class TiferetParser(ParserBase):
         '''snippet : comment_list NEWLINE stmt_list'''
 
         # Build Snippet with comment.
-        p[0] = Stmt.new_snippet_stmt(comments=p[1], code_stmts=p[3])
+        p[0] = Stmt.new_snippet_stmt(comments=p[1], code=p[3])
         
     # * method: p_comment_list_single (rule)
     def p_comment_list_single(self, p):
@@ -810,7 +819,7 @@ class TiferetParser(ParserBase):
         '''snippet : stmt_list'''
 
         # Build Snippet without comment.
-        p[0] = Stmt.new_snippet_stmt(code_stmts=p[1])
+        p[0] = Stmt.new_snippet_stmt(code=p[1])
 
     # * method: p_stmt_list_single (rule)
     def p_stmt_list_single(self, p):
@@ -857,12 +866,28 @@ class TiferetParser(ParserBase):
         # Build ReturnStmt.
         p[0] = Stmt.new_return_stmt(return_expr=p[2])
 
+    # * method: p_stmt_assign (rule)
+    def p_stmt_assign(self, p):
+        '''stmt : ident_expr EQUALS name_or_literal_expr NEWLINE'''
+
+        # Build AssignStmt.
+        p[0] = Stmt.new_expr_stmt(
+            Expr.new_assign_expr(target=p[1], value=p[3])
+        )
+
     # * method: p_return_expr (rule)
     def p_return_expr(self, p):
-        '''return_expr : name_or_literal_expr'''
+        '''return_expr : name_or_literal_expr
+                 | ident_expr'''
 
         # Pass through the return expression.
         p[0] = p[1]
+
+    def p_return_empty_expr(self, p):
+        '''return_expr : '''
+
+        # Build empty return expression.
+        p[0] = None
 
     # -- Token Sequence --
 
@@ -943,11 +968,9 @@ class TiferetParser(ParserBase):
         # Pass through inner item.
         p[0] = p[1]
 
-    # -- Token Catch-All --
-
     # * method: p_name_or_literal_expr (rule)
     def p_name_or_literal_expr(self, p):
-        '''name_or_literal_expr : IDENTIFIER
+        '''name_or_literal_expr : ident
                  | STRING_LITERAL
                  | NUMBER_LITERAL
                  | TRUE
@@ -955,6 +978,30 @@ class TiferetParser(ParserBase):
 
         # Build a token as either a name or a literal expression.
         p[0] = Expr.new_name_or_literal_expr(p[1])
+
+    # method: ident_expr (rule)
+    def p_ident_expr(self, p):
+        '''ident_expr : ident'''
+
+        # Build an identifier as a name expression.
+        p[0] = Expr.new_name_expr(p[1])
+
+    # * method: p_ident
+    def p_ident(self, p):
+        '''ident : IDENTIFIER
+                | SELF'''
+
+        # Pass through an identifier token.
+        p[0] = p[1]
+
+    # * method: p_ident_dot (rule)
+    def p_ident_dot(self, p):
+        '''ident : ident DOT IDENTIFIER'''
+
+        # Build a dotted identifier expression.
+        p[0] = p[1] + '.' + p[3]
+
+    # -- Token Catch-All --
 
     # * method: p_token (rule)
     def p_token(self, p):
