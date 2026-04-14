@@ -48,9 +48,9 @@ features:
           data_key: ast
         - attribute_id: emit_parse_result_event
           name: Assemble and emit parse result
-  analyze:
+  semantic:
     event:
-      name: 'Analyze Event'
+      name: 'Semantic Event'
       description: 'Perform semantic analysis on a Tiferet event source file'
       commands:
         - attribute_id: perform_lexical_analysis_event
@@ -139,11 +139,11 @@ cli:
               - --include-tokens
             description: Include tokens in the output.
 
-    analyze:
+    semantic:
       event:
-        group_key: analyze
+        group_key: semantic
         key: event
-        name: Analyze Event Command
+        name: Semantic Event Command
         description: Perform semantic analysis on a Tiferet event source file.
         args:
           - name_or_flags:
