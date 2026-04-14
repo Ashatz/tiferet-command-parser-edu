@@ -90,7 +90,11 @@ SemanticRoutines/        — Semantic analysis layer (ECE 506 submission)
     pass_minimal_injection_event.json
     pass_minimal_injection_event_parse.json
     pass_multiple_operator_events.json
-  results_symbol/        — Expected symbol table outputs (to be populated)
+  results_symbol/        — Pre-computed symbol table + resolution outputs
+    pass_imports_only_symbol.json
+    pass_minimal_event_symbol.json
+    pass_minimal_injection_event_symbol.json
+    pass_multiple_operator_events_symbol.json
 
 src/
   __init__.py            — Package exports and version (0.3.2)
@@ -99,12 +103,14 @@ src/
     lexer.py             — Token constants (55 types), rule handlers, RULES mapping dict
     parser.py            — Grammar precedence, AST builder helpers (build_module, build_group, etc.)
   domain/
-    __init__.py          — Exports: TypeKind, ExprKind, StatementKind, Type, ParamList, Expression, Declaration, Statement, Token
+    __init__.py          — Exports: TypeKind, ExprKind, StatementKind, Type, ParamList, Expression, Declaration, Statement, Token, SymbolKind, Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult
     ast.py               — Pydantic AST domain objects (TypeKind, ExprKind, StatementKind enums; Type, ParamList, Expression, Declaration, Statement models)
     lexer.py             — Pydantic Token domain object (type, value, lineno, lexpos)
+    symbol.py            — Pydantic symbol table domain objects (SymbolKind enum; Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult models)
     tests/
       test_ast.py        — 13 tests for AST domain object instantiation and validation
       test_lexer.py      — 6 tests for Token domain object
+      test_symbol.py     — 9 tests for symbol table domain objects
   events/
     __init__.py          — Exports: DomainEvent, TiferetError, a (assets)
     settings.py          — Re-exports DomainEvent, TiferetError from tiferet; imports local assets as `a`
@@ -118,22 +124,26 @@ src/
     lexer.py             — LexerService(Service): abstract `tokenize(text) -> List[TokenAggregate]`
     parser.py            — ParserService(Service): abstract `parse(tokens) -> Dict[str, Any]`
   mappers/
-    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList
+    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope
     lexer.py             — TokenAggregate: extends Token with factory methods (new, new_indent, new_dedent)
     ast.py               — AST mappers: TypeAggregate, ParamListAggregate, ExpressionAggregate, DeclarationAggregate, StatementAggregate — all with mutation methods and static factories
+    symbol.py            — ScopeAggregate: extends Scope with static factories (new_module_scope, new_class_scope, new_method_scope) and mutation methods (add_symbol, add_child, remove_child, has_symbol, get_symbol)
     tests/
       test_lexer.py      — 9 tests for TokenAggregate mapper
+      test_symbol.py     — 9 tests for ScopeAggregate factories and mutation
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter
+    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
     artifact.py          — ArtifactBlockParser: static methods for block extraction and filtering
     output.py            — ScanOutputWriter: YAML/JSON file output with format auto-detection
+    symbol.py            — SymbolTableBuilder (single-pass AST walker for scope/symbol construction) + NameResolver (second-pass name resolution against scope registry)
     tests/
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
       test_parser.py     — 45 tests for TiferetParser grammar rules and AST structure
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_output.py     — 11 tests for ScanOutputWriter
+      test_symbol.py     — 9 tests for SymbolTableBuilder and NameResolver (4 builder + 3 resolver + 2 edge cases)
 ```
 
 ## Key Concepts
@@ -232,17 +242,20 @@ python compiler.py parse event <source_file> -o output.json --include-tokens tru
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 122 tests total
+python -m pytest src/ -v    # 149 tests total
 ```
 
 Test breakdown:
 - `src/domain/tests/test_ast.py` — 13 tests (AST domain objects)
 - `src/domain/tests/test_lexer.py` — 6 tests (Token domain object)
+- `src/domain/tests/test_symbol.py` — 9 tests (Symbol table domain objects)
 - `src/mappers/tests/test_lexer.py` — 9 tests (TokenAggregate mapper)
+- `src/mappers/tests/test_symbol.py` — 9 tests (ScopeAggregate mapper)
 - `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
 - `src/utils/tests/test_parser.py` — 45 tests (TiferetParser grammar rules)
 - `src/utils/tests/test_artifact.py` — 13 tests (ArtifactBlockParser)
 - `src/utils/tests/test_output.py` — 11 tests (ScanOutputWriter)
+- `src/utils/tests/test_symbol.py` — 9 tests (SymbolTableBuilder + NameResolver)
 - `src/events/tests/test_lexer.py` — 6 tests (lexer domain events)
 - `src/events/tests/test_parser.py` — 6 tests (parser domain events)
 

@@ -16,3 +16,4 @@ from .ast import (
     ParamListAggregate,
     ParamListAggregate as ParamList,
     )
+from .symbol import ScopeAggregate, ScopeAggregate as SymbolScope

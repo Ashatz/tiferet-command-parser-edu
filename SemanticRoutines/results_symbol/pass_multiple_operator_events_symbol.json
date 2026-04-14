@@ -1,0 +1,414 @@
+{
+  "symbol_table": {
+    "module_name": "pass_multiple_operator_events",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": "tiferet.events"
+          },
+          "Add": {
+            "name": "Add",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          },
+          "Subtract": {
+            "name": "Subtract",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          },
+          "Multiply": {
+            "name": "Multiply",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          },
+          "Divide": {
+            "name": "Divide",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          },
+          "Modulus": {
+            "name": "Modulus",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          },
+          "Exponentiate": {
+            "name": "Exponentiate",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "Add": "module.Add",
+          "Subtract": "module.Subtract",
+          "Multiply": "module.Multiply",
+          "Divide": "module.Divide",
+          "Modulus": "module.Modulus",
+          "Exponentiate": "module.Exponentiate"
+        }
+      },
+      "module.Add": {
+        "name": "Add",
+        "kind": "class_def",
+        "path": "module.Add",
+        "symbols": {
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.Add"
+          }
+        },
+        "children": {
+          "execute": "module.Add.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.Add.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.Add.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.Add.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Add.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Add.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.Add"
+      },
+      "module.Subtract": {
+        "name": "Subtract",
+        "kind": "class_def",
+        "path": "module.Subtract",
+        "symbols": {
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.Subtract"
+          }
+        },
+        "children": {
+          "execute": "module.Subtract.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.Subtract.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.Subtract.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.Subtract.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Subtract.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Subtract.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.Subtract"
+      },
+      "module.Multiply": {
+        "name": "Multiply",
+        "kind": "class_def",
+        "path": "module.Multiply",
+        "symbols": {
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.Multiply"
+          }
+        },
+        "children": {
+          "execute": "module.Multiply.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.Multiply.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.Multiply.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.Multiply.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Multiply.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Multiply.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.Multiply"
+      },
+      "module.Divide": {
+        "name": "Divide",
+        "kind": "class_def",
+        "path": "module.Divide",
+        "symbols": {
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "float",
+            "scope_path": "module.Divide"
+          }
+        },
+        "children": {
+          "execute": "module.Divide.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.Divide.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.Divide.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.Divide.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Divide.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Divide.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.Divide"
+      },
+      "module.Modulus": {
+        "name": "Modulus",
+        "kind": "class_def",
+        "path": "module.Modulus",
+        "symbols": {
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.Modulus"
+          }
+        },
+        "children": {
+          "execute": "module.Modulus.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.Modulus.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.Modulus.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.Modulus.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Modulus.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Modulus.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.Modulus"
+      },
+      "module.Exponentiate": {
+        "name": "Exponentiate",
+        "kind": "class_def",
+        "path": "module.Exponentiate",
+        "symbols": {
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "float",
+            "scope_path": "module.Exponentiate"
+          }
+        },
+        "children": {
+          "execute": "module.Exponentiate.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.Exponentiate.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.Exponentiate.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.Exponentiate.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Exponentiate.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.Exponentiate.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.Exponentiate"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.Add.execute",
+        "resolved_to": "module.Add.execute"
+      },
+      {
+        "name": "b",
+        "scope_path": "module.Add.execute",
+        "resolved_to": "module.Add.execute"
+      },
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.Subtract.execute",
+        "resolved_to": "module.Subtract.execute"
+      },
+      {
+        "name": "b",
+        "scope_path": "module.Subtract.execute",
+        "resolved_to": "module.Subtract.execute"
+      },
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.Multiply.execute",
+        "resolved_to": "module.Multiply.execute"
+      },
+      {
+        "name": "b",
+        "scope_path": "module.Multiply.execute",
+        "resolved_to": "module.Multiply.execute"
+      },
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.Divide.execute",
+        "resolved_to": "module.Divide.execute"
+      },
+      {
+        "name": "b",
+        "scope_path": "module.Divide.execute",
+        "resolved_to": "module.Divide.execute"
+      },
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.Modulus.execute",
+        "resolved_to": "module.Modulus.execute"
+      },
+      {
+        "name": "b",
+        "scope_path": "module.Modulus.execute",
+        "resolved_to": "module.Modulus.execute"
+      },
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      }
+    ],
+    "unresolved": []
+  }
+}

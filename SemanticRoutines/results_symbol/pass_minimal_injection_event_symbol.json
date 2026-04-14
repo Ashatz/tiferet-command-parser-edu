@@ -1,0 +1,122 @@
+{
+  "symbol_table": {
+    "module_name": "pass_minimal_injection_event",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": ".settings"
+          },
+          "Ping": {
+            "name": "Ping",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "Ping": "module.Ping"
+        }
+      },
+      "module.Ping": {
+        "name": "Ping",
+        "kind": "class_def",
+        "path": "module.Ping",
+        "symbols": {
+          "pong": {
+            "name": "pong",
+            "kind": "attribute",
+            "type_annotation": "str",
+            "scope_path": "module.Ping"
+          },
+          "__init__": {
+            "name": "__init__",
+            "kind": "method",
+            "type_annotation": "None",
+            "scope_path": "module.Ping"
+          },
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "str",
+            "scope_path": "module.Ping"
+          }
+        },
+        "children": {
+          "__init__": "module.Ping.__init__",
+          "execute": "module.Ping.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.Ping.__init__": {
+        "name": "__init__",
+        "kind": "method",
+        "path": "module.Ping.__init__",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.Ping.__init__"
+          },
+          "pong": {
+            "name": "pong",
+            "kind": "parameter",
+            "type_annotation": "str",
+            "scope_path": "module.Ping.__init__"
+          }
+        },
+        "children": {},
+        "parent_path": "module.Ping"
+      },
+      "module.Ping.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.Ping.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.Ping.execute"
+          },
+          "kwargs": {
+            "name": "kwargs",
+            "kind": "parameter",
+            "type_annotation": "dict",
+            "scope_path": "module.Ping.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.Ping"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "pong",
+        "scope_path": "module.Ping.__init__",
+        "resolved_to": "module.Ping.__init__"
+      },
+      {
+        "name": "self.pong",
+        "scope_path": "module.Ping.execute",
+        "resolved_to": "module.Ping"
+      }
+    ],
+    "unresolved": []
+  }
+}

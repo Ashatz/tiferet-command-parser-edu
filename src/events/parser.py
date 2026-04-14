@@ -63,17 +63,8 @@ class PerformSyntacticAnalysis(DomainEvent):
         ast: Decl = self.parser_service.parse(module_name, tokens)
         ast.set_name(module_name)
 
-
-        # Validate the AST root structure is a Module.
-        self.verify(
-            expression=isinstance(ast, Decl) ,
-            error_code='INVALID_AST_STRUCTURE',
-            message='Syntactic parser did not return a valid Module AST',
-            ast_type=str(type(ast)),
-        )
-
         # Return the AST for downstream events.
-        return ast.model_dump(exclude_none=True, exclude_unset=True)
+        return ast
 
 # ** event: emit_parse_result
 class EmitParseResult(DomainEvent):
@@ -85,7 +76,7 @@ class EmitParseResult(DomainEvent):
     # * method: execute
     @DomainEvent.parameters_required(['ast'])
     def execute(self,
-            ast: Dict[str, Any],
+            ast: Decl,
             tokens: List[TokenAggregate] = None,
             source_file: str = None,
             extract: str = None,
@@ -117,12 +108,20 @@ class EmitParseResult(DomainEvent):
         :rtype: Dict[str, Any]
         '''
 
+        # Validate that the AST is not none and is of the expected type.
+        self.verify(
+            expression=ast and isinstance(ast, Decl),
+            error_code='INVALID_AST_STRUCTURE',
+            message='Syntactic parser did not return a valid Module AST',
+            ast_type=str(type(ast)),
+        )
+
         # Build base payload with AST.
         result = {
             'event_type': 'ParseCompleted',
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'source_file': source_file,
-            'ast': ast,
+            'ast': ast.model_dump(exclude_none=True, exclude_unset=True),
         }
 
         # Include extracted artifact names if -x was used.

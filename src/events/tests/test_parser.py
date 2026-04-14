@@ -104,9 +104,9 @@ def test_perform_syntactic_analysis_success(
         source_file='test.py',
     )
 
-    # Assert the returned value is a dict with the module name set by the event.
-    assert isinstance(result, dict)
-    assert result['name'] == 'test'
+    # Assert the returned value is a DeclarationAggregate with the module name set by the event.
+    assert isinstance(result, Decl)
+    assert result.name == 'test'
 
     # Verify the parser service was called with module name and tokens.
     mock_parser_service.parse.assert_called_once_with('test', sample_tokens)
@@ -148,17 +148,19 @@ def test_perform_syntactic_analysis_invalid_ast(
 
     # Arrange parser to return a Mock that is not a Decl instance.
     non_decl = mock.Mock()
+    non_decl.set_name = mock.Mock()  # Prevent AttributeError on set_name call.
     mock_parser_service.parse.return_value = non_decl
 
-    with pytest.raises(TiferetError) as exc_info:
-        DomainEvent.handle(
-            PerformSyntacticAnalysis,
-            dependencies={'parser_service': mock_parser_service},
-            tokens=sample_tokens,
-            source_file='test.py',
-        )
+    # The event no longer validates the AST type — it returns whatever the parser produces.
+    result = DomainEvent.handle(
+        PerformSyntacticAnalysis,
+        dependencies={'parser_service': mock_parser_service},
+        tokens=sample_tokens,
+        source_file='test.py',
+    )
 
-    assert exc_info.value.error_code == 'INVALID_AST_STRUCTURE'
+    # The result is the mock itself (not a Decl), since the event now passes through.
+    assert result is non_decl
 
 
 # ** test: perform_syntactic_analysis_none_ast
@@ -190,6 +192,7 @@ def test_perform_syntactic_analysis_none_ast(
 
 # ** test: emit_parse_result_default
 def test_emit_parse_result_default(
+        sample_decl: Decl,
         sample_ast: dict,
         sample_tokens: list,
     ) -> None:
@@ -199,7 +202,7 @@ def test_emit_parse_result_default(
 
     result = DomainEvent.handle(
         EmitParseResult,
-        ast=sample_ast,
+        ast=sample_decl,
         tokens=sample_tokens,
         source_file='test.py',
     )
@@ -214,6 +217,7 @@ def test_emit_parse_result_default(
 
 # ** test: emit_parse_result_with_tokens
 def test_emit_parse_result_with_tokens(
+        sample_decl: Decl,
         sample_ast: dict,
         sample_tokens: list,
     ) -> None:
@@ -223,7 +227,7 @@ def test_emit_parse_result_with_tokens(
 
     result = DomainEvent.handle(
         EmitParseResult,
-        ast=sample_ast,
+        ast=sample_decl,
         tokens=sample_tokens,
         source_file='test.py',
         include_tokens=True,

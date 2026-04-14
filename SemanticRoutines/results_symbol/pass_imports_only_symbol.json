@@ -1,0 +1,44 @@
+{
+  "symbol_table": {
+    "module_name": "pass_imports_only",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "Any": {
+            "name": "Any",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": "typing"
+          },
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": ".settings"
+          },
+          "a": {
+            "name": "a",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": ".settings"
+          },
+          "ErrorService": {
+            "name": "ErrorService",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": "..interfaces"
+          }
+        },
+        "children": {}
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [],
+    "unresolved": []
+  }
+}
