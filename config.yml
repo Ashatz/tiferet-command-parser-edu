@@ -1,12 +1,12 @@
 attrs:
   perform_lexical_analysis_event:
-    module_path: src.events.scan
+    module_path: src.events.lexer
     class_name: PerformLexicalAnalysis
   perform_syntactic_analysis_event:
     module_path: src.events.parser
     class_name: PerformSyntacticAnalysis
   emit_scan_result_event:
-    module_path: src.events.scan
+    module_path: src.events.lexer
     class_name: EmitScanResult
   emit_parse_result_event:
     module_path: src.events.parser
@@ -89,7 +89,7 @@ cli:
               - --output
             description: Path to output YAML/JSON file.
           - name_or_flags:
-              - --format
+              - --output-format
             description: "Output format: yaml, json, console, or auto."
           - name_or_flags:
               - --summary-only
@@ -110,22 +110,16 @@ cli:
               - --output
             description: Path to output YAML/JSON file.
           - name_or_flags:
-              - --format
+              - --output-format
+            default: auto
             description: "Output format: yaml, json, console, or auto."
           - name_or_flags:
-              - -x
-              - --extract
-            description: Comma-separated artifact names to extract.
-          - name_or_flags:
-              - --summary-only
-            description: Output only metrics/summary (no token list).
-          - name_or_flags:
-              - --with-metrics
-            description: Include detailed lexical metrics section.
+              - --include-tokens
+            description: Include tokens in the output.
 
 interfaces:
   compiler:
-    name: Tiferet Dialect Scanner
+    name: Tiferet Dialect Compiler
     description: Lexical scanning and artifact extraction for Tiferet source files
     module_path: tiferet.contexts.app
     class_name: AppInterfaceContext
@@ -135,8 +129,8 @@ interfaces:
       error_config_file: config.yml
       logging_config_file: config.yml
   compiler_cli:
-    name: Scanner CLI
-    description: Tiferet Dialect Scanner via CLI
+    name: Compiler CLI
+    description: Tiferet Dialect Compiler via CLI
     module_path: tiferet.contexts.cli
     class_name: CliContext
     attrs:
