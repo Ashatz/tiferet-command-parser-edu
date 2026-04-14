@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 class TypeKind(str, Enum):
     '''Enumeration of valid type kinds in the Tiferet AST.'''
 
+    UNKNOWN = 'unknown'
     NONE = 'None'
     BOOL = 'bool'
     STR = 'str'
@@ -42,6 +43,8 @@ class StatementKind(str, Enum):
     IMPORT = 'import'
     IMPORT_FROM = 'import_from'
     ARTIFACT = 'artifact'
+    COMMENT = 'comment'
+    SNIPPET = 'snippet'
 
 # ** enum: expr_kind
 class ExprKind(str, Enum):
@@ -54,11 +57,15 @@ class ExprKind(str, Enum):
     NAME = 'name'
     INT_VAL = 'int_val'
     STR_VAL = 'str_val'
+    BOOL_VAL = 'bool_val'
     ASSIGN = 'assign'
+    PARAM_LIST = 'param_list'
     CALL = 'call'
     IMPORT = 'import'
     IMPORT_AS = 'import_as'
-    IMPORT_MULTI = 'import_multi'
+    IMPORT_MULTI = 'import_multi',
+    ARTIFACT = 'artifact'
+    COMMENT = 'comment'
 
 # *** objects
 
@@ -106,10 +113,22 @@ class Type(BaseModel):
         description='The kind of the type (e.g., "class", "function", "int", "str").'
     )
 
+    # * attribute: name
+    name: Optional[str] = Field(
+        None,
+        description='The name of the type, if applicable (e.g., for class types).'
+    )
+
     # * attribute: subtype
     subtype: Optional['Type'] = Field(
         None,
         description='The subtype of the type, if applicable (e.g., element type for list types).'
+    )
+
+    # * attribute: return_type
+    return_type: Optional['Type'] = Field(
+        None,
+        description='The return type of the type, if applicable (e.g., for function types).'
     )
 
     # * attribute: params
@@ -170,7 +189,7 @@ class Declaration(BaseModel):
 
     # * metadata
     metadata: Dict[str, Any] = Field(
-        ...,
+        {},
         description='Additional metadata about the declaration (e.g., parameter names and types for methods, class attributes for classes).'
     )
 
