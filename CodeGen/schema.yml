@@ -1,0 +1,56 @@
+# tiferet-command-parser-edu/schema/output_schema.yaml
+# ECE 506 Compiler Design - Code Generation Phase Output Schema
+# Applies to EventGroup
+# Rule: Emit ONLY non-empty nodes from IR. Omit empty lists/objects entirely.
+
+# Top-level structure (one per input module/suite)
+evt_grp:                  # or cmd_grp for Commands
+  name: string            # e.g. "pass_helper_method_event"
+  desc: string?           # Group-level description (omitted if empty)
+  impt:                   # ImportGroups → grouped by category
+    <group_name>:         # e.g. "app", "infra"
+      - src: string       # e.g. ".settings" or "tiferet.events"
+        tgts:             # list of imported targets
+          - string        # e.g. "DomainEvent"
+  evts:                   # or cmds for Commands
+    <event_key>:          # e.g. "add_integer" (lowercase key from IR)
+      name: string
+      desc: string?       # Event-level docstring (omitted if empty)
+      
+      attributes:         # omitted if empty
+        - <name>: <type>  # e.g. "pong: str"   (compact string)
+      
+      injections:         # omitted if empty
+        - <spec>:         # e.g. "pong:str:true::"
+          assign?:        # present only if Assign nodes exist
+            - target: string
+              value: string
+      
+      execute:
+        params:           # list of compact param strings
+          - <name>:<type>:<required>::<doc>   # e.g. "a:str:true::The first operand."
+        returns:          # list of return specs
+          - <type>:<doc>  # e.g. "int:The integer sum."
+        snpt:             # Snippets – ordered list, always paired
+          - coms:         # Comments (list of strings)
+              - string
+            stmt:         # Statements (list of statement strings)
+              - string    # e.g. "Assign(x, Call(self.to_int, a))" or "Return(self.pong)"
+      
+      methods:            # omitted if Methods() empty
+        <method_name>:    # e.g. "to_int"
+          params:
+            - <name>:<type>:<required>::<doc>
+          returns:
+            - <type>:<doc>
+          snpt:
+            - coms:
+                - string
+              stmt:
+                - string
+
+# Notes for Code Generation Phase:
+# - All lists preserve original order (use dict insertion order + sort_keys=False).
+# - Statement strings stay close to IR abstraction (no full Python source).
+# - For Commands (error.py target): replace evt_grp/evts with cmd_grp/cmds; add any Command-specific nodes (e.g. service injections) using identical patterns.
+# - Optimization pass (next phase) will add &anchors and *aliases on repeated elements (services, constants, common snippets).
