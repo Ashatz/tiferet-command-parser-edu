@@ -1004,3 +1004,155 @@ def test_parse_error_class_no_section(parser: TiferetParser) -> None:
     ]
     with pytest.raises(SyntaxError):
         parser.parse('test', bad_tokens)
+
+
+# *** tests — assign_rhs & call expression extensions
+
+# ** test: parse_assign_call_rhs
+def test_parse_assign_call_rhs(parser: TiferetParser) -> None:
+    '''Parse `x = self.to_int(a)` — assignment with a call expression RHS.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# Convert.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'x'),
+        tok('EQUALS', '='),
+        tok('SELF', 'self'),
+        tok('DOT', '.'),
+        tok('IDENTIFIER', 'to_int'),
+        tok('LPAREN', '('),
+        tok('IDENTIFIER', 'a'),
+        tok('RPAREN', ')'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmt = snippets[0].body
+    # Walk past comment to the expr statement.
+    stmts = collect(stmt)
+    assign_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    assert assign_stmt.expr.kind == ExprKind.ASSIGN
+    assert assign_stmt.expr.left.name == 'x'
+    assert assign_stmt.expr.right.kind == ExprKind.CALL
+
+
+# ** test: parse_assign_operation_rhs
+def test_parse_assign_operation_rhs(parser: TiferetParser) -> None:
+    '''Parse `result = a + b` — assignment with an operation expression RHS.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# Add.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'result'),
+        tok('EQUALS', '='),
+        tok('IDENTIFIER', 'a'),
+        tok('PLUS', '+'),
+        tok('IDENTIFIER', 'b'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmt = snippets[0].body
+    stmts = collect(stmt)
+    assign_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    assert assign_stmt.expr.kind == ExprKind.ASSIGN
+    assert assign_stmt.expr.left.name == 'result'
+    assert assign_stmt.expr.right.kind == ExprKind.ADD
+
+
+# ** test: parse_call_empty_args
+def test_parse_call_empty_args(parser: TiferetParser) -> None:
+    '''Parse `self.service.list()` — call with no arguments.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# List.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'result'),
+        tok('EQUALS', '='),
+        tok('SELF', 'self'),
+        tok('DOT', '.'),
+        tok('IDENTIFIER', 'service'),
+        tok('DOT', '.'),
+        tok('IDENTIFIER', 'list'),
+        tok('LPAREN', '('),
+        tok('RPAREN', ')'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmt = snippets[0].body
+    stmts = collect(stmt)
+    assign_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    assert assign_stmt.expr.kind == ExprKind.ASSIGN
+    call = assign_stmt.expr.right
+    assert call.kind == ExprKind.CALL
+    assert call.right is None  # No arguments
+
+
+# ** test: parse_call_nested_call_arg
+def test_parse_call_nested_call_arg(parser: TiferetParser) -> None:
+    '''Parse `foo(bar(x))` — call with a nested call as argument.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# Nested.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'foo'),
+        tok('LPAREN', '('),
+        tok('IDENTIFIER', 'bar'),
+        tok('LPAREN', '('),
+        tok('IDENTIFIER', 'x'),
+        tok('RPAREN', ')'),
+        tok('RPAREN', ')'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmt = snippets[0].body
+    stmts = collect(stmt)
+    call_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    assert call_stmt.expr.kind == ExprKind.CALL
+    # The argument is itself a call
+    inner_args = call_stmt.expr.right
+    assert inner_args.kind == ExprKind.ARGS_LIST
+    assert inner_args.left.kind == ExprKind.CALL
+
+
+# ** test: parse_call_operation_arg
+def test_parse_call_operation_arg(parser: TiferetParser) -> None:
+    '''Parse `foo(a + b)` — call with an operation expression as argument.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# Op arg.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'foo'),
+        tok('LPAREN', '('),
+        tok('IDENTIFIER', 'a'),
+        tok('PLUS', '+'),
+        tok('IDENTIFIER', 'b'),
+        tok('RPAREN', ')'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmt = snippets[0].body
+    stmts = collect(stmt)
+    call_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    assert call_stmt.expr.kind == ExprKind.CALL
+    inner_args = call_stmt.expr.right
+    assert inner_args.kind == ExprKind.ARGS_LIST
+    assert inner_args.left.kind == ExprKind.ADD

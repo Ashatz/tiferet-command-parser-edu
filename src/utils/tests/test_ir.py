@@ -391,3 +391,99 @@ def test_ir_generator_generate_keter_output(
     assert 'Event(ping, Ping' in keter
     assert 'Execute(' in keter
     assert 'Return("str:' in keter
+
+
+# ** test: ir_generator_encode_expr_call
+def test_ir_generator_encode_expr_call(ir_generator: IRGenerator) -> None:
+    '''
+    Test encode_expr for a call expression with arguments.
+
+    :param ir_generator: The generator under test.
+    :type ir_generator: IRGenerator
+    '''
+
+    # Build: self.to_int(value) -> Call(self.to_int, value)
+    callee = Expr(kind=ExprKind.NAME, name='self.to_int')
+    arg = Expr(kind=ExprKind.NAME, name='value')
+    args_list = Expr(kind=ExprKind.ARGS_LIST, left=arg)
+    call_expr = Expr(kind=ExprKind.CALL, left=callee, right=args_list)
+
+    result = ir_generator.encode_expr(call_expr)
+    assert result == 'Call(self.to_int, value)'
+
+
+# ** test: ir_generator_encode_expr_call_no_args
+def test_ir_generator_encode_expr_call_no_args(ir_generator: IRGenerator) -> None:
+    '''
+    Test encode_expr for a call expression with no arguments.
+
+    :param ir_generator: The generator under test.
+    :type ir_generator: IRGenerator
+    '''
+
+    # Build: self.list() -> Call(self.list)
+    callee = Expr(kind=ExprKind.NAME, name='self.list')
+    call_expr = Expr(kind=ExprKind.CALL, left=callee)
+
+    result = ir_generator.encode_expr(call_expr)
+    assert result == 'Call(self.list)'
+
+
+# ** test: ir_generator_encode_expr_call_multi_args
+def test_ir_generator_encode_expr_call_multi_args(ir_generator: IRGenerator) -> None:
+    '''
+    Test encode_expr for a call expression with multiple arguments.
+
+    :param ir_generator: The generator under test.
+    :type ir_generator: IRGenerator
+    '''
+
+    # Build: foo(a, b) -> Call(foo, a, b)
+    callee = Expr(kind=ExprKind.NAME, name='foo')
+    arg_a = Expr(kind=ExprKind.NAME, name='a')
+    arg_b = Expr(kind=ExprKind.NAME, name='b')
+    args_list = Expr(kind=ExprKind.ARGS_LIST, left=arg_a, right=arg_b)
+    call_expr = Expr(kind=ExprKind.CALL, left=callee, right=args_list)
+
+    result = ir_generator.encode_expr(call_expr)
+    assert result == 'Call(foo, a, b)'
+
+
+# ** test: ir_generator_encode_expr_args_list
+def test_ir_generator_encode_expr_args_list(ir_generator: IRGenerator) -> None:
+    '''
+    Test encode_expr for an ARGS_LIST expression flattening.
+
+    :param ir_generator: The generator under test.
+    :type ir_generator: IRGenerator
+    '''
+
+    # Build args_list(a, b) -> 'a, b'
+    arg_a = Expr(kind=ExprKind.NAME, name='a')
+    arg_b = Expr(kind=ExprKind.NAME, name='b')
+    args_list = Expr(kind=ExprKind.ARGS_LIST, left=arg_a, right=arg_b)
+
+    result = ir_generator.encode_expr(args_list)
+    assert result == 'a, b'
+
+
+# ** test: ir_generator_encode_stmt_assign_call
+def test_ir_generator_encode_stmt_assign_call(ir_generator: IRGenerator) -> None:
+    '''
+    Test encode_stmt for an assignment with a call expression RHS.
+
+    :param ir_generator: The generator under test.
+    :type ir_generator: IRGenerator
+    '''
+
+    # Build: x = int(value) -> Assign(x, Call(int, value))
+    target = Expr(kind=ExprKind.NAME, name='x')
+    callee = Expr(kind=ExprKind.NAME, name='int')
+    arg = Expr(kind=ExprKind.NAME, name='value')
+    args_list = Expr(kind=ExprKind.ARGS_LIST, left=arg)
+    call = Expr(kind=ExprKind.CALL, left=callee, right=args_list)
+    assign = Expr(kind=ExprKind.ASSIGN, left=target, right=call)
+
+    stmt = Stmt(kind=StatementKind.EXPR, expr=assign)
+    result = ir_generator.encode_stmt(stmt)
+    assert result == 'Assign(x, Call(int, value))'
