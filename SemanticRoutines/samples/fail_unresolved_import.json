@@ -1,0 +1,155 @@
+{
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-15T17:15:29.626673+00:00",
+  "source_file": "samples/fail_unresolved_import.py",
+  "symbol_table": {
+    "module_name": "fail_unresolved_import",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": ".settings"
+          },
+          "SaveError": {
+            "name": "SaveError",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "SaveError": "module.SaveError"
+        }
+      },
+      "module.SaveError": {
+        "name": "SaveError",
+        "kind": "class_def",
+        "path": "module.SaveError",
+        "symbols": {
+          "error_service": {
+            "name": "error_service",
+            "kind": "class_def",
+            "scope_path": "module.SaveError"
+          },
+          "__init__": {
+            "name": "__init__",
+            "kind": "method",
+            "type_annotation": "None",
+            "scope_path": "module.SaveError"
+          },
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "str",
+            "scope_path": "module.SaveError"
+          }
+        },
+        "children": {
+          "error_service": "module.SaveError.error_service",
+          "__init__": "module.SaveError.__init__",
+          "execute": "module.SaveError.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.SaveError.error_service": {
+        "name": "error_service",
+        "kind": "class_def",
+        "path": "module.SaveError.error_service",
+        "symbols": {},
+        "children": {},
+        "parent_path": "module.SaveError"
+      },
+      "module.SaveError.__init__": {
+        "name": "__init__",
+        "kind": "method",
+        "path": "module.SaveError.__init__",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.SaveError.__init__"
+          },
+          "error_service": {
+            "name": "error_service",
+            "kind": "parameter",
+            "type_annotation": "class",
+            "scope_path": "module.SaveError.__init__"
+          }
+        },
+        "children": {},
+        "parent_path": "module.SaveError"
+      },
+      "module.SaveError.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.SaveError.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.SaveError.execute"
+          },
+          "id": {
+            "name": "id",
+            "kind": "parameter",
+            "type_annotation": "str",
+            "scope_path": "module.SaveError.execute"
+          },
+          "name": {
+            "name": "name",
+            "kind": "parameter",
+            "type_annotation": "str",
+            "scope_path": "module.SaveError.execute"
+          },
+          "kwargs": {
+            "name": "kwargs",
+            "kind": "parameter",
+            "type_annotation": "dict",
+            "scope_path": "module.SaveError.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.SaveError"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "error_service",
+        "scope_path": "module.SaveError.__init__",
+        "resolved_to": "module.SaveError.__init__"
+      },
+      {
+        "name": "id",
+        "scope_path": "module.SaveError.execute",
+        "resolved_to": "module.SaveError.execute"
+      },
+      {
+        "name": "name",
+        "scope_path": "module.SaveError.execute",
+        "resolved_to": "module.SaveError.execute"
+      }
+    ],
+    "unresolved": [
+      {
+        "name": "self.error_service.save",
+        "scope_path": "module.SaveError.execute"
+      }
+    ]
+  }
+}

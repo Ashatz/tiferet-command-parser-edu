@@ -1,7 +1,7 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-04-14T16:42:41.630925+00:00",
-  "source_file": "SemanticRoutines/samples/pass_minimal_injection_event.py",
+  "timestamp": "2026-04-15T17:12:13.944767+00:00",
+  "source_file": "samples/pass_minimal_injection_event.py",
   "ast": {
     "name": "pass_minimal_injection_event",
     "doc_string": "\"\"\"Sample event for testing minimal injection and execution of a domain event.\"\"\"",
@@ -53,12 +53,12 @@
         "body": {
           "kind": "artifact",
           "decl": {
-            "name": "event: ping",
+            "name": "ping",
             "type": {
               "kind": "artifact"
             },
             "metadata": {
-              "type": "**"
+              "type": "** event"
             }
           },
           "body": {
@@ -142,8 +142,8 @@
                                   "name": "self.pong"
                                 },
                                 "right": {
-                                  "kind": "str_val",
-                                  "value": "pong"
+                                  "kind": "name",
+                                  "name": "pong"
                                 }
                               }
                             }
@@ -197,8 +197,8 @@
                               "next": {
                                 "kind": "return",
                                 "expr": {
-                                  "kind": "str_val",
-                                  "value": "self.pong"
+                                  "kind": "name",
+                                  "name": "self.pong"
                                 }
                               }
                             }

@@ -1,0 +1,64 @@
+EventGroup(pass_helper_method_event, "A calculator event with a helper method to convert values to integers.",
+    ImportGroups(
+        ImportGroup(infra, Imports(
+            Import(tiferet.events, DomainEvent),
+        )),
+    ),
+    Events(
+        Event(add_integer, AddInteger, "An event that adds two numbers and returns an integer result.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(
+                Params(
+                    Param("a:str:true::The first operand."),
+                    Param("b:str:true::The second operand."),
+                    Param("kwargs:dict:false::"),
+                ),
+                Returns(
+                    Return("int:The integer sum."),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                            Comment("Convert inputs to integers."),
+                        ),
+                        Statements(
+                            Statement(Assign(x, Call(self.to_int, a))),
+                            Statement(Assign(y, Call(self.to_int, b))),
+                        ),
+                    ),
+                    Snippet(
+                        Comments(
+                            Comment("Return the sum."),
+                        ),
+                        Statements(
+                            Statement(Return(Add(x, y))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods(
+                Method(to_int,
+                    Params(
+                        Param("value:str:true::The value to convert."),
+                    ),
+                    Returns(
+                        Return("int:The integer representation."),
+                    ),
+                    Snippets(
+                        Snippet(
+                            Comments(
+                                Comment("Return the integer conversion."),
+                            ),
+                            Statements(
+                                Statement(Return(Call(int, value))),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        ),
+    )
+)

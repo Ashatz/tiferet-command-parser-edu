@@ -1,0 +1,284 @@
+{
+  "event_type": "ParseCompleted",
+  "timestamp": "2026-04-15T17:12:13.248523+00:00",
+  "source_file": "samples/pass_helper_method_event.py",
+  "ast": {
+    "name": "pass_helper_method_event",
+    "doc_string": "\"\"\"A calculator event with a helper method to convert values to integers.\"\"\"",
+    "code": {
+      "kind": "artifact",
+      "decl": {
+        "name": "imports",
+        "type": {
+          "kind": "artifact"
+        },
+        "metadata": {
+          "type": "***"
+        }
+      },
+      "body": {
+        "kind": "artifact",
+        "decl": {
+          "name": "infra",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "**"
+          }
+        },
+        "body": {
+          "kind": "import_from",
+          "init_expr": {
+            "kind": "name",
+            "name": "tiferet.events"
+          },
+          "expr": {
+            "kind": "name",
+            "name": "DomainEvent"
+          }
+        }
+      },
+      "next": {
+        "kind": "artifact",
+        "decl": {
+          "name": "events",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "***"
+          }
+        },
+        "body": {
+          "kind": "artifact",
+          "decl": {
+            "name": "add_integer",
+            "type": {
+              "kind": "artifact"
+            },
+            "metadata": {
+              "type": "** event"
+            }
+          },
+          "body": {
+            "kind": "decl",
+            "decl": {
+              "name": "AddInteger",
+              "type": {
+                "kind": "class",
+                "name": "AddInteger",
+                "subtype": {
+                  "kind": "class",
+                  "name": "DomainEvent"
+                }
+              },
+              "doc_string": "\"\"\"An event that adds two numbers and returns an integer result.\"\"\"",
+              "code": {
+                "kind": "decl",
+                "decl": {
+                  "name": "method",
+                  "type": {
+                    "kind": "artifact"
+                  },
+                  "metadata": {
+                    "type": "ARTIFACT_MEMBER"
+                  },
+                  "code": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "to_int",
+                      "type": {
+                        "kind": "func",
+                        "return_type": {
+                          "kind": "int"
+                        },
+                        "params": {
+                          "name": "self",
+                          "type": {
+                            "kind": "unknown"
+                          },
+                          "required": true,
+                          "next": {
+                            "name": "value",
+                            "type": {
+                              "kind": "str"
+                            },
+                            "required": true
+                          }
+                        }
+                      },
+                      "doc_string": "\"\"\"Convert a value to an integer.\n\n        :param value: The value to convert.\n        :type value: str\n        :return: The integer representation.\n        :rtype: int\n        \"\"\"",
+                      "code": {
+                        "kind": "snippet",
+                        "body": {
+                          "kind": "comment",
+                          "expr": {
+                            "kind": "comment",
+                            "value": "# Return the integer conversion."
+                          },
+                          "next": {
+                            "kind": "return",
+                            "expr": {
+                              "kind": "call",
+                              "left": {
+                                "kind": "name",
+                                "name": "int"
+                              },
+                              "right": {
+                                "kind": "args_list",
+                                "left": {
+                                  "kind": "name",
+                                  "name": "value"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "next": {
+                    "name": "method",
+                    "type": {
+                      "kind": "artifact"
+                    },
+                    "metadata": {
+                      "type": "ARTIFACT_MEMBER"
+                    },
+                    "code": {
+                      "kind": "decl",
+                      "decl": {
+                        "name": "execute",
+                        "type": {
+                          "kind": "func",
+                          "return_type": {
+                            "kind": "int"
+                          },
+                          "params": {
+                            "name": "self",
+                            "type": {
+                              "kind": "unknown"
+                            },
+                            "required": true,
+                            "next": {
+                              "name": "a",
+                              "type": {
+                                "kind": "str"
+                              },
+                              "required": true,
+                              "next": {
+                                "name": "b",
+                                "type": {
+                                  "kind": "str"
+                                },
+                                "required": true,
+                                "next": {
+                                  "name": "kwargs",
+                                  "type": {
+                                    "kind": "dict",
+                                    "subtype": {
+                                      "kind": "unknown"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "doc_string": "\"\"\"Add two values as integers.\n\n        :param a: The first operand.\n        :type a: str\n        :param b: The second operand.\n        :type b: str\n        :return: The integer sum.\n        :rtype: int\n        \"\"\"",
+                        "code": {
+                          "kind": "snippet",
+                          "body": {
+                            "kind": "comment",
+                            "expr": {
+                              "kind": "comment",
+                              "value": "# Convert inputs to integers."
+                            },
+                            "next": {
+                              "kind": "expr",
+                              "expr": {
+                                "kind": "assign",
+                                "left": {
+                                  "kind": "name",
+                                  "name": "x"
+                                },
+                                "right": {
+                                  "kind": "call",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "self.to_int"
+                                  },
+                                  "right": {
+                                    "kind": "args_list",
+                                    "left": {
+                                      "kind": "name",
+                                      "name": "a"
+                                    }
+                                  }
+                                }
+                              },
+                              "next": {
+                                "kind": "expr",
+                                "expr": {
+                                  "kind": "assign",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "y"
+                                  },
+                                  "right": {
+                                    "kind": "call",
+                                    "left": {
+                                      "kind": "name",
+                                      "name": "self.to_int"
+                                    },
+                                    "right": {
+                                      "kind": "args_list",
+                                      "left": {
+                                        "kind": "name",
+                                        "name": "b"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "next": {
+                            "kind": "snippet",
+                            "body": {
+                              "kind": "comment",
+                              "expr": {
+                                "kind": "comment",
+                                "value": "# Return the sum."
+                              },
+                              "next": {
+                                "kind": "return",
+                                "expr": {
+                                  "kind": "add",
+                                  "value": "+",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "x"
+                                  },
+                                  "right": {
+                                    "kind": "name",
+                                    "name": "y"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

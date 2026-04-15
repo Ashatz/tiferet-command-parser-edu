@@ -1,0 +1,492 @@
+event_type: TokensScanned
+timestamp: '2026-04-15T17:05:17.847564+00:00'
+source_file: samples/pass_helper_method_event.py
+tokens:
+- type: DOCSTRING
+  value: '"""A calculator event with a helper method to convert values to integers."""'
+  lineno: 1
+  lexpos: 0
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 1
+  lexpos: 76
+- type: ARTIFACT_IMPORTS_START
+  value: '# *** imports'
+  lineno: 3
+  lexpos: 78
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 3
+  lexpos: 91
+- type: ARTIFACT_IMPORT_GROUP
+  value: '# ** infra'
+  lineno: 5
+  lexpos: 93
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 5
+  lexpos: 103
+- type: FROM
+  value: from
+  lineno: 6
+  lexpos: 104
+- type: IDENTIFIER
+  value: tiferet
+  lineno: 6
+  lexpos: 109
+- type: DOT
+  value: .
+  lineno: 6
+  lexpos: 116
+- type: IDENTIFIER
+  value: events
+  lineno: 6
+  lexpos: 117
+- type: IMPORT
+  value: import
+  lineno: 6
+  lexpos: 124
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 6
+  lexpos: 131
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 6
+  lexpos: 142
+- type: ARTIFACT_START
+  value: '# *** events'
+  lineno: 8
+  lexpos: 144
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 8
+  lexpos: 156
+- type: ARTIFACT_SECTION
+  value: '# ** event: add_integer'
+  lineno: 10
+  lexpos: 158
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 10
+  lexpos: 181
+- type: CLASS
+  value: class
+  lineno: 11
+  lexpos: 182
+- type: IDENTIFIER
+  value: AddInteger
+  lineno: 11
+  lexpos: 188
+- type: LPAREN
+  value: (
+  lineno: 11
+  lexpos: 198
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 11
+  lexpos: 199
+- type: RPAREN
+  value: )
+  lineno: 11
+  lexpos: 210
+- type: COLON
+  value: ':'
+  lineno: 11
+  lexpos: 211
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 11
+  lexpos: 212
+- type: INDENT
+  value: ''
+  lineno: 12
+  lexpos: 217
+- type: DOCSTRING
+  value: '"""An event that adds two numbers and returns an integer result."""'
+  lineno: 12
+  lexpos: 217
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 12
+  lexpos: 284
+- type: ARTIFACT_MEMBER
+  value: '# * method: to_int'
+  lineno: 14
+  lexpos: 290
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 14
+  lexpos: 308
+- type: DEF
+  value: def
+  lineno: 15
+  lexpos: 313
+- type: IDENTIFIER
+  value: to_int
+  lineno: 15
+  lexpos: 317
+- type: LPAREN
+  value: (
+  lineno: 15
+  lexpos: 323
+- type: SELF
+  value: self
+  lineno: 15
+  lexpos: 324
+- type: COMMA
+  value: ','
+  lineno: 15
+  lexpos: 328
+- type: IDENTIFIER
+  value: value
+  lineno: 15
+  lexpos: 330
+- type: COLON
+  value: ':'
+  lineno: 15
+  lexpos: 335
+- type: IDENTIFIER
+  value: str
+  lineno: 15
+  lexpos: 337
+- type: RPAREN
+  value: )
+  lineno: 15
+  lexpos: 340
+- type: ARROW
+  value: ->
+  lineno: 15
+  lexpos: 342
+- type: IDENTIFIER
+  value: int
+  lineno: 15
+  lexpos: 345
+- type: COLON
+  value: ':'
+  lineno: 15
+  lexpos: 348
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 15
+  lexpos: 349
+- type: INDENT
+  value: ''
+  lineno: 16
+  lexpos: 358
+- type: DOCSTRING
+  value: "\"\"\"Convert a value to an integer.\n\n        :param value: The value\
+    \ to convert.\n        :type value: str\n        :return: The integer representation.\n\
+    \        :rtype: int\n        \"\"\""
+  lineno: 16
+  lexpos: 358
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 22
+  lexpos: 538
+- type: LINE_COMMENT
+  value: '# Return the integer conversion.'
+  lineno: 24
+  lexpos: 548
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 24
+  lexpos: 580
+- type: RETURN
+  value: return
+  lineno: 25
+  lexpos: 589
+- type: IDENTIFIER
+  value: int
+  lineno: 25
+  lexpos: 596
+- type: LPAREN
+  value: (
+  lineno: 25
+  lexpos: 599
+- type: IDENTIFIER
+  value: value
+  lineno: 25
+  lexpos: 600
+- type: RPAREN
+  value: )
+  lineno: 25
+  lexpos: 605
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 25
+  lexpos: 606
+- type: DEDENT
+  value: ''
+  lineno: 27
+  lexpos: 612
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 27
+  lexpos: 612
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 27
+  lexpos: 631
+- type: DEF
+  value: def
+  lineno: 28
+  lexpos: 636
+- type: IDENTIFIER
+  value: execute
+  lineno: 28
+  lexpos: 640
+- type: LPAREN
+  value: (
+  lineno: 28
+  lexpos: 647
+- type: SELF
+  value: self
+  lineno: 28
+  lexpos: 648
+- type: COMMA
+  value: ','
+  lineno: 28
+  lexpos: 652
+- type: IDENTIFIER
+  value: a
+  lineno: 28
+  lexpos: 654
+- type: COLON
+  value: ':'
+  lineno: 28
+  lexpos: 655
+- type: IDENTIFIER
+  value: str
+  lineno: 28
+  lexpos: 657
+- type: COMMA
+  value: ','
+  lineno: 28
+  lexpos: 660
+- type: IDENTIFIER
+  value: b
+  lineno: 28
+  lexpos: 662
+- type: COLON
+  value: ':'
+  lineno: 28
+  lexpos: 663
+- type: IDENTIFIER
+  value: str
+  lineno: 28
+  lexpos: 665
+- type: COMMA
+  value: ','
+  lineno: 28
+  lexpos: 668
+- type: DOUBLESTAR
+  value: '**'
+  lineno: 28
+  lexpos: 670
+- type: IDENTIFIER
+  value: kwargs
+  lineno: 28
+  lexpos: 672
+- type: RPAREN
+  value: )
+  lineno: 28
+  lexpos: 678
+- type: ARROW
+  value: ->
+  lineno: 28
+  lexpos: 680
+- type: IDENTIFIER
+  value: int
+  lineno: 28
+  lexpos: 683
+- type: COLON
+  value: ':'
+  lineno: 28
+  lexpos: 686
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 28
+  lexpos: 687
+- type: INDENT
+  value: ''
+  lineno: 29
+  lexpos: 696
+- type: DOCSTRING
+  value: "\"\"\"Add two values as integers.\n\n        :param a: The first operand.\n\
+    \        :type a: str\n        :param b: The second operand.\n        :type b:\
+    \ str\n        :return: The integer sum.\n        :rtype: int\n        \"\"\""
+  lineno: 29
+  lexpos: 696
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 37
+  lexpos: 910
+- type: LINE_COMMENT
+  value: '# Convert inputs to integers.'
+  lineno: 39
+  lexpos: 920
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 39
+  lexpos: 949
+- type: IDENTIFIER
+  value: x
+  lineno: 40
+  lexpos: 958
+- type: EQUALS
+  value: '='
+  lineno: 40
+  lexpos: 960
+- type: SELF
+  value: self
+  lineno: 40
+  lexpos: 962
+- type: DOT
+  value: .
+  lineno: 40
+  lexpos: 966
+- type: IDENTIFIER
+  value: to_int
+  lineno: 40
+  lexpos: 967
+- type: LPAREN
+  value: (
+  lineno: 40
+  lexpos: 973
+- type: IDENTIFIER
+  value: a
+  lineno: 40
+  lexpos: 974
+- type: RPAREN
+  value: )
+  lineno: 40
+  lexpos: 975
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 40
+  lexpos: 976
+- type: IDENTIFIER
+  value: y
+  lineno: 41
+  lexpos: 985
+- type: EQUALS
+  value: '='
+  lineno: 41
+  lexpos: 987
+- type: SELF
+  value: self
+  lineno: 41
+  lexpos: 989
+- type: DOT
+  value: .
+  lineno: 41
+  lexpos: 993
+- type: IDENTIFIER
+  value: to_int
+  lineno: 41
+  lexpos: 994
+- type: LPAREN
+  value: (
+  lineno: 41
+  lexpos: 1000
+- type: IDENTIFIER
+  value: b
+  lineno: 41
+  lexpos: 1001
+- type: RPAREN
+  value: )
+  lineno: 41
+  lexpos: 1002
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 41
+  lexpos: 1003
+- type: LINE_COMMENT
+  value: '# Return the sum.'
+  lineno: 43
+  lexpos: 1013
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 43
+  lexpos: 1030
+- type: RETURN
+  value: return
+  lineno: 44
+  lexpos: 1039
+- type: IDENTIFIER
+  value: x
+  lineno: 44
+  lexpos: 1046
+- type: PLUS
+  value: +
+  lineno: 44
+  lexpos: 1048
+- type: IDENTIFIER
+  value: y
+  lineno: 44
+  lexpos: 1050
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 44
+  lexpos: 1051
+- type: DEDENT
+  value: ''
+  lineno: 0
+  lexpos: 0
+- type: DEDENT
+  value: ''
+  lineno: 0
+  lexpos: 0
+token_count: 108

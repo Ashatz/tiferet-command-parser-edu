@@ -1,0 +1,135 @@
+{
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-15T17:15:29.393196+00:00",
+  "source_file": "samples/fail_unresolved_attribute.py",
+  "symbol_table": {
+    "module_name": "fail_unresolved_attribute",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": ".settings"
+          },
+          "LogResult": {
+            "name": "LogResult",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "LogResult": "module.LogResult"
+        }
+      },
+      "module.LogResult": {
+        "name": "LogResult",
+        "kind": "class_def",
+        "path": "module.LogResult",
+        "symbols": {
+          "message": {
+            "name": "message",
+            "kind": "attribute",
+            "type_annotation": "str",
+            "scope_path": "module.LogResult"
+          },
+          "__init__": {
+            "name": "__init__",
+            "kind": "method",
+            "type_annotation": "None",
+            "scope_path": "module.LogResult"
+          },
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "str",
+            "scope_path": "module.LogResult"
+          }
+        },
+        "children": {
+          "__init__": "module.LogResult.__init__",
+          "execute": "module.LogResult.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.LogResult.__init__": {
+        "name": "__init__",
+        "kind": "method",
+        "path": "module.LogResult.__init__",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.LogResult.__init__"
+          },
+          "message": {
+            "name": "message",
+            "kind": "parameter",
+            "type_annotation": "str",
+            "scope_path": "module.LogResult.__init__"
+          }
+        },
+        "children": {},
+        "parent_path": "module.LogResult"
+      },
+      "module.LogResult.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.LogResult.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.LogResult.execute"
+          },
+          "kwargs": {
+            "name": "kwargs",
+            "kind": "parameter",
+            "type_annotation": "dict",
+            "scope_path": "module.LogResult.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.LogResult"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "message",
+        "scope_path": "module.LogResult.__init__",
+        "resolved_to": "module.LogResult.__init__"
+      },
+      {
+        "name": "self.message",
+        "scope_path": "module.LogResult.execute",
+        "resolved_to": "module.LogResult"
+      },
+      {
+        "name": "self.message",
+        "scope_path": "module.LogResult.execute",
+        "resolved_to": "module.LogResult"
+      }
+    ],
+    "unresolved": [
+      {
+        "name": "self.logger.info",
+        "scope_path": "module.LogResult.execute"
+      }
+    ]
+  }
+}

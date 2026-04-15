@@ -749,6 +749,20 @@ class IRGenerator(IRService):
         if kind == ExprKind.EXP:
             return f'Exp({self.encode_expr(expr.left)}, {self.encode_expr(expr.right)})'
 
+        # Call expression — callee(args).
+        if kind == ExprKind.CALL:
+            callee = self.encode_expr(expr.left)
+            args = self.encode_expr(expr.right) if expr.right else ''
+            return f'Call({callee}, {args})' if args else f'Call({callee})'
+
+        # Arguments list — flatten left/right into comma-separated values.
+        if kind == ExprKind.ARGS_LIST:
+            left = self.encode_expr(expr.left)
+            right = self.encode_expr(expr.right)
+            if left and right:
+                return f'{left}, {right}'
+            return left or right or ''
+
         # Comment expression — return the text value.
         if kind == ExprKind.COMMENT:
             return expr.value or ''

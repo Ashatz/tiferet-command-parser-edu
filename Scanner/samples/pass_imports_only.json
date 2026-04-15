@@ -1,0 +1,146 @@
+event_type: TokensScanned
+timestamp: '2026-04-15T17:05:18.089851+00:00'
+source_file: samples/pass_imports_only.py
+tokens:
+- type: DOCSTRING
+  value: "\"\"\"Tiferet Empty Events Sample \u2014 imports section with no event definitions\"\
+    \"\""
+  lineno: 1
+  lexpos: 0
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 1
+  lexpos: 77
+- type: ARTIFACT_IMPORTS_START
+  value: '# *** imports'
+  lineno: 3
+  lexpos: 79
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 3
+  lexpos: 92
+- type: ARTIFACT_IMPORT_GROUP
+  value: '# ** core'
+  lineno: 5
+  lexpos: 94
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 5
+  lexpos: 103
+- type: FROM
+  value: from
+  lineno: 6
+  lexpos: 104
+- type: IDENTIFIER
+  value: typing
+  lineno: 6
+  lexpos: 109
+- type: IMPORT
+  value: import
+  lineno: 6
+  lexpos: 116
+- type: IDENTIFIER
+  value: Any
+  lineno: 6
+  lexpos: 123
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 6
+  lexpos: 126
+- type: ARTIFACT_IMPORT_GROUP
+  value: '# ** app'
+  lineno: 8
+  lexpos: 128
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 8
+  lexpos: 136
+- type: FROM
+  value: from
+  lineno: 9
+  lexpos: 137
+- type: DOT
+  value: .
+  lineno: 9
+  lexpos: 142
+- type: IDENTIFIER
+  value: settings
+  lineno: 9
+  lexpos: 143
+- type: IMPORT
+  value: import
+  lineno: 9
+  lexpos: 152
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 9
+  lexpos: 159
+- type: COMMA
+  value: ','
+  lineno: 9
+  lexpos: 170
+- type: IDENTIFIER
+  value: a
+  lineno: 9
+  lexpos: 172
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 9
+  lexpos: 173
+- type: FROM
+  value: from
+  lineno: 10
+  lexpos: 174
+- type: DOT
+  value: .
+  lineno: 10
+  lexpos: 179
+- type: DOT
+  value: .
+  lineno: 10
+  lexpos: 180
+- type: IDENTIFIER
+  value: interfaces
+  lineno: 10
+  lexpos: 181
+- type: IMPORT
+  value: import
+  lineno: 10
+  lexpos: 192
+- type: IDENTIFIER
+  value: ErrorService
+  lineno: 10
+  lexpos: 199
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 10
+  lexpos: 211
+- type: ARTIFACT_START
+  value: '# *** events'
+  lineno: 12
+  lexpos: 213
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 12
+  lexpos: 225
+token_count: 30

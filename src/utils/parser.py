@@ -935,12 +935,21 @@ class TiferetParser(ParserBase):
 
     # -- Expressions --
 
-    # * method: p_asign_expr (rule)
+    # * method: p_assign_expr (rule)
     def p_assign_expr(self, p):
-        '''assign_expr : ident_expr EQUALS name_or_literal_expr'''
+        '''assign_expr : ident_expr EQUALS assign_rhs'''
 
         # Build an assignment expression.
         p[0] = Expr.new_assign_expr(target=p[1], value=p[3])
+
+    # * method: p_assign_rhs (rule)
+    def p_assign_rhs(self, p):
+        '''assign_rhs : name_or_literal_expr
+                      | call_expr
+                      | operation_expr'''
+
+        # Pass through the right-hand side expression.
+        p[0] = p[1]
 
     # * method: p_return_expr (rule)
     def p_return_expr(self, p):
@@ -972,6 +981,13 @@ class TiferetParser(ParserBase):
         # Build a call expression.
         p[0] = Expr.new_call_expr(p[1], p[3])
 
+    # * method: p_call_args_empty (rule)
+    def p_call_args_empty(self, p):
+        '''call_args : '''
+
+        # Build an empty argument list for zero-argument calls.
+        p[0] = None
+
     # * method: p_call_args_single (rule)
     def p_call_args_single(self, p):
         '''call_args : call_arg'''
@@ -988,9 +1004,11 @@ class TiferetParser(ParserBase):
 
     # * method: p_call_arg (rule)
     def p_call_arg(self, p):
-        '''call_arg : name_or_literal_expr'''
+        '''call_arg : name_or_literal_expr
+                    | call_expr
+                    | operation_expr'''
 
-        # Pass through a call argument as a name or literal expression.
+        # Pass through a call argument expression.
         p[0] = p[1]
 
     # * method: p_literal_expr (rule)

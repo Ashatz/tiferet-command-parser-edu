@@ -1,0 +1,226 @@
+event_type: TokensScanned
+timestamp: '2026-04-15T17:05:18.319793+00:00'
+source_file: samples/pass_minimal_event.py
+tokens:
+- type: ARTIFACT_IMPORTS_START
+  value: '# *** imports'
+  lineno: 1
+  lexpos: 0
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 1
+  lexpos: 13
+- type: ARTIFACT_IMPORT_GROUP
+  value: '# ** app'
+  lineno: 3
+  lexpos: 15
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 3
+  lexpos: 23
+- type: FROM
+  value: from
+  lineno: 4
+  lexpos: 24
+- type: DOT
+  value: .
+  lineno: 4
+  lexpos: 29
+- type: IDENTIFIER
+  value: settings
+  lineno: 4
+  lexpos: 30
+- type: IMPORT
+  value: import
+  lineno: 4
+  lexpos: 39
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 4
+  lexpos: 46
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 4
+  lexpos: 57
+- type: ARTIFACT_START
+  value: '# *** events'
+  lineno: 6
+  lexpos: 59
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 6
+  lexpos: 71
+- type: ARTIFACT_SECTION
+  value: '# ** event: ping'
+  lineno: 8
+  lexpos: 73
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 8
+  lexpos: 89
+- type: CLASS
+  value: class
+  lineno: 9
+  lexpos: 90
+- type: IDENTIFIER
+  value: Ping
+  lineno: 9
+  lexpos: 96
+- type: LPAREN
+  value: (
+  lineno: 9
+  lexpos: 100
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 9
+  lexpos: 101
+- type: RPAREN
+  value: )
+  lineno: 9
+  lexpos: 112
+- type: COLON
+  value: ':'
+  lineno: 9
+  lexpos: 113
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 9
+  lexpos: 114
+- type: INDENT
+  value: ''
+  lineno: 10
+  lexpos: 119
+- type: DOCSTRING
+  value: '"""A minimal event with no attributes and a single method."""'
+  lineno: 10
+  lexpos: 119
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 10
+  lexpos: 180
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 12
+  lexpos: 186
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 12
+  lexpos: 205
+- type: DEF
+  value: def
+  lineno: 13
+  lexpos: 210
+- type: IDENTIFIER
+  value: execute
+  lineno: 13
+  lexpos: 214
+- type: LPAREN
+  value: (
+  lineno: 13
+  lexpos: 221
+- type: SELF
+  value: self
+  lineno: 13
+  lexpos: 222
+- type: COMMA
+  value: ','
+  lineno: 13
+  lexpos: 226
+- type: DOUBLESTAR
+  value: '**'
+  lineno: 13
+  lexpos: 228
+- type: IDENTIFIER
+  value: kwargs
+  lineno: 13
+  lexpos: 230
+- type: RPAREN
+  value: )
+  lineno: 13
+  lexpos: 236
+- type: ARROW
+  value: ->
+  lineno: 13
+  lexpos: 238
+- type: IDENTIFIER
+  value: str
+  lineno: 13
+  lexpos: 241
+- type: COLON
+  value: ':'
+  lineno: 13
+  lexpos: 244
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 13
+  lexpos: 245
+- type: INDENT
+  value: ''
+  lineno: 14
+  lexpos: 254
+- type: DOCSTRING
+  value: '"""Return a static response."""'
+  lineno: 14
+  lexpos: 254
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 14
+  lexpos: 285
+- type: LINE_COMMENT
+  value: '# Return pong.'
+  lineno: 16
+  lexpos: 295
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 16
+  lexpos: 309
+- type: RETURN
+  value: return
+  lineno: 17
+  lexpos: 318
+- type: STRING_LITERAL
+  value: '''pong'''
+  lineno: 17
+  lexpos: 325
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 17
+  lexpos: 331
+- type: DEDENT
+  value: ''
+  lineno: 0
+  lexpos: 0
+- type: DEDENT
+  value: ''
+  lineno: 0
+  lexpos: 0
+token_count: 48

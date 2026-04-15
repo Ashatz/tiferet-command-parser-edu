@@ -1,7 +1,7 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-04-14T17:12:35.490151+00:00",
-  "source_file": "SemanticRoutines/samples/pass_multiple_operator_events.py",
+  "timestamp": "2026-04-15T17:12:14.418050+00:00",
+  "source_file": "samples/pass_multiple_operator_events.py",
   "ast": {
     "name": "pass_multiple_operator_events",
     "doc_string": "\"\"\"This module demonstrates how to define multiple operator events in the Tiferet Dialect, and how to parse them using the event parser\"\"\"",
@@ -53,12 +53,12 @@
         "body": {
           "kind": "artifact",
           "decl": {
-            "name": "event: add",
+            "name": "add",
             "type": {
               "kind": "artifact"
             },
             "metadata": {
-              "type": "**"
+              "type": "** event"
             }
           },
           "body": {
@@ -124,12 +124,12 @@
                             "kind": "add",
                             "value": "+",
                             "left": {
-                              "kind": "str_val",
-                              "value": "a"
+                              "kind": "name",
+                              "name": "a"
                             },
                             "right": {
-                              "kind": "str_val",
-                              "value": "b"
+                              "kind": "name",
+                              "name": "b"
                             }
                           }
                         }
@@ -143,12 +143,12 @@
           "next": {
             "kind": "artifact",
             "decl": {
-              "name": "event: subtract",
+              "name": "subtract",
               "type": {
                 "kind": "artifact"
               },
               "metadata": {
-                "type": "**"
+                "type": "** event"
               }
             },
             "body": {
@@ -214,12 +214,12 @@
                               "kind": "sub",
                               "value": "-",
                               "left": {
-                                "kind": "str_val",
-                                "value": "a"
+                                "kind": "name",
+                                "name": "a"
                               },
                               "right": {
-                                "kind": "str_val",
-                                "value": "b"
+                                "kind": "name",
+                                "name": "b"
                               }
                             }
                           }
@@ -233,12 +233,12 @@
             "next": {
               "kind": "artifact",
               "decl": {
-                "name": "event: multiply",
+                "name": "multiply",
                 "type": {
                   "kind": "artifact"
                 },
                 "metadata": {
-                  "type": "**"
+                  "type": "** event"
                 }
               },
               "body": {
@@ -304,12 +304,12 @@
                                 "kind": "mul",
                                 "value": "*",
                                 "left": {
-                                  "kind": "str_val",
-                                  "value": "a"
+                                  "kind": "name",
+                                  "name": "a"
                                 },
                                 "right": {
-                                  "kind": "str_val",
-                                  "value": "b"
+                                  "kind": "name",
+                                  "name": "b"
                                 }
                               }
                             }
@@ -323,12 +323,12 @@
               "next": {
                 "kind": "artifact",
                 "decl": {
-                  "name": "event: divide",
+                  "name": "divide",
                   "type": {
                     "kind": "artifact"
                   },
                   "metadata": {
-                    "type": "**"
+                    "type": "** event"
                   }
                 },
                 "body": {
@@ -394,12 +394,12 @@
                                   "kind": "div",
                                   "value": "/",
                                   "left": {
-                                    "kind": "str_val",
-                                    "value": "a"
+                                    "kind": "name",
+                                    "name": "a"
                                   },
                                   "right": {
-                                    "kind": "str_val",
-                                    "value": "b"
+                                    "kind": "name",
+                                    "name": "b"
                                   }
                                 }
                               }
@@ -413,12 +413,12 @@
                 "next": {
                   "kind": "artifact",
                   "decl": {
-                    "name": "event: modulus",
+                    "name": "modulus",
                     "type": {
                       "kind": "artifact"
                     },
                     "metadata": {
-                      "type": "**"
+                      "type": "** event"
                     }
                   },
                   "body": {
@@ -484,12 +484,12 @@
                                     "kind": "mod",
                                     "value": "%",
                                     "left": {
-                                      "kind": "str_val",
-                                      "value": "a"
+                                      "kind": "name",
+                                      "name": "a"
                                     },
                                     "right": {
-                                      "kind": "str_val",
-                                      "value": "b"
+                                      "kind": "name",
+                                      "name": "b"
                                     }
                                   }
                                 }
@@ -503,12 +503,12 @@
                   "next": {
                     "kind": "artifact",
                     "decl": {
-                      "name": "event: exponentiate",
+                      "name": "exponentiate",
                       "type": {
                         "kind": "artifact"
                       },
                       "metadata": {
-                        "type": "**"
+                        "type": "** event"
                       }
                     },
                     "body": {
@@ -574,12 +574,12 @@
                                       "kind": "name",
                                       "value": "**",
                                       "left": {
-                                        "kind": "str_val",
-                                        "value": "a"
+                                        "kind": "name",
+                                        "name": "a"
                                       },
                                       "right": {
-                                        "kind": "str_val",
-                                        "value": "b"
+                                        "kind": "name",
+                                        "name": "b"
                                       }
                                     }
                                   }

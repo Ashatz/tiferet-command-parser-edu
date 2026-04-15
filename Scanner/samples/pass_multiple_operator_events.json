@@ -1,0 +1,1165 @@
+event_type: TokensScanned
+timestamp: '2026-04-15T17:05:19.266246+00:00'
+source_file: samples/pass_multiple_operator_events.py
+tokens:
+- type: DOCSTRING
+  value: '"""This module demonstrates how to define multiple operator events in the
+    Tiferet Dialect, and how to parse them using the event parser"""'
+  lineno: 1
+  lexpos: 0
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 1
+  lexpos: 138
+- type: ARTIFACT_IMPORTS_START
+  value: '# *** imports'
+  lineno: 3
+  lexpos: 140
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 3
+  lexpos: 153
+- type: ARTIFACT_IMPORT_GROUP
+  value: '# ** infra'
+  lineno: 5
+  lexpos: 155
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 5
+  lexpos: 165
+- type: FROM
+  value: from
+  lineno: 6
+  lexpos: 166
+- type: IDENTIFIER
+  value: tiferet
+  lineno: 6
+  lexpos: 171
+- type: DOT
+  value: .
+  lineno: 6
+  lexpos: 178
+- type: IDENTIFIER
+  value: events
+  lineno: 6
+  lexpos: 179
+- type: IMPORT
+  value: import
+  lineno: 6
+  lexpos: 186
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 6
+  lexpos: 193
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 6
+  lexpos: 204
+- type: ARTIFACT_START
+  value: '# *** events'
+  lineno: 8
+  lexpos: 206
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 8
+  lexpos: 218
+- type: ARTIFACT_SECTION
+  value: '# ** event: add'
+  lineno: 10
+  lexpos: 220
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 10
+  lexpos: 235
+- type: CLASS
+  value: class
+  lineno: 11
+  lexpos: 236
+- type: IDENTIFIER
+  value: Add
+  lineno: 11
+  lexpos: 242
+- type: LPAREN
+  value: (
+  lineno: 11
+  lexpos: 245
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 11
+  lexpos: 246
+- type: RPAREN
+  value: )
+  lineno: 11
+  lexpos: 257
+- type: COLON
+  value: ':'
+  lineno: 11
+  lexpos: 258
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 11
+  lexpos: 259
+- type: INDENT
+  value: ''
+  lineno: 12
+  lexpos: 264
+- type: DOCSTRING
+  value: '"""An event that performs addition of two numbers."""'
+  lineno: 12
+  lexpos: 264
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 12
+  lexpos: 317
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 14
+  lexpos: 323
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 14
+  lexpos: 342
+- type: DEF
+  value: def
+  lineno: 15
+  lexpos: 347
+- type: IDENTIFIER
+  value: execute
+  lineno: 15
+  lexpos: 351
+- type: LPAREN
+  value: (
+  lineno: 15
+  lexpos: 358
+- type: SELF
+  value: self
+  lineno: 15
+  lexpos: 359
+- type: COMMA
+  value: ','
+  lineno: 15
+  lexpos: 363
+- type: IDENTIFIER
+  value: a
+  lineno: 15
+  lexpos: 365
+- type: COLON
+  value: ':'
+  lineno: 15
+  lexpos: 366
+- type: IDENTIFIER
+  value: int
+  lineno: 15
+  lexpos: 368
+- type: COMMA
+  value: ','
+  lineno: 15
+  lexpos: 371
+- type: IDENTIFIER
+  value: b
+  lineno: 15
+  lexpos: 373
+- type: COLON
+  value: ':'
+  lineno: 15
+  lexpos: 374
+- type: IDENTIFIER
+  value: int
+  lineno: 15
+  lexpos: 376
+- type: RPAREN
+  value: )
+  lineno: 15
+  lexpos: 379
+- type: ARROW
+  value: ->
+  lineno: 15
+  lexpos: 381
+- type: IDENTIFIER
+  value: int
+  lineno: 15
+  lexpos: 384
+- type: COLON
+  value: ':'
+  lineno: 15
+  lexpos: 387
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 15
+  lexpos: 388
+- type: INDENT
+  value: ''
+  lineno: 16
+  lexpos: 397
+- type: DOCSTRING
+  value: '"""Return the sum of a and b."""'
+  lineno: 16
+  lexpos: 397
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 16
+  lexpos: 429
+- type: RETURN
+  value: return
+  lineno: 18
+  lexpos: 439
+- type: IDENTIFIER
+  value: a
+  lineno: 18
+  lexpos: 446
+- type: PLUS
+  value: +
+  lineno: 18
+  lexpos: 448
+- type: IDENTIFIER
+  value: b
+  lineno: 18
+  lexpos: 450
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 18
+  lexpos: 451
+- type: DEDENT
+  value: ''
+  lineno: 20
+  lexpos: 453
+- type: DEDENT
+  value: ''
+  lineno: 20
+  lexpos: 453
+- type: ARTIFACT_SECTION
+  value: '# ** event: subtract'
+  lineno: 20
+  lexpos: 453
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 20
+  lexpos: 473
+- type: CLASS
+  value: class
+  lineno: 21
+  lexpos: 474
+- type: IDENTIFIER
+  value: Subtract
+  lineno: 21
+  lexpos: 480
+- type: LPAREN
+  value: (
+  lineno: 21
+  lexpos: 488
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 21
+  lexpos: 489
+- type: RPAREN
+  value: )
+  lineno: 21
+  lexpos: 500
+- type: COLON
+  value: ':'
+  lineno: 21
+  lexpos: 501
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 21
+  lexpos: 502
+- type: INDENT
+  value: ''
+  lineno: 22
+  lexpos: 507
+- type: DOCSTRING
+  value: '"""An event that performs subtraction of two numbers."""'
+  lineno: 22
+  lexpos: 507
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 22
+  lexpos: 563
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 24
+  lexpos: 569
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 24
+  lexpos: 588
+- type: DEF
+  value: def
+  lineno: 25
+  lexpos: 593
+- type: IDENTIFIER
+  value: execute
+  lineno: 25
+  lexpos: 597
+- type: LPAREN
+  value: (
+  lineno: 25
+  lexpos: 604
+- type: SELF
+  value: self
+  lineno: 25
+  lexpos: 605
+- type: COMMA
+  value: ','
+  lineno: 25
+  lexpos: 609
+- type: IDENTIFIER
+  value: a
+  lineno: 25
+  lexpos: 611
+- type: COLON
+  value: ':'
+  lineno: 25
+  lexpos: 612
+- type: IDENTIFIER
+  value: int
+  lineno: 25
+  lexpos: 614
+- type: COMMA
+  value: ','
+  lineno: 25
+  lexpos: 617
+- type: IDENTIFIER
+  value: b
+  lineno: 25
+  lexpos: 619
+- type: COLON
+  value: ':'
+  lineno: 25
+  lexpos: 620
+- type: IDENTIFIER
+  value: int
+  lineno: 25
+  lexpos: 622
+- type: RPAREN
+  value: )
+  lineno: 25
+  lexpos: 625
+- type: ARROW
+  value: ->
+  lineno: 25
+  lexpos: 627
+- type: IDENTIFIER
+  value: int
+  lineno: 25
+  lexpos: 630
+- type: COLON
+  value: ':'
+  lineno: 25
+  lexpos: 633
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 25
+  lexpos: 634
+- type: INDENT
+  value: ''
+  lineno: 26
+  lexpos: 643
+- type: DOCSTRING
+  value: '"""Return the difference of a and b."""'
+  lineno: 26
+  lexpos: 643
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 26
+  lexpos: 682
+- type: RETURN
+  value: return
+  lineno: 28
+  lexpos: 692
+- type: IDENTIFIER
+  value: a
+  lineno: 28
+  lexpos: 699
+- type: MINUS
+  value: '-'
+  lineno: 28
+  lexpos: 701
+- type: IDENTIFIER
+  value: b
+  lineno: 28
+  lexpos: 703
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 28
+  lexpos: 704
+- type: DEDENT
+  value: ''
+  lineno: 30
+  lexpos: 706
+- type: DEDENT
+  value: ''
+  lineno: 30
+  lexpos: 706
+- type: ARTIFACT_SECTION
+  value: '# ** event: multiply'
+  lineno: 30
+  lexpos: 706
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 30
+  lexpos: 726
+- type: CLASS
+  value: class
+  lineno: 31
+  lexpos: 727
+- type: IDENTIFIER
+  value: Multiply
+  lineno: 31
+  lexpos: 733
+- type: LPAREN
+  value: (
+  lineno: 31
+  lexpos: 741
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 31
+  lexpos: 742
+- type: RPAREN
+  value: )
+  lineno: 31
+  lexpos: 753
+- type: COLON
+  value: ':'
+  lineno: 31
+  lexpos: 754
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 31
+  lexpos: 755
+- type: INDENT
+  value: ''
+  lineno: 32
+  lexpos: 760
+- type: DOCSTRING
+  value: '"""An event that performs multiplication of two numbers."""'
+  lineno: 32
+  lexpos: 760
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 32
+  lexpos: 819
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 34
+  lexpos: 825
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 34
+  lexpos: 844
+- type: DEF
+  value: def
+  lineno: 35
+  lexpos: 849
+- type: IDENTIFIER
+  value: execute
+  lineno: 35
+  lexpos: 853
+- type: LPAREN
+  value: (
+  lineno: 35
+  lexpos: 860
+- type: SELF
+  value: self
+  lineno: 35
+  lexpos: 861
+- type: COMMA
+  value: ','
+  lineno: 35
+  lexpos: 865
+- type: IDENTIFIER
+  value: a
+  lineno: 35
+  lexpos: 867
+- type: COLON
+  value: ':'
+  lineno: 35
+  lexpos: 868
+- type: IDENTIFIER
+  value: int
+  lineno: 35
+  lexpos: 870
+- type: COMMA
+  value: ','
+  lineno: 35
+  lexpos: 873
+- type: IDENTIFIER
+  value: b
+  lineno: 35
+  lexpos: 875
+- type: COLON
+  value: ':'
+  lineno: 35
+  lexpos: 876
+- type: IDENTIFIER
+  value: int
+  lineno: 35
+  lexpos: 878
+- type: RPAREN
+  value: )
+  lineno: 35
+  lexpos: 881
+- type: ARROW
+  value: ->
+  lineno: 35
+  lexpos: 883
+- type: IDENTIFIER
+  value: int
+  lineno: 35
+  lexpos: 886
+- type: COLON
+  value: ':'
+  lineno: 35
+  lexpos: 889
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 35
+  lexpos: 890
+- type: INDENT
+  value: ''
+  lineno: 36
+  lexpos: 899
+- type: DOCSTRING
+  value: '"""Return the product of a and b."""'
+  lineno: 36
+  lexpos: 899
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 36
+  lexpos: 935
+- type: RETURN
+  value: return
+  lineno: 38
+  lexpos: 945
+- type: IDENTIFIER
+  value: a
+  lineno: 38
+  lexpos: 952
+- type: STAR
+  value: '*'
+  lineno: 38
+  lexpos: 954
+- type: IDENTIFIER
+  value: b
+  lineno: 38
+  lexpos: 956
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 38
+  lexpos: 957
+- type: DEDENT
+  value: ''
+  lineno: 40
+  lexpos: 959
+- type: DEDENT
+  value: ''
+  lineno: 40
+  lexpos: 959
+- type: ARTIFACT_SECTION
+  value: '# ** event: divide'
+  lineno: 40
+  lexpos: 959
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 40
+  lexpos: 977
+- type: CLASS
+  value: class
+  lineno: 41
+  lexpos: 978
+- type: IDENTIFIER
+  value: Divide
+  lineno: 41
+  lexpos: 984
+- type: LPAREN
+  value: (
+  lineno: 41
+  lexpos: 990
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 41
+  lexpos: 991
+- type: RPAREN
+  value: )
+  lineno: 41
+  lexpos: 1002
+- type: COLON
+  value: ':'
+  lineno: 41
+  lexpos: 1003
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 41
+  lexpos: 1004
+- type: INDENT
+  value: ''
+  lineno: 42
+  lexpos: 1009
+- type: DOCSTRING
+  value: '"""An event that performs division of two numbers."""'
+  lineno: 42
+  lexpos: 1009
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 42
+  lexpos: 1062
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 44
+  lexpos: 1068
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 44
+  lexpos: 1087
+- type: DEF
+  value: def
+  lineno: 45
+  lexpos: 1092
+- type: IDENTIFIER
+  value: execute
+  lineno: 45
+  lexpos: 1096
+- type: LPAREN
+  value: (
+  lineno: 45
+  lexpos: 1103
+- type: SELF
+  value: self
+  lineno: 45
+  lexpos: 1104
+- type: COMMA
+  value: ','
+  lineno: 45
+  lexpos: 1108
+- type: IDENTIFIER
+  value: a
+  lineno: 45
+  lexpos: 1110
+- type: COLON
+  value: ':'
+  lineno: 45
+  lexpos: 1111
+- type: IDENTIFIER
+  value: int
+  lineno: 45
+  lexpos: 1113
+- type: COMMA
+  value: ','
+  lineno: 45
+  lexpos: 1116
+- type: IDENTIFIER
+  value: b
+  lineno: 45
+  lexpos: 1118
+- type: COLON
+  value: ':'
+  lineno: 45
+  lexpos: 1119
+- type: IDENTIFIER
+  value: int
+  lineno: 45
+  lexpos: 1121
+- type: RPAREN
+  value: )
+  lineno: 45
+  lexpos: 1124
+- type: ARROW
+  value: ->
+  lineno: 45
+  lexpos: 1126
+- type: IDENTIFIER
+  value: float
+  lineno: 45
+  lexpos: 1129
+- type: COLON
+  value: ':'
+  lineno: 45
+  lexpos: 1134
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 45
+  lexpos: 1135
+- type: INDENT
+  value: ''
+  lineno: 46
+  lexpos: 1144
+- type: DOCSTRING
+  value: '"""Return the quotient of a and b."""'
+  lineno: 46
+  lexpos: 1144
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 46
+  lexpos: 1181
+- type: RETURN
+  value: return
+  lineno: 48
+  lexpos: 1191
+- type: IDENTIFIER
+  value: a
+  lineno: 48
+  lexpos: 1198
+- type: SLASH
+  value: /
+  lineno: 48
+  lexpos: 1200
+- type: IDENTIFIER
+  value: b
+  lineno: 48
+  lexpos: 1202
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 48
+  lexpos: 1203
+- type: DEDENT
+  value: ''
+  lineno: 50
+  lexpos: 1205
+- type: DEDENT
+  value: ''
+  lineno: 50
+  lexpos: 1205
+- type: ARTIFACT_SECTION
+  value: '# ** event: modulus'
+  lineno: 50
+  lexpos: 1205
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 50
+  lexpos: 1224
+- type: CLASS
+  value: class
+  lineno: 51
+  lexpos: 1225
+- type: IDENTIFIER
+  value: Modulus
+  lineno: 51
+  lexpos: 1231
+- type: LPAREN
+  value: (
+  lineno: 51
+  lexpos: 1238
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 51
+  lexpos: 1239
+- type: RPAREN
+  value: )
+  lineno: 51
+  lexpos: 1250
+- type: COLON
+  value: ':'
+  lineno: 51
+  lexpos: 1251
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 51
+  lexpos: 1252
+- type: INDENT
+  value: ''
+  lineno: 52
+  lexpos: 1257
+- type: DOCSTRING
+  value: '"""An event that performs modulus of two numbers."""'
+  lineno: 52
+  lexpos: 1257
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 52
+  lexpos: 1309
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 54
+  lexpos: 1315
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 54
+  lexpos: 1334
+- type: DEF
+  value: def
+  lineno: 55
+  lexpos: 1339
+- type: IDENTIFIER
+  value: execute
+  lineno: 55
+  lexpos: 1343
+- type: LPAREN
+  value: (
+  lineno: 55
+  lexpos: 1350
+- type: SELF
+  value: self
+  lineno: 55
+  lexpos: 1351
+- type: COMMA
+  value: ','
+  lineno: 55
+  lexpos: 1355
+- type: IDENTIFIER
+  value: a
+  lineno: 55
+  lexpos: 1357
+- type: COLON
+  value: ':'
+  lineno: 55
+  lexpos: 1358
+- type: IDENTIFIER
+  value: int
+  lineno: 55
+  lexpos: 1360
+- type: COMMA
+  value: ','
+  lineno: 55
+  lexpos: 1363
+- type: IDENTIFIER
+  value: b
+  lineno: 55
+  lexpos: 1365
+- type: COLON
+  value: ':'
+  lineno: 55
+  lexpos: 1366
+- type: IDENTIFIER
+  value: int
+  lineno: 55
+  lexpos: 1368
+- type: RPAREN
+  value: )
+  lineno: 55
+  lexpos: 1371
+- type: ARROW
+  value: ->
+  lineno: 55
+  lexpos: 1373
+- type: IDENTIFIER
+  value: int
+  lineno: 55
+  lexpos: 1376
+- type: COLON
+  value: ':'
+  lineno: 55
+  lexpos: 1379
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 55
+  lexpos: 1380
+- type: INDENT
+  value: ''
+  lineno: 56
+  lexpos: 1389
+- type: DOCSTRING
+  value: '"""Return the modulus of a and b."""'
+  lineno: 56
+  lexpos: 1389
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 56
+  lexpos: 1425
+- type: RETURN
+  value: return
+  lineno: 58
+  lexpos: 1435
+- type: IDENTIFIER
+  value: a
+  lineno: 58
+  lexpos: 1442
+- type: PERCENT
+  value: '%'
+  lineno: 58
+  lexpos: 1444
+- type: IDENTIFIER
+  value: b
+  lineno: 58
+  lexpos: 1446
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 58
+  lexpos: 1447
+- type: DEDENT
+  value: ''
+  lineno: 60
+  lexpos: 1449
+- type: DEDENT
+  value: ''
+  lineno: 60
+  lexpos: 1449
+- type: ARTIFACT_SECTION
+  value: '# ** event: exponentiate'
+  lineno: 60
+  lexpos: 1449
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 60
+  lexpos: 1473
+- type: CLASS
+  value: class
+  lineno: 61
+  lexpos: 1474
+- type: IDENTIFIER
+  value: Exponentiate
+  lineno: 61
+  lexpos: 1480
+- type: LPAREN
+  value: (
+  lineno: 61
+  lexpos: 1492
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 61
+  lexpos: 1493
+- type: RPAREN
+  value: )
+  lineno: 61
+  lexpos: 1504
+- type: COLON
+  value: ':'
+  lineno: 61
+  lexpos: 1505
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 61
+  lexpos: 1506
+- type: INDENT
+  value: ''
+  lineno: 62
+  lexpos: 1511
+- type: DOCSTRING
+  value: '"""An event that performs exponentiation of two numbers."""'
+  lineno: 62
+  lexpos: 1511
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 62
+  lexpos: 1570
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 64
+  lexpos: 1576
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 64
+  lexpos: 1595
+- type: DEF
+  value: def
+  lineno: 65
+  lexpos: 1600
+- type: IDENTIFIER
+  value: execute
+  lineno: 65
+  lexpos: 1604
+- type: LPAREN
+  value: (
+  lineno: 65
+  lexpos: 1611
+- type: SELF
+  value: self
+  lineno: 65
+  lexpos: 1612
+- type: COMMA
+  value: ','
+  lineno: 65
+  lexpos: 1616
+- type: IDENTIFIER
+  value: a
+  lineno: 65
+  lexpos: 1618
+- type: COLON
+  value: ':'
+  lineno: 65
+  lexpos: 1619
+- type: IDENTIFIER
+  value: int
+  lineno: 65
+  lexpos: 1621
+- type: COMMA
+  value: ','
+  lineno: 65
+  lexpos: 1624
+- type: IDENTIFIER
+  value: b
+  lineno: 65
+  lexpos: 1626
+- type: COLON
+  value: ':'
+  lineno: 65
+  lexpos: 1627
+- type: IDENTIFIER
+  value: int
+  lineno: 65
+  lexpos: 1629
+- type: RPAREN
+  value: )
+  lineno: 65
+  lexpos: 1632
+- type: ARROW
+  value: ->
+  lineno: 65
+  lexpos: 1634
+- type: IDENTIFIER
+  value: float
+  lineno: 65
+  lexpos: 1637
+- type: COLON
+  value: ':'
+  lineno: 65
+  lexpos: 1642
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 65
+  lexpos: 1643
+- type: INDENT
+  value: ''
+  lineno: 66
+  lexpos: 1652
+- type: DOCSTRING
+  value: '"""Return a raised to the power of b."""'
+  lineno: 66
+  lexpos: 1652
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 66
+  lexpos: 1692
+- type: RETURN
+  value: return
+  lineno: 68
+  lexpos: 1702
+- type: IDENTIFIER
+  value: a
+  lineno: 68
+  lexpos: 1709
+- type: DOUBLESTAR
+  value: '**'
+  lineno: 68
+  lexpos: 1711
+- type: IDENTIFIER
+  value: b
+  lineno: 68
+  lexpos: 1714
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 68
+  lexpos: 1715
+- type: DEDENT
+  value: ''
+  lineno: 0
+  lexpos: 0
+- type: DEDENT
+  value: ''
+  lineno: 0
+  lexpos: 0
+token_count: 261

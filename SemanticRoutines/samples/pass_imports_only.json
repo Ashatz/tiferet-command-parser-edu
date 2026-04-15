@@ -1,4 +1,7 @@
 {
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-15T17:14:09.020947+00:00",
+  "source_file": "samples/pass_imports_only.py",
   "symbol_table": {
     "module_name": "pass_imports_only",
     "scopes": {

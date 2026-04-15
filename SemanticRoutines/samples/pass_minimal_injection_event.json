@@ -1,4 +1,7 @@
 {
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-15T17:14:09.499046+00:00",
+  "source_file": "samples/pass_minimal_injection_event.py",
   "symbol_table": {
     "module_name": "pass_minimal_injection_event",
     "scopes": {

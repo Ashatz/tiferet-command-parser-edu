@@ -1,0 +1,159 @@
+{
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-15T17:14:08.785100+00:00",
+  "source_file": "samples/pass_helper_method_event.py",
+  "symbol_table": {
+    "module_name": "pass_helper_method_event",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": "tiferet.events"
+          },
+          "AddInteger": {
+            "name": "AddInteger",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "AddInteger": "module.AddInteger"
+        }
+      },
+      "module.AddInteger": {
+        "name": "AddInteger",
+        "kind": "class_def",
+        "path": "module.AddInteger",
+        "symbols": {
+          "to_int": {
+            "name": "to_int",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.AddInteger"
+          },
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.AddInteger"
+          }
+        },
+        "children": {
+          "to_int": "module.AddInteger.to_int",
+          "execute": "module.AddInteger.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.AddInteger.to_int": {
+        "name": "to_int",
+        "kind": "method",
+        "path": "module.AddInteger.to_int",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.AddInteger.to_int"
+          },
+          "value": {
+            "name": "value",
+            "kind": "parameter",
+            "type_annotation": "str",
+            "scope_path": "module.AddInteger.to_int"
+          }
+        },
+        "children": {},
+        "parent_path": "module.AddInteger"
+      },
+      "module.AddInteger.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.AddInteger.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.AddInteger.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "str",
+            "scope_path": "module.AddInteger.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "str",
+            "scope_path": "module.AddInteger.execute"
+          },
+          "kwargs": {
+            "name": "kwargs",
+            "kind": "parameter",
+            "type_annotation": "dict",
+            "scope_path": "module.AddInteger.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.AddInteger"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "value",
+        "scope_path": "module.AddInteger.to_int",
+        "resolved_to": "module.AddInteger.to_int"
+      },
+      {
+        "name": "self.to_int",
+        "scope_path": "module.AddInteger.execute",
+        "resolved_to": "module.AddInteger"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.AddInteger.execute",
+        "resolved_to": "module.AddInteger.execute"
+      },
+      {
+        "name": "self.to_int",
+        "scope_path": "module.AddInteger.execute",
+        "resolved_to": "module.AddInteger"
+      },
+      {
+        "name": "b",
+        "scope_path": "module.AddInteger.execute",
+        "resolved_to": "module.AddInteger.execute"
+      }
+    ],
+    "unresolved": [
+      {
+        "name": "int",
+        "scope_path": "module.AddInteger.to_int"
+      },
+      {
+        "name": "x",
+        "scope_path": "module.AddInteger.execute"
+      },
+      {
+        "name": "y",
+        "scope_path": "module.AddInteger.execute"
+      }
+    ]
+  }
+}

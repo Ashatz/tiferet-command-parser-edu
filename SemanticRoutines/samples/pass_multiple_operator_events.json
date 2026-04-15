@@ -1,4 +1,7 @@
 {
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-15T17:14:09.737961+00:00",
+  "source_file": "samples/pass_multiple_operator_events.py",
   "symbol_table": {
     "module_name": "pass_multiple_operator_events",
     "scopes": {

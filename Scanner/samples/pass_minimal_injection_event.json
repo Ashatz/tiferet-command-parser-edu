@@ -1,0 +1,377 @@
+event_type: TokensScanned
+timestamp: '2026-04-15T17:05:18.549372+00:00'
+source_file: samples/pass_minimal_injection_event.py
+tokens:
+- type: DOCSTRING
+  value: '"""Sample event for testing minimal injection and execution of a domain
+    event."""'
+  lineno: 1
+  lexpos: 0
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 1
+  lexpos: 81
+- type: ARTIFACT_IMPORTS_START
+  value: '# *** imports'
+  lineno: 3
+  lexpos: 83
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 3
+  lexpos: 96
+- type: ARTIFACT_IMPORT_GROUP
+  value: '# ** app'
+  lineno: 5
+  lexpos: 98
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 5
+  lexpos: 106
+- type: FROM
+  value: from
+  lineno: 6
+  lexpos: 107
+- type: DOT
+  value: .
+  lineno: 6
+  lexpos: 112
+- type: IDENTIFIER
+  value: settings
+  lineno: 6
+  lexpos: 113
+- type: IMPORT
+  value: import
+  lineno: 6
+  lexpos: 122
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 6
+  lexpos: 129
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 6
+  lexpos: 140
+- type: ARTIFACT_START
+  value: '# *** events'
+  lineno: 8
+  lexpos: 142
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 8
+  lexpos: 154
+- type: ARTIFACT_SECTION
+  value: '# ** event: ping'
+  lineno: 10
+  lexpos: 156
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 10
+  lexpos: 172
+- type: CLASS
+  value: class
+  lineno: 11
+  lexpos: 173
+- type: IDENTIFIER
+  value: Ping
+  lineno: 11
+  lexpos: 179
+- type: LPAREN
+  value: (
+  lineno: 11
+  lexpos: 183
+- type: IDENTIFIER
+  value: DomainEvent
+  lineno: 11
+  lexpos: 184
+- type: RPAREN
+  value: )
+  lineno: 11
+  lexpos: 195
+- type: COLON
+  value: ':'
+  lineno: 11
+  lexpos: 196
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 11
+  lexpos: 197
+- type: INDENT
+  value: ''
+  lineno: 13
+  lexpos: 203
+- type: ARTIFACT_MEMBER
+  value: '# * attribute: pong'
+  lineno: 13
+  lexpos: 203
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 13
+  lexpos: 222
+- type: IDENTIFIER
+  value: pong
+  lineno: 14
+  lexpos: 227
+- type: COLON
+  value: ':'
+  lineno: 14
+  lexpos: 231
+- type: IDENTIFIER
+  value: str
+  lineno: 14
+  lexpos: 233
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 14
+  lexpos: 236
+- type: ARTIFACT_MEMBER
+  value: '# * init'
+  lineno: 16
+  lexpos: 242
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 16
+  lexpos: 250
+- type: DEF
+  value: def
+  lineno: 17
+  lexpos: 255
+- type: INIT
+  value: __init__
+  lineno: 17
+  lexpos: 259
+- type: LPAREN
+  value: (
+  lineno: 17
+  lexpos: 267
+- type: SELF
+  value: self
+  lineno: 17
+  lexpos: 268
+- type: COMMA
+  value: ','
+  lineno: 17
+  lexpos: 272
+- type: IDENTIFIER
+  value: pong
+  lineno: 17
+  lexpos: 274
+- type: COLON
+  value: ':'
+  lineno: 17
+  lexpos: 278
+- type: IDENTIFIER
+  value: str
+  lineno: 17
+  lexpos: 280
+- type: RPAREN
+  value: )
+  lineno: 17
+  lexpos: 283
+- type: COLON
+  value: ':'
+  lineno: 17
+  lexpos: 284
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 17
+  lexpos: 285
+- type: INDENT
+  value: ''
+  lineno: 18
+  lexpos: 294
+- type: DOCSTRING
+  value: '"""Initialize with a pong string."""'
+  lineno: 18
+  lexpos: 294
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 18
+  lexpos: 330
+- type: LINE_COMMENT
+  value: '# Set the pong attribute.'
+  lineno: 20
+  lexpos: 340
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 20
+  lexpos: 365
+- type: SELF
+  value: self
+  lineno: 21
+  lexpos: 374
+- type: DOT
+  value: .
+  lineno: 21
+  lexpos: 378
+- type: IDENTIFIER
+  value: pong
+  lineno: 21
+  lexpos: 379
+- type: EQUALS
+  value: '='
+  lineno: 21
+  lexpos: 384
+- type: IDENTIFIER
+  value: pong
+  lineno: 21
+  lexpos: 386
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 21
+  lexpos: 390
+- type: DEDENT
+  value: ''
+  lineno: 23
+  lexpos: 396
+- type: ARTIFACT_MEMBER
+  value: '# * method: execute'
+  lineno: 23
+  lexpos: 396
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 23
+  lexpos: 415
+- type: DEF
+  value: def
+  lineno: 24
+  lexpos: 420
+- type: IDENTIFIER
+  value: execute
+  lineno: 24
+  lexpos: 424
+- type: LPAREN
+  value: (
+  lineno: 24
+  lexpos: 431
+- type: SELF
+  value: self
+  lineno: 24
+  lexpos: 432
+- type: COMMA
+  value: ','
+  lineno: 24
+  lexpos: 436
+- type: DOUBLESTAR
+  value: '**'
+  lineno: 24
+  lexpos: 438
+- type: IDENTIFIER
+  value: kwargs
+  lineno: 24
+  lexpos: 440
+- type: RPAREN
+  value: )
+  lineno: 24
+  lexpos: 446
+- type: ARROW
+  value: ->
+  lineno: 24
+  lexpos: 448
+- type: IDENTIFIER
+  value: str
+  lineno: 24
+  lexpos: 451
+- type: COLON
+  value: ':'
+  lineno: 24
+  lexpos: 454
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 24
+  lexpos: 455
+- type: INDENT
+  value: ''
+  lineno: 25
+  lexpos: 464
+- type: DOCSTRING
+  value: '"""Return the injected pong string."""'
+  lineno: 25
+  lexpos: 464
+- type: NEWLINE
+  value: '
+
+
+    '
+  lineno: 25
+  lexpos: 502
+- type: LINE_COMMENT
+  value: '# Return the pong string.'
+  lineno: 27
+  lexpos: 512
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 27
+  lexpos: 537
+- type: RETURN
+  value: return
+  lineno: 28
+  lexpos: 546
+- type: SELF
+  value: self
+  lineno: 28
+  lexpos: 553
+- type: DOT
+  value: .
+  lineno: 28
+  lexpos: 557
+- type: IDENTIFIER
+  value: pong
+  lineno: 28
+  lexpos: 558
+- type: NEWLINE
+  value: '
+
+    '
+  lineno: 28
+  lexpos: 562
+- type: DEDENT
+  value: ''
+  lineno: 0
+  lexpos: 0
+- type: DEDENT
+  value: ''
+  lineno: 0
+  lexpos: 0
+token_count: 81
