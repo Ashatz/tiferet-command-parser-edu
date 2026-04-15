@@ -688,12 +688,16 @@ This ensures the parser prefers shifting on structural tokens over reducing gene
 
 ### Semantic Value Structure
 
-Parser actions should build a lightweight tree:
-- `{ "type": "Module", "groups": [...] }`
-- `{ "type": "Group", "header": "...", "sections": [...] }`
-- `{ "type": "Section", "header": "...", "annotations": [...], "members": [...] }`
-- `{ "type": "Member", "kind": "attribute" | "method" | "init", "annotations": [...], "body": {...} }`
-- `{ "type": "Snippet", "comment": "..." | None, "statements": [...] }`
+Parser actions build a **Pydantic-based AST** using mapper aggregates from `src/mappers/ast.py`. AST nodes use linked-list chaining via `.next` fields (not Python lists).
+
+Core mapper aggregates:
+- **`DeclarationAggregate` (`Decl`)** — module, class, function, and attribute declarations. Static factories: `Decl.new_module_decl()`, `Decl.new_class_decl()`, `Decl.new_func_decl()`
+- **`StatementAggregate` (`Stmt`)** — statements: artifact, import, decl, expr, snippet, comment, return. Static factories: `Stmt.new_artifact_stmt()`, `Stmt.new_import_from_stmt()`, `Stmt.new_snippet_stmt()`
+- **`ExpressionAggregate` (`Expr`)** — expressions: name, literal, assignment, binary ops, call, import. Static factories: `Expr.new_name_expr()`, `Expr.new_assign_expr()`, `Expr.new_call_expr()`
+- **`TypeAggregate` (`Type`)** — type annotations with `TypeKind` enum (str, int, float, class, func, artifact, module, etc.)
+- **`ParamListAggregate` (`ParamList`)** — linked-list parameter chain with name, type, default, required
+
+The AST root is a `DeclarationAggregate` (module declaration), serialized via `model_dump(exclude_none=True, exclude_unset=True)`.
 
 ### Acceptance Criteria
 

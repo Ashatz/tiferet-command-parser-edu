@@ -55,11 +55,7 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 - PYTHON_KEYWORD         Python reserved words: `from`, `import`, `if`, `else`, `for`, `True`, `False`, `None`, `is`, `not`, `in`, `and`, `or`, `as`, `with`, etc.
 - IDENTIFIER             Letter/_ followed by letters/digits/_
 - STRING_LITERAL         `'…'`, `"…"`, `'''…'''`, `"""…"""`
-<<<<<<<< HEAD:Scanner/LEXICAL_SPEC.md
-- NUMBER_LITERAL         Integer or float; digit-prefixed identifiers (e.g. `123abc`) are promoted to UNKNOWN
-========
 - NUMBER_LITERAL         Integer or float
->>>>>>>> master:docs/guides/lexical_spec.md
 
 ### Operators
 
@@ -102,17 +98,10 @@ The scanner is **not** a complete Python lexer — it recognizes only the tokens
 
 - NEWLINE                `\n`
 - UNKNOWN                Any unmatched character or sequence (for error reporting)
-- INDENT                 Synthetic token injected before the first deeper line in a method body
+- INDENT                 Synthetic token injected before the first deeper line in a class or method body
 - DEDENT                 Synthetic token injected when indentation returns to a shallower level or the body ends
 
-`INDENT` and `DEDENT` are not emitted by the PLY lexer; they are injected into the token stream by `IndentInjector` after tokenization.
-
-### Synthetic Tokens (injected post-tokenization)
-
-These tokens are **not** produced by the PLY lexer. They are injected into the token stream by `IndentInjector` after the PLY pass completes.
-
-- INDENT                 Emitted at the first non-blank line deeper than a `# * method:` or `# * init` member column
-- DEDENT                 Emitted when indentation returns to or above the member column, or when the next artifact comment is encountered
+`INDENT` and `DEDENT` are not emitted by the PLY lexer directly; they are injected into the token stream by `BlockTracker` during tokenization inside `TiferetLexer.tokenize()`.
 
 
 ## Formal Specification
@@ -142,11 +131,7 @@ DOCSTRING               (""".*?""")
 LINE_COMMENT            #.*$                        (not starting with * after #)
 ```
 
-<<<<<<<< HEAD:Scanner/LEXICAL_SPEC.md
-### Structural Keywords (longest match first)
-========
 ### Structural Keywords
->>>>>>>> master:docs/guides/lexical_spec.md
 ```
 CLASS                   class
 DEF                     def
@@ -164,30 +149,6 @@ NUMBER_LITERAL          [0-9]+(\.[0-9]+)?([a-zA-Z_][a-zA-Z0-9_]*)?
 ```
 
 If a `NUMBER_LITERAL` match contains trailing alphabetic/underscore characters (e.g. `123abc`), the token is promoted to `UNKNOWN`.
-
-### Operators (longest match first)
-```
-DOUBLESTAR              \*\*
-DOUBLESLASH             //
-LSHIFT                  <<
-RSHIFT                  >>
-EQEQ                    ==
-NOTEQ                   !=
-LTEQ                    <=
-GTEQ                    >=
-PLUS                    \+
-MINUS                   -
-STAR                    \*
-SLASH                   /
-PERCENT                 %
-PIPE                    \|
-AMPERSAND               &
-TILDE                   ~
-CARET                   \^
-LT                      <
-GT                      >
-AT                      @
-```
 
 ### Operators (longest match first)
 ```
@@ -234,25 +195,15 @@ NEWLINE                 \n
 UNKNOWN                 .
 ```
 
-### Synthetic Tokens (post-tokenization, not in PLY rules)
+### Synthetic Tokens (injected during tokenization by BlockTracker)
 ```
-INDENT                  (synthetic) injected by IndentInjector at method-body entry
-DEDENT                  (synthetic) injected by IndentInjector at method-body exit
-```
-
-<<<<<<<< HEAD:Scanner/LEXICAL_SPEC.md
-### Indentation (synthetic — injected post-tokenization)
-```
-INDENT                  (no PLY rule; injected by IndentInjector before first deeper body line)
-DEDENT                  (no PLY rule; injected by IndentInjector on shallower line or body exit)
+INDENT                  (synthetic) injected by BlockTracker at class/method body entry
+DEDENT                  (synthetic) injected by BlockTracker at class/method body exit
 ```
 
-**Note:** The lexer uses longest-match-first priority and prefers domain-specific patterns (e.g. PARAMETERS_REQUIRED) over generic IDENTIFIER or PYTHON_KEYWORD.
-========
-**Ignored characters:**
+**Ignored characters:** whitespace (spaces and tabs) outside of string literals.
 
 **Note:** Multi-character operators (`**`, `//`, `<<`, `>>`, `==`, `!=`, `<=`, `>=`) use longest-match-first priority over their single-character counterparts.
->>>>>>>> master:docs/guides/lexical_spec.md
 
 ### Keyword Resolution Rules
 
