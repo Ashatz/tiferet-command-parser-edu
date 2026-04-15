@@ -1,3 +1,11 @@
+vars:
+- &id001
+  - 'a:int:true::'
+  - 'b:int:true::'
+- &id002
+  - 'int:'
+- &id003
+  - 'float:'
 evt_grp:
   name: pass_multiple_operator_events
   desc: This module demonstrates how to define multiple operator events in the Tiferet
@@ -12,11 +20,8 @@ evt_grp:
       name: Add
       desc: An event that performs addition of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'int:'
+        params: *id001
+        returns: *id002
         snpt:
         - stmt:
           - Return(Add(a, b))
@@ -24,11 +29,8 @@ evt_grp:
       name: Subtract
       desc: An event that performs subtraction of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'int:'
+        params: *id001
+        returns: *id002
         snpt:
         - stmt:
           - Return(Sub(a, b))
@@ -36,11 +38,8 @@ evt_grp:
       name: Multiply
       desc: An event that performs multiplication of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'int:'
+        params: *id001
+        returns: *id002
         snpt:
         - stmt:
           - Return(Mul(a, b))
@@ -48,11 +47,8 @@ evt_grp:
       name: Divide
       desc: An event that performs division of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'float:'
+        params: *id001
+        returns: *id003
         snpt:
         - stmt:
           - Return(Div(a, b))
@@ -60,11 +56,8 @@ evt_grp:
       name: Modulus
       desc: An event that performs modulus of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'int:'
+        params: *id001
+        returns: *id002
         snpt:
         - stmt:
           - Return(Mod(a, b))
@@ -72,11 +65,8 @@ evt_grp:
       name: Exponentiate
       desc: An event that performs exponentiation of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'float:'
+        params: *id001
+        returns: *id003
         snpt:
         - stmt:
           - Return(Exp(a, b))

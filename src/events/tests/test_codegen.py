@@ -246,14 +246,15 @@ def test_optimize_code_success(
     :type sample_codegen_output: dict
     '''
 
-    # Arrange the service to return the same dict with an empty registry.
-    mock_optimizer_service.optimize.return_value = (sample_codegen_output, {})
+    # Arrange the service to return the same dict.
+    mock_optimizer_service.optimize.return_value = sample_codegen_output
 
-    # Execute via DomainEvent.handle.
+    # Execute via DomainEvent.handle with optimize flag.
     result = DomainEvent.handle(
         OptimizeCode,
         dependencies={'optimizer_service': mock_optimizer_service},
         codegen=sample_codegen_output,
+        optimize='true',
     )
 
     # Assert the result is the optimized dict and the service was called.

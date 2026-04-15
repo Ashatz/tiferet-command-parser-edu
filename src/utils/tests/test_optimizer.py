@@ -123,11 +123,10 @@ def test_no_events_passthrough(optimizer: YamlAnchorOptimizer, no_events_codegen
     '''
 
     # Optimize the dict.
-    result, registry = optimizer.optimize(no_events_codegen)
+    result = optimizer.optimize(no_events_codegen)
 
-    # Assert unchanged and empty registry.
+    # Assert unchanged.
     assert result is no_events_codegen
-    assert registry == {}
 
 
 # ** test: single_event_no_anchors
@@ -142,11 +141,10 @@ def test_single_event_no_anchors(optimizer: YamlAnchorOptimizer, single_event_co
     '''
 
     # Optimize the dict.
-    result, registry = optimizer.optimize(single_event_codegen)
+    result = optimizer.optimize(single_event_codegen)
 
-    # Assert no anchors created for single occurrences.
+    # Assert no shared references created for single occurrences.
     assert result is single_event_codegen
-    assert registry == {}
 
 
 # ** test: multiple_events_params_anchored
@@ -161,17 +159,16 @@ def test_multiple_events_params_anchored(optimizer: YamlAnchorOptimizer, multipl
     '''
 
     # Optimize the dict.
-    result, registry = optimizer.optimize(multiple_events_codegen)
+    result = optimizer.optimize(multiple_events_codegen)
     evts = result['evt_grp']['evts']
 
     # All three events should share the same params list object.
     assert evts['add']['execute']['params'] is evts['subtract']['execute']['params']
     assert evts['add']['execute']['params'] is evts['divide']['execute']['params']
 
-    # The shared object should be in the registry.
-    shared_params = evts['add']['execute']['params']
-    assert id(shared_params) in registry
-    assert 'params' in registry[id(shared_params)]
+    # The shared object should also appear in vars.
+    assert 'vars' in result
+    assert evts['add']['execute']['params'] in result['vars']
 
 
 # ** test: multiple_events_returns_anchored
@@ -186,7 +183,7 @@ def test_multiple_events_returns_anchored(optimizer: YamlAnchorOptimizer, multip
     '''
 
     # Optimize the dict.
-    result, registry = optimizer.optimize(multiple_events_codegen)
+    result = optimizer.optimize(multiple_events_codegen)
     evts = result['evt_grp']['evts']
 
     # Add and subtract share the same int returns.
@@ -195,54 +192,23 @@ def test_multiple_events_returns_anchored(optimizer: YamlAnchorOptimizer, multip
     # Divide has a different returns (float) so it stays independent.
     assert evts['add']['execute']['returns'] is not evts['divide']['execute']['returns']
 
+    # The shared int returns should appear in vars.
+    assert evts['add']['execute']['returns'] in result['vars']
 
-# ** test: mixed_returns_partial_anchor
-def test_mixed_returns_partial_anchor(optimizer: YamlAnchorOptimizer, multiple_events_codegen: dict) -> None:
+
+# ** test: vars_not_present_without_duplicates
+def test_vars_not_present_without_duplicates(optimizer: YamlAnchorOptimizer, single_event_codegen: dict) -> None:
     '''
-    Test that only repeated return types get anchored; unique ones stay independent.
+    Test that the vars key is not added when there are no repeated structures.
 
     :param optimizer: The optimizer instance.
     :type optimizer: YamlAnchorOptimizer
-    :param multiple_events_codegen: A codegen dict with mixed returns.
-    :type multiple_events_codegen: dict
+    :param single_event_codegen: A codegen dict with one event.
+    :type single_event_codegen: dict
     '''
 
     # Optimize the dict.
-    result, registry = optimizer.optimize(multiple_events_codegen)
-    evts = result['evt_grp']['evts']
+    result = optimizer.optimize(single_event_codegen)
 
-    # The int returns (add, subtract) should be anchored.
-    int_returns = evts['add']['execute']['returns']
-    assert id(int_returns) in registry
-
-    # The float returns (divide only) should NOT be anchored.
-    float_returns = evts['divide']['execute']['returns']
-    assert id(float_returns) not in registry
-
-
-# ** test: anchor_name_generation
-def test_anchor_name_generation(optimizer: YamlAnchorOptimizer) -> None:
-    '''
-    Test that build_anchor_name produces meaningful names from content.
-
-    :param optimizer: The optimizer instance.
-    :type optimizer: YamlAnchorOptimizer
-    '''
-
-    # Test params anchor name.
-    params_name = optimizer.build_anchor_name(
-        ('a:int:true::', 'b:int:true::'), 'params',
-    )
-    assert params_name == 'int_a_b_params'
-
-    # Test returns anchor name.
-    returns_name = optimizer.build_anchor_name(
-        ('int:',), 'returns',
-    )
-    assert returns_name == 'int_returns'
-
-    # Test returns with description.
-    returns_doc_name = optimizer.build_anchor_name(
-        ('str:The result.',), 'returns',
-    )
-    assert returns_doc_name == 'str_returns'
+    # No vars section should be present.
+    assert 'vars' not in result

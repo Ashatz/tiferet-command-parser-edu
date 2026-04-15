@@ -1,0 +1,40 @@
+evt_grp:
+  name: pass_helper_method_event
+  desc: A calculator event with a helper method to convert values to integers.
+  impt:
+    infra:
+    - src: tiferet.events
+      tgts:
+      - DomainEvent
+  evts:
+    add_integer:
+      name: AddInteger
+      desc: An event that adds two numbers and returns an integer result.
+      execute:
+        params:
+        - a:str:true::The first operand.
+        - b:str:true::The second operand.
+        - 'kwargs:dict:false::'
+        returns:
+        - int:The integer sum.
+        snpt:
+        - coms:
+          - Convert inputs to integers.
+          stmt:
+          - Assign(x, Call(self.to_int, a))
+          - Assign(y, Call(self.to_int, b))
+        - coms:
+          - Return the sum.
+          stmt:
+          - Return(Add(x, y))
+      methods:
+        to_int:
+          params:
+          - value:str:true::The value to convert.
+          returns:
+          - int:The integer representation.
+          snpt:
+          - coms:
+            - Return the integer conversion.
+            stmt:
+            - Return(Call(int, value))

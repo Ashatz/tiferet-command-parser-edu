@@ -83,25 +83,29 @@ class OptimizeCode(DomainEvent):
     @DomainEvent.parameters_required(['codegen'])
     def execute(self,
             codegen: Dict[str, Any],
+            optimize: str = None,
             **kwargs,
         ) -> Dict[str, Any]:
         '''
         Optimize the codegen dict by sharing repeated structures.
+        Passes through unchanged when the optimize flag is not set.
 
         :param codegen: The codegen output dict from GenerateCode.
         :type codegen: Dict[str, Any]
+        :param optimize: When set, enables optimization.
+        :type optimize: str
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
-        :return: The optimized codegen dict.
+        :return: The optimized or original codegen dict.
         :rtype: Dict[str, Any]
         '''
 
-        # Run the optimizer and capture the anchor registry.
-        optimized, anchor_registry = self.optimizer_service.optimize(codegen)
+        # Pass through unchanged when optimization is not requested.
+        if not optimize:
+            return codegen
 
-        # Embed the anchor registry in the codegen dict for downstream events.
-        if anchor_registry:
-            optimized['__anchor_registry__'] = anchor_registry
+        # Run the optimizer to share repeated structures.
+        optimized = self.optimizer_service.optimize(codegen)
 
         # Return the optimized dict.
         return optimized
@@ -121,7 +125,6 @@ class EmitCodegenResult(DomainEvent):
             source_file: str = None,
             output_format: str = 'auto',
             output: str = None,
-            anchor_registry: Dict[int, str] = None,
             **kwargs,
         ) -> Any:
         '''
@@ -135,23 +138,15 @@ class EmitCodegenResult(DomainEvent):
         :type output_format: str
         :param output: File path to write the output to.
         :type output: str
-        :param anchor_registry: Optional anchor registry from OptimizeCode.
-        :type anchor_registry: Dict[int, str]
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
         :return: The codegen dict, or empty string if written to file.
         :rtype: Any
         '''
 
-        # Extract and remove the embedded anchor registry if present.
-        anchor_registry = codegen.pop('__anchor_registry__', None)
-
         # Write to file if output path is specified.
         if output:
-            ScanOutputWriter.write(
-                codegen, output, output_format,
-                anchor_registry=anchor_registry,
-            )
+            ScanOutputWriter.write(codegen, output, output_format)
             return ''
 
         # Otherwise return the codegen dict directly.

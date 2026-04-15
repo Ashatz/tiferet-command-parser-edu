@@ -193,7 +193,7 @@ def test_parse_extract_names_multiple() -> None:
 # ** test: anchored_yaml_output
 def test_anchored_yaml_output(tmp_path) -> None:
     '''
-    Test that writing YAML with an anchor registry produces & and * markers.
+    Test that writing YAML with shared list references produces & and * markers.
 
     :param tmp_path: Pytest temporary directory fixture.
     :type tmp_path: pathlib.Path
@@ -211,20 +211,17 @@ def test_anchored_yaml_output(tmp_path) -> None:
         }
     }
 
-    # Build an anchor registry for the shared list.
-    anchor_registry = {id(shared_params): 'int_a_b_params'}
-
-    # Write YAML with the anchor registry.
+    # Write YAML.
     output_path = str(tmp_path / 'anchored.yaml')
-    ScanOutputWriter.write(payload, output_path, 'yaml', anchor_registry=anchor_registry)
+    ScanOutputWriter.write(payload, output_path, 'yaml')
 
     # Read the raw YAML text.
     with open(output_path) as f:
         content = f.read()
 
     # Assert anchor and alias markers are present.
-    assert '&int_a_b_params' in content
-    assert '*int_a_b_params' in content
+    assert '&' in content
+    assert '*' in content
 
     # Assert the YAML is still valid and round-trips correctly.
     loaded = yaml.safe_load(content)

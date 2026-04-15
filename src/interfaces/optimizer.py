@@ -4,7 +4,7 @@
 
 # ** core
 from abc import abstractmethod
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 # ** infra
 from tiferet.interfaces.settings import Service
@@ -19,15 +19,15 @@ class OptimizerService(Service):
 
     # * method: optimize
     @abstractmethod
-    def optimize(self, codegen: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[int, str]]:
+    def optimize(self, codegen: Dict[str, Any]) -> Dict[str, Any]:
         '''
         Optimize a codegen output dict by sharing repeated structures
-        and building an anchor registry for YAML serialization.
+        so that PyYAML emits anchors and aliases automatically.
 
         :param codegen: The codegen output dict from TiferetGenerator.
         :type codegen: Dict[str, Any]
-        :return: A tuple of (optimized dict, anchor registry keyed by id()).
-        :rtype: Tuple[Dict[str, Any], Dict[int, str]]
+        :return: The optimized dict with shared object references.
+        :rtype: Dict[str, Any]
         '''
 
         raise NotImplementedError()
