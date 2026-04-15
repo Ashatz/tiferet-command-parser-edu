@@ -3,8 +3,12 @@
 # *** imports
 
 # ** core
+import os
 from datetime import datetime, timezone
 from typing import List, Dict, Any
+
+# ** infra
+from tiferet import File
 
 # ** app
 from ..interfaces import ParserService
@@ -59,8 +63,14 @@ class PerformSyntacticAnalysis(DomainEvent):
         # Find the module name from the source file path for context (optional).
         module_name = source_file.rsplit('/', 1)[-1].rsplit('.', 1)[0] if source_file else 'unknown_module'
 
+        # Read the source text for column position calculation.
+        source_text = ''
+        if source_file and os.path.exists(source_file):
+            with File(source_file) as f:
+                source_text = f.file.read()
+
         # Execute syntactic parsing via the injected parser service.
-        ast: Decl = self.parser_service.parse(module_name, tokens)
+        ast: Decl = self.parser_service.parse(module_name, tokens, source_text=source_text)
         ast.set_name(module_name)
 
         # Return the AST for downstream events.

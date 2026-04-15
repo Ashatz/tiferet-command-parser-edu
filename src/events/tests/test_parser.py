@@ -108,8 +108,8 @@ def test_perform_syntactic_analysis_success(
     assert isinstance(result, Decl)
     assert result.name == 'test'
 
-    # Verify the parser service was called with module name and tokens.
-    mock_parser_service.parse.assert_called_once_with('test', sample_tokens)
+    # Verify the parser service was called with module name, tokens, and source_text.
+    mock_parser_service.parse.assert_called_once_with('test', sample_tokens, source_text='')
 
 
 # ** test: perform_syntactic_analysis_missing_tokens

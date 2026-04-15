@@ -1,0 +1,149 @@
+{
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-15T23:53:41.832694+00:00",
+  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/samples/fail_type_mismatch.py",
+  "symbol_table": {
+    "module_name": "fail_type_mismatch",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": ".settings"
+          },
+          "BadMath": {
+            "name": "BadMath",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "BadMath": "module.BadMath"
+        }
+      },
+      "module.BadMath": {
+        "name": "BadMath",
+        "kind": "class_def",
+        "path": "module.BadMath",
+        "symbols": {
+          "count": {
+            "name": "count",
+            "kind": "attribute",
+            "type_annotation": "int",
+            "scope_path": "module.BadMath"
+          },
+          "__init__": {
+            "name": "__init__",
+            "kind": "method",
+            "type_annotation": "None",
+            "scope_path": "module.BadMath"
+          },
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.BadMath"
+          }
+        },
+        "children": {
+          "__init__": "module.BadMath.__init__",
+          "execute": "module.BadMath.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.BadMath.__init__": {
+        "name": "__init__",
+        "kind": "method",
+        "path": "module.BadMath.__init__",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.BadMath.__init__"
+          },
+          "count": {
+            "name": "count",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.BadMath.__init__"
+          }
+        },
+        "children": {},
+        "parent_path": "module.BadMath"
+      },
+      "module.BadMath.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.BadMath.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.BadMath.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.BadMath.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.BadMath.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.BadMath"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.BadMath.execute",
+        "resolved_to": "module.BadMath.execute"
+      }
+    ],
+    "unresolved": []
+  },
+  "type_errors": [
+    {
+      "error_code": "TYPE_MISMATCH_ASSIGNMENT",
+      "message": "Cannot assign str to variable declared as int",
+      "scope_path": "module.BadMath.__init__",
+      "expected_type": "int",
+      "actual_type": "str",
+      "target_name": "self.count",
+      "lineno": 22,
+      "col": 19
+    },
+    {
+      "error_code": "TYPE_MISMATCH_OPERATION",
+      "message": "Unsupported operand types for add: int and str",
+      "scope_path": "module.BadMath.execute",
+      "operation": "add",
+      "left_type": "int",
+      "right_type": "str",
+      "lineno": 29,
+      "col": 17
+    }
+  ],
+  "type_error_count": 2
+}

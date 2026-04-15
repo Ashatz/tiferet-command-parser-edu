@@ -4,6 +4,7 @@
 
 # ** infra
 import pytest
+from tiferet.events import TiferetError
 
 # ** app
 from ...domain.semantic import SymbolKind
@@ -16,6 +17,7 @@ from ...mappers.ast import (
 )
 from ...mappers.semantic import ScopeAggregate
 from ..semantic import SymbolTableBuilder, NameResolver
+from ..typecheck import TypeChecker
 
 # *** fixtures
 
@@ -524,3 +526,343 @@ def test_comments_skipped(minimal_event_ast: Decl):
     # No comment text should appear in resolved or unresolved.
     all_names = [r.name for r in result.resolved] + [u.name for u in result.unresolved]
     assert '# Return pong.' not in all_names
+
+
+# ** test: type_check_valid_int_addition
+def test_type_check_valid_int_addition(multi_operator_ast: Decl):
+    '''Type check valid int + int operations. Should return no errors.'''
+
+    builder = SymbolTableBuilder()
+    builder.build(multi_operator_ast)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(multi_operator_ast)
+    assert len(errors) == 0
+
+
+# ** test: type_check_incompatible_binary_op
+def test_type_check_incompatible_binary_op():
+    '''Type check int + str should raise TYPE_MISMATCH_OPERATION.'''
+
+    # Build a minimal module with a method that returns int_val + str_val.
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    # Method: execute(self, **kwargs) -> int with return 1 + 'hello'
+    kwargs_param = ParamList.new_kwargs_param()
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    self_param.set_next(kwargs_param)
+
+    bad_add = Expr(kind='add', left=Expr(kind='int_val', value='1'), right=Expr(kind='str_val', value='hello'))
+    return_stmt = Stmt.new_return_stmt(return_expr=bad_add)
+    snippet = Stmt.new_snippet_stmt(code=return_stmt)
+
+    execute_decl = Decl.new_func_decl(
+        name='execute',
+        type=Type.new_func_type(params=self_param, return_type=Type.new(kind='int')),
+        body=snippet,
+    )
+    method_member = Decl.new_member_decl(
+        name='method',
+        member_body=Stmt.new_decl_stmt(execute_decl),
+    )
+    bad_class = Decl.new_class_decl(
+        name='BadAdd',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None, members=Stmt.new_decl_stmt(method_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('event: bad_add', '**'),
+        section_body=Stmt.new_decl_stmt(bad_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='fail_type_check', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+    assert len(errors) == 1
+    assert errors[0]['error_code'] == 'TYPE_MISMATCH_OPERATION'
+
+
+# ** test: type_check_assignment_mismatch
+def test_type_check_assignment_mismatch():
+    '''Type check assigning str to a variable declared as int should raise TYPE_MISMATCH_ASSIGNMENT.'''
+
+    # Build a minimal module with __init__ that assigns a str literal to a typed int param.
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    # Attribute: count: int
+    count_attr = Decl.new_attr_decl(name='count', types=Type.new(kind='int'))
+    attr_member = Decl.new_member_decl(
+        name='attribute',
+        member_body=Stmt.new_decl_stmt(count_attr),
+    )
+
+    # __init__(self, count: int) with self.count = 'bad_string'
+    count_param = ParamList.new(name='count', type=Type.new(kind='int'), required=True)
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    self_param.set_next(count_param)
+
+    assign_stmt = Stmt(
+        kind='expr',
+        expr=Expr(kind='assign', left=Expr.new_name_expr('self.count'), right=Expr(kind='str_val', value='bad')),
+    )
+    init_snippet = Stmt.new_snippet_stmt(code=assign_stmt)
+
+    init_decl = Decl.new_func_decl(
+        name='__init__',
+        type=Type.new_func_type(params=self_param, return_type=Type.new_null_type()),
+        body=init_snippet,
+    )
+    init_member = Decl.new_member_decl(
+        name='init',
+        member_body=Stmt.new_decl_stmt(init_decl),
+    )
+
+    attr_member.next = init_member
+
+    bad_class = Decl.new_class_decl(
+        name='BadAssign',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None, members=Stmt.new_decl_stmt(attr_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('event: bad_assign', '**'),
+        section_body=Stmt.new_decl_stmt(bad_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='fail_type_assign', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+    assert len(errors) == 1
+    assert errors[0]['error_code'] == 'TYPE_MISMATCH_ASSIGNMENT'
+
+
+# ** test: type_check_str_concat_valid
+def test_type_check_str_concat_valid():
+    '''Type check str + str concatenation should pass without error.'''
+
+    # Build a module with a method that returns str_val + str_val.
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    kwargs_param = ParamList.new_kwargs_param()
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    self_param.set_next(kwargs_param)
+
+    str_concat = Expr(kind='add', left=Expr(kind='str_val', value='hello'), right=Expr(kind='str_val', value=' world'))
+    return_stmt = Stmt.new_return_stmt(return_expr=str_concat)
+    snippet = Stmt.new_snippet_stmt(code=return_stmt)
+
+    execute_decl = Decl.new_func_decl(
+        name='execute',
+        type=Type.new_func_type(params=self_param, return_type=Type.new(kind='str')),
+        body=snippet,
+    )
+    method_member = Decl.new_member_decl(
+        name='method',
+        member_body=Stmt.new_decl_stmt(execute_decl),
+    )
+    ok_class = Decl.new_class_decl(
+        name='Concat',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None, members=Stmt.new_decl_stmt(method_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('event: concat', '**'),
+        section_body=Stmt.new_decl_stmt(ok_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='pass_str_concat', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+    assert len(errors) == 0
+
+
+# ** test: type_check_int_to_float_widening
+def test_type_check_int_to_float_widening():
+    '''Assigning int to a float-typed attribute should be allowed (widening).'''
+
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    # Attribute: rate: float
+    rate_attr = Decl.new_attr_decl(name='rate', types=Type.new(kind='float'))
+    attr_member = Decl.new_member_decl(
+        name='attribute',
+        member_body=Stmt.new_decl_stmt(rate_attr),
+    )
+
+    # __init__(self, rate: float) with self.rate = 5 (int literal)
+    rate_param = ParamList.new(name='rate', type=Type.new(kind='float'), required=True)
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    self_param.set_next(rate_param)
+
+    assign_stmt = Stmt(
+        kind='expr',
+        expr=Expr(kind='assign', left=Expr.new_name_expr('self.rate'), right=Expr(kind='int_val', value='5')),
+    )
+    init_snippet = Stmt.new_snippet_stmt(code=assign_stmt)
+
+    init_decl = Decl.new_func_decl(
+        name='__init__',
+        type=Type.new_func_type(params=self_param, return_type=Type.new_null_type()),
+        body=init_snippet,
+    )
+    init_member = Decl.new_member_decl(
+        name='init',
+        member_body=Stmt.new_decl_stmt(init_decl),
+    )
+
+    attr_member.next = init_member
+
+    ok_class = Decl.new_class_decl(
+        name='Widen',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None, members=Stmt.new_decl_stmt(attr_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('event: widen', '**'),
+        section_body=Stmt.new_decl_stmt(ok_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='pass_int_to_float', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+    assert len(errors) == 0
+
+
+# ** test: type_check_str_subtraction_invalid
+def test_type_check_str_subtraction_invalid():
+    '''Type check str - str should raise TYPE_MISMATCH_OPERATION (subtraction not valid for strings).'''
+
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    kwargs_param = ParamList.new_kwargs_param()
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    self_param.set_next(kwargs_param)
+
+    bad_sub = Expr(kind='sub', left=Expr(kind='str_val', value='hello'), right=Expr(kind='str_val', value='world'))
+    return_stmt = Stmt.new_return_stmt(return_expr=bad_sub)
+    snippet = Stmt.new_snippet_stmt(code=return_stmt)
+
+    execute_decl = Decl.new_func_decl(
+        name='execute',
+        type=Type.new_func_type(params=self_param, return_type=Type.new(kind='str')),
+        body=snippet,
+    )
+    method_member = Decl.new_member_decl(
+        name='method',
+        member_body=Stmt.new_decl_stmt(execute_decl),
+    )
+    bad_class = Decl.new_class_decl(
+        name='BadSub',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None, members=Stmt.new_decl_stmt(method_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('event: bad_sub', '**'),
+        section_body=Stmt.new_decl_stmt(bad_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='fail_str_sub', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+    assert len(errors) == 1
+    assert errors[0]['error_code'] == 'TYPE_MISMATCH_OPERATION'

@@ -180,6 +180,18 @@ class Expression(BaseModel):
         description='The right operand of the expression, if applicable (e.g., for binary operations like "add", "sub").'
     )
 
+    # * attribute: lineno
+    lineno: Optional[int] = Field(
+        None,
+        description='The source line number where this expression begins.'
+    )
+
+    # * attribute: col
+    col: Optional[int] = Field(
+        None,
+        description='The 0-based column offset where this expression begins.'
+    )
+
 # ** object: declaration
 class Declaration(BaseModel):
     """A declaration in the Tiferet AST, representing a constant, class, attribute, method, or function"""
@@ -234,6 +246,18 @@ class Statement(BaseModel):
     kind: StatementKind = Field(
         ...,
         description='The kind of the statement (e.g., "decl", "expr", "if_else").'
+    )
+
+    # * attribute: lineno
+    lineno: Optional[int] = Field(
+        None,
+        description='The source line number where this statement begins.'
+    )
+
+    # * attribute: col
+    col: Optional[int] = Field(
+        None,
+        description='The 0-based column offset where this statement begins.'
     )
 
     # * attribute: decl

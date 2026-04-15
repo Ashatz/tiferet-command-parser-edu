@@ -72,6 +72,9 @@ class ParserBase(ParserService):
     # * attribute: parser
     parser: Any
 
+    # * attribute: source_text
+    source_text: str
+
     # -- PLY token list (sourced from assets)
     tokens = a.parser.TOKENS
 
@@ -85,9 +88,43 @@ class ParserBase(ParserService):
         '''
         
         self.parser_service = yacc.yacc(module=self, start='module', debug=False, write_tables=False)
+        self.source_text = ''
+
+    # * method: find_column
+    def find_column(self, lexpos: int) -> int:
+        '''
+        Compute the 0-based column of a token from its lexpos
+        using the stored source text.
+
+        :param lexpos: The absolute character position in the source text.
+        :type lexpos: int
+        :return: The 0-based column offset.
+        :rtype: int
+        '''
+
+        if lexpos == 0:
+            return 0
+        last_newline = self.source_text.rfind('\n', 0, lexpos)
+        if last_newline < 0:
+            return lexpos
+        return lexpos - last_newline - 1
+
+    # * method: pos
+    def pos(self, p, n: int) -> tuple:
+        '''
+        Extract (lineno, col) for the nth symbol in a grammar production.
+
+        :param p: The PLY production object.
+        :param n: The 1-based index of the symbol.
+        :type n: int
+        :return: Tuple of (lineno, col).
+        :rtype: tuple
+        '''
+
+        return (p.lineno(n), self.find_column(p.lexpos(n)))
 
     # * method: parse
-    def parse(self, module_name: str, tokens: List[TokenAggregate]) -> Dict[str, Any]:
+    def parse(self, module_name: str, tokens: List[TokenAggregate], source_text: str = '') -> Dict[str, Any]:
         '''
         Parse a list of token dictionaries (post-IndentInjector) into AST.
 
@@ -95,10 +132,15 @@ class ParserBase(ParserService):
         :type module_name: str
         :param tokens: Token stream with 'type' and 'value' keys.
         :type tokens: List[TokenAggregate]
+        :param source_text: The original source text for column calculation.
+        :type source_text: str
         :return: Structured AST dict reflecting the three-tier artifact hierarchy.
         :rtype: Dict[str, Any]
         '''
         
+        # Store the source text for column calculation.
+        self.source_text = source_text or ''
+
         # Convert the list of TokenAggregate objects into a PLY-compatible token stream.
         token_stream = TokenStream(tokens)
 
@@ -388,14 +430,16 @@ class TiferetParser(ParserBase):
         '''import_stmt : IMPORT import_expr NEWLINE'''
 
         # Build ImportStmt node.
-        p[0] = Stmt.new_import_stmt(p[2])
+        ln, col = self.pos(p, 1)
+        p[0] = Stmt.new_import_stmt(p[2], lineno=ln, col=col)
 
     # * method: p_import_stmt_from (rule)
     def p_import_stmt_from(self, p):
         '''import_stmt : FROM from_expr IMPORT import_expr NEWLINE'''
 
         # Build ImportFromStmt node.
-        p[0] = Stmt.new_import_stmt_from(p[2], p[4])
+        ln, col = self.pos(p, 1)
+        p[0] = Stmt.new_import_stmt_from(p[2], p[4], lineno=ln, col=col)
 
     # * method: p_import_expr (rule)
     def p_import_expr(self, p):
@@ -878,8 +922,9 @@ class TiferetParser(ParserBase):
         '''comment_stmt : LINE_COMMENT NEWLINE'''
 
         # Build Comment AST node.
-        expr = Expr.new_comment_expr(p[1])
-        p[0] = Stmt.new_comment_stmt(expr)
+        ln, col = self.pos(p, 1)
+        expr = Expr.new_comment_expr(p[1], lineno=ln, col=col)
+        p[0] = Stmt.new_comment_stmt(expr, lineno=ln, col=col)
 
     # -- Statements --
 
@@ -910,28 +955,32 @@ class TiferetParser(ParserBase):
         '''stmt : RETURN return_expr NEWLINE'''
 
         # Build ReturnStmt.
-        p[0] = Stmt.new_return_stmt(return_expr=p[2])
+        ln, col = self.pos(p, 1)
+        p[0] = Stmt.new_return_stmt(return_expr=p[2], lineno=ln, col=col)
 
     # * method: p_stmt_assign (rule)
     def p_stmt_assign(self, p):
         '''stmt : assign_expr NEWLINE'''
 
         # Build AssignStmt.
-        p[0] = Stmt.new_expr_stmt(p[1])
+        ln, col = self.pos(p, 1)
+        p[0] = Stmt.new_expr_stmt(p[1], lineno=ln, col=col)
 
     # * method: p_stmt_operator (rule)
     def p_stmt_operator(self, p):
         '''stmt : operation_expr NEWLINE'''
 
         # Build an expression statement for the operator expression.
-        p[0] = Stmt.new_expr_stmt(p[1])
+        ln, col = self.pos(p, 1)
+        p[0] = Stmt.new_expr_stmt(p[1], lineno=ln, col=col)
 
     # * method: p_stmt_call (rule)
     def p_stmt_call(self, p):
         '''stmt : call_expr NEWLINE'''
 
         # Build a call expression statement.
-        p[0] = Stmt.new_expr_stmt(p[1])
+        ln, col = self.pos(p, 1)
+        p[0] = Stmt.new_expr_stmt(p[1], lineno=ln, col=col)
 
     # -- Expressions --
 
@@ -940,7 +989,8 @@ class TiferetParser(ParserBase):
         '''assign_expr : ident_expr EQUALS assign_rhs'''
 
         # Build an assignment expression.
-        p[0] = Expr.new_assign_expr(target=p[1], value=p[3])
+        ln, col = self.pos(p, 2)
+        p[0] = Expr.new_assign_expr(target=p[1], value=p[3], lineno=ln, col=col)
 
     # * method: p_assign_rhs (rule)
     def p_assign_rhs(self, p):
@@ -971,15 +1021,17 @@ class TiferetParser(ParserBase):
     def p_operation_expr(self, p):
         '''operation_expr : name_or_literal_expr operator name_or_literal_expr'''
 
-        # Build a binary operator expression.
-        p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3])
+        # Build a binary operator expression using position captured at terminal level.
+        ln, col = getattr(self, '_last_op_pos', (0, 0))
+        p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
 
     # * method: p_call_expr (rule)
     def p_call_expr(self, p):
         '''call_expr : ident_expr LPAREN call_args RPAREN'''
 
         # Build a call expression.
-        p[0] = Expr.new_call_expr(p[1], p[3])
+        ln, col = self.pos(p, 1)
+        p[0] = Expr.new_call_expr(p[1], p[3], lineno=ln, col=col)
 
     # * method: p_call_args_empty (rule)
     def p_call_args_empty(self, p):
@@ -1019,7 +1071,8 @@ class TiferetParser(ParserBase):
                  | FALSE'''
 
         # Build a literal expression from a string, number, or boolean token.
-        p[0] = Expr.new_name_or_literal_expr(p[1])
+        ln, col = self.pos(p, 1)
+        p[0] = Expr.new_name_or_literal_expr(p[1], lineno=ln, col=col)
 
     # * method: p_name_or_literal_expr (rule)
     def p_name_or_literal_expr(self, p):
@@ -1034,8 +1087,9 @@ class TiferetParser(ParserBase):
         '''ident_expr : ident
                  | ident_dot'''
 
-        # Build an identifier expression from either a simple identifier or a dotted identifier.
-        p[0] = Expr.new_name_expr(p[1])
+        # Build an identifier expression using position captured at terminal level.
+        ln, col = getattr(self, '_last_ident_pos', (0, 0))
+        p[0] = Expr.new_name_expr(p[1], lineno=ln, col=col)
 
     # -- Code Elements & Structures --
 
@@ -1044,8 +1098,9 @@ class TiferetParser(ParserBase):
         '''ident : IDENTIFIER
                 | SELF'''
 
-        # Pass through an identifier token.
+        # Pass through an identifier token and capture position at terminal level.
         p[0] = p[1]
+        self._last_ident_pos = self.pos(p, 1)
 
     # * method: p_ident_dot (rule)
     def p_ident_dot(self, p):
@@ -1072,5 +1127,6 @@ class TiferetParser(ParserBase):
                     | AMPERSAND
                     | EQEQ'''
 
-        # Pass through an operator token.
+        # Pass through an operator token and capture position at terminal level.
         p[0] = p[1]
+        self._last_op_pos = self.pos(p, 1)

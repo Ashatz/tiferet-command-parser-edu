@@ -1,19 +1,20 @@
-# Utilities – SymbolTableBuilder and NameResolver
+# Utilities – SymbolTableBuilder, NameResolver, and TypeChecker
 
 **Project:** Tiferet Command Parser — Educational Compiler Front-End
 **Version:** 0.3.2
 
 ## Overview
 
-`SymbolTableBuilder` and `NameResolver` are the two semantic analysis utilities. Together they implement a classic two-pass approach:
+`SymbolTableBuilder`, `NameResolver`, and `TypeChecker` are the three semantic analysis utilities. Together they implement a three-pass approach:
 
 1. **SymbolTableBuilder** — single-pass AST walker that constructs scopes and populates symbol entries (imports, classes, methods, attributes, parameters).
 2. **NameResolver** — second-pass AST walker that resolves name references in expressions against the built scope registry.
+3. **TypeChecker** — third-pass AST walker that performs rudimentary type checking on assignments and binary operations, raising structured errors on mismatches.
 
-Both utilities operate on the Pydantic AST produced by `TiferetParser` and use `ScopeAggregate` (from `src/mappers/semantic.py`) for scope management.
+All three utilities operate on the Pydantic AST produced by `TiferetParser` and use `ScopeAggregate` (from `src/mappers/semantic.py`) for scope management.
 
 **Files:**
-- `src/utils/semantic.py` — `SymbolTableBuilder` and `NameResolver`
+- `src/utils/semantic.py` — `SymbolTableBuilder`, `NameResolver`, and `TypeChecker`
 - `src/domain/semantic.py` — `SymbolKind`, `Symbol`, `Scope`, `ResolvedName`, `UnresolvedName`, `ResolutionResult`
 - `src/mappers/semantic.py` — `ScopeAggregate` with scope factories and mutation methods
 
@@ -95,19 +96,81 @@ ResolutionResult(
 ```
 
 
+## TypeChecker
+
+### Purpose
+
+Walks the AST a third time, using the symbol table to perform rudimentary type checking. Verifies that typed variable assignments and binary arithmetic operations use compatible types. Raises `TiferetError` via `RaiseError.execute()` on the first mismatch encountered.
+
+### Key Behaviors
+
+- **Assignment checking** — if a variable (including `self.X`) has a declared `type_annotation` in the symbol table and the right-hand side infers to an incompatible type, raises `TYPE_MISMATCH_ASSIGNMENT`
+- **Binary operation checking** — if operands of an arithmetic expression (`add`, `sub`, `mul`, `div`, `mod`, `exp`) have incompatible types, raises `TYPE_MISMATCH_OPERATION`
+- **Type inference** — infers types from:
+  - Literal expression kinds: `int_val` → `int`, `num_val` → `float`, `str_val` → `str`, `bool_val` → `bool`
+  - Name references via symbol table lookup (walks scope chain)
+  - `self.X` references via enclosing class scope lookup
+  - Binary operation result types (recursive inference)
+- **Compatibility rules:**
+  - Numeric + numeric (`int`, `float`) is valid for all arithmetic operations
+  - `str + str` is valid (concatenation)
+  - `str * int` or `int * str` is valid (repetition)
+  - `int` → `float` widening is allowed on assignment
+  - All other combinations raise an error
+- **Scope tracking** — maintains a scope stack identical to `NameResolver`, entering/exiting class and method scopes as it walks the AST
+
+### Entry Point
+
+```python
+checker = TypeChecker(scopes)  # scopes = Dict[str, ScopeAggregate]
+checker.check(module_decl)     # raises TiferetError on first mismatch
+```
+
+### Error Codes
+
+Defined in `config.yml` under `errors:`:
+
+- **`TYPE_MISMATCH_ASSIGNMENT`** — `Cannot assign {actual_type} to variable declared as {expected_type}`
+- **`TYPE_MISMATCH_OPERATION`** — `Unsupported operand types for {operation}: {left_type} and {right_type}`
+
+### Example Failure
+
+Given the sample `samples/fail_type_mismatch.py`:
+
+```python
+class BadMath(DomainEvent):
+    count: int
+
+    def __init__(self, count: int):
+        self.count = 'not_a_number'   # TYPE_MISMATCH_ASSIGNMENT: str → int
+
+    def execute(self, a: int, b: int) -> int:
+        return a + 'hello'            # TYPE_MISMATCH_OPERATION: int + str
+```
+
+Running:
+```bash
+python compiler.py semantic event samples/fail_type_mismatch.py
+```
+Produces:
+```
+{"error_code": "TYPE_MISMATCH_ASSIGNMENT", "message": "Cannot assign str to variable declared as int", "expected_type": "int", "actual_type": "str"}
+```
+
+
 ## Pipeline Integration
 
 The semantic utilities are wired into the `semantic.event` pipeline in `config.yml`:
 
 1. **PerformLexicalAnalysis** — tokenizes source file
 2. **PerformSyntacticAnalysis** — parses tokens into AST
-3. **PerformSemanticAnalysis** — builds symbol table via `SymbolTableBuilder`, resolves names via `NameResolver`
+3. **PerformSemanticAnalysis** — builds symbol table via `SymbolTableBuilder`, resolves names via `NameResolver`, then type-checks via `TypeChecker`
 4. **EmitSemanticResult** — assembles output payload
 
 
 ## Testing
 
-Semantic utility tests: `src/utils/tests/test_semantic.py` (9 tests)
+Semantic utility tests: `src/utils/tests/test_semantic.py` (15 tests)
 Semantic mapper tests: `src/mappers/tests/test_semantic.py` (9 tests)
 Semantic domain tests: `src/domain/tests/test_semantic.py` (9 tests)
 

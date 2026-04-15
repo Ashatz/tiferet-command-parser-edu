@@ -298,7 +298,7 @@ class ExpressionAggregate(Expression):
 
     # * method: new_name_expr
     @staticmethod
-    def new_name_expr(name: Optional[str], left: Optional['ExpressionAggregate'] = None, right: Optional['ExpressionAggregate'] = None) -> 'ExpressionAggregate':
+    def new_name_expr(name: Optional[str], left: Optional['ExpressionAggregate'] = None, right: Optional['ExpressionAggregate'] = None, lineno: Optional[int] = None, col: Optional[int] = None) -> 'ExpressionAggregate':
         """
         Create a new ExpressionAggregate representing a named expression (e.g., variable reference).
         :param name: The name of the expression (e.g., variable name).
@@ -311,12 +311,14 @@ class ExpressionAggregate(Expression):
             kind=ExprKind.NAME,
             name=name,
             left=left,
-            right=right
+            right=right,
+            lineno=lineno,
+            col=col,
         )
 
     # * method: new_literal_expr
     @staticmethod
-    def new_name_or_literal_expr(value: str) -> 'ExpressionAggregate':
+    def new_name_or_literal_expr(value: str, lineno: Optional[int] = None, col: Optional[int] = None) -> 'ExpressionAggregate':
         """
         Create a new ExpressionAggregate representing a literal expression (e.g., string or numeric literal).
         :param value: The value of the literal expression.
@@ -330,25 +332,31 @@ class ExpressionAggregate(Expression):
             if value in ('True', 'False'):
                 return ExpressionAggregate(
                     kind=ExprKind.BOOL_VAL,
-                    value=value
+                    value=value,
+                    lineno=lineno,
+                    col=col,
                 )
             
             # For string literals, create a STR_VAL expression with the value of the literal as the value of the expression.
             return ExpressionAggregate(
                 kind=ExprKind.STR_VAL,
-                value=value
+                value=value,
+                lineno=lineno,
+                col=col,
             )
         
         # For numeric literals, create a NUM_VAL expression with the string representation of the value as the value of the expression.
         elif isinstance(value, (int, float)):
             return ExpressionAggregate(
                 kind=ExprKind.NUM_VAL,
-                value=str(value)
+                value=str(value),
+                lineno=lineno,
+                col=col,
             )
         
         # For any other type of value, return a NAME expression with the string representation of the value as the name.
         else:
-            return ExpressionAggregate.new_name_expr(name=str(value))
+            return ExpressionAggregate.new_name_expr(name=str(value), lineno=lineno, col=col)
         
     # * method: new_args_list_expr
     @staticmethod
@@ -415,7 +423,7 @@ class ExpressionAggregate(Expression):
     
     # * method: new__call_expr
     @staticmethod
-    def new_call_expr(caller: 'ExpressionAggregate', arguments: Optional['ExpressionAggregate'] = None) -> 'ExpressionAggregate':
+    def new_call_expr(caller: 'ExpressionAggregate', arguments: Optional['ExpressionAggregate'] = None, lineno: Optional[int] = None, col: Optional[int] = None) -> 'ExpressionAggregate':
         """
         Create a new ExpressionAggregate representing a call expression.
         :param caller: The expression representing the caller.
@@ -429,12 +437,14 @@ class ExpressionAggregate(Expression):
         return ExpressionAggregate(
             kind=ExprKind.CALL,
             left=caller,
-            right=arguments
+            right=arguments,
+            lineno=lineno,
+            col=col,
         )
 
     # * method: new_assign_expr
     @staticmethod
-    def new_assign_expr(target: 'ExpressionAggregate', value: 'ExpressionAggregate') -> 'ExpressionAggregate':
+    def new_assign_expr(target: 'ExpressionAggregate', value: 'ExpressionAggregate', lineno: Optional[int] = None, col: Optional[int] = None) -> 'ExpressionAggregate':
         """
         Create a new ExpressionAggregate representing an assignment expression.
         :param target: The name of the variable being assigned to.
@@ -448,12 +458,14 @@ class ExpressionAggregate(Expression):
         return ExpressionAggregate(
             kind=ExprKind.ASSIGN,
             left=target,
-            right=value
+            right=value,
+            lineno=lineno,
+            col=col,
         )
     
     # * method: new_operator_expr
     @staticmethod
-    def new_operator_expr(operator: str, left: 'ExpressionAggregate', right: 'ExpressionAggregate') -> 'ExpressionAggregate':
+    def new_operator_expr(operator: str, left: 'ExpressionAggregate', right: 'ExpressionAggregate', lineno: Optional[int] = None, col: Optional[int] = None) -> 'ExpressionAggregate':
         """
         Create a new ExpressionAggregate representing an operator expression.
 
@@ -497,12 +509,14 @@ class ExpressionAggregate(Expression):
             kind=kind,
             value=operator,
             left=left,
-            right=right
+            right=right,
+            lineno=lineno,
+            col=col,
         )
 
     # * method: new_comment_expr
     @staticmethod
-    def new_comment_expr(comment_text: str) -> 'ExpressionAggregate':
+    def new_comment_expr(comment_text: str, lineno: Optional[int] = None, col: Optional[int] = None) -> 'ExpressionAggregate':
         """
         Create a new ExpressionAggregate representing a comment expression.
 
@@ -514,7 +528,9 @@ class ExpressionAggregate(Expression):
 
         return ExpressionAggregate(
             kind=ExprKind.COMMENT,
-            value=comment_text
+            value=comment_text,
+            lineno=lineno,
+            col=col,
         )
 
 # ** mapper: declaration_aggregate
@@ -735,7 +751,7 @@ class StatementAggregate(Statement):
 
     # * method: new_import_stmt
     @staticmethod
-    def new_import_stmt(import_expr: ExpressionAggregate) -> 'StatementAggregate':
+    def new_import_stmt(import_expr: ExpressionAggregate, lineno: Optional[int] = None, col: Optional[int] = None) -> 'StatementAggregate':
         """
         Create a new StatementAggregate representing an import statement.
         :param import_expr: The expression representing the import (e.g., module or object being imported).
@@ -746,12 +762,14 @@ class StatementAggregate(Statement):
 
         return StatementAggregate(
             kind=StatementKind.IMPORT,
-            expr=import_expr
+            expr=import_expr,
+            lineno=lineno,
+            col=col,
         )
     
     # * method: new_import_stmt_from
     @staticmethod
-    def new_import_stmt_from(from_expr: ExpressionAggregate, import_expr: ExpressionAggregate) -> 'StatementAggregate':
+    def new_import_stmt_from(from_expr: ExpressionAggregate, import_expr: ExpressionAggregate, lineno: Optional[int] = None, col: Optional[int] = None) -> 'StatementAggregate':
         """
         Create a new StatementAggregate representing an import-from statement.
         :param from_expr: The expression representing the module from which entities are being imported.
@@ -765,7 +783,9 @@ class StatementAggregate(Statement):
         return StatementAggregate(
             kind=StatementKind.IMPORT_FROM,
             init_expr=from_expr,
-            expr=import_expr
+            expr=import_expr,
+            lineno=lineno,
+            col=col,
         )
     
     # * method: new_decl_stmt
@@ -805,7 +825,7 @@ class StatementAggregate(Statement):
     
     # * method: new_expr_stmt
     @staticmethod
-    def new_expr_stmt(expr: ExpressionAggregate) -> 'StatementAggregate':
+    def new_expr_stmt(expr: ExpressionAggregate, lineno: Optional[int] = None, col: Optional[int] = None) -> 'StatementAggregate':
         """
         Create a new StatementAggregate representing an expression statement.
         :param expr: The expression representing the statement.
@@ -816,7 +836,9 @@ class StatementAggregate(Statement):
 
         return StatementAggregate(
             kind=StatementKind.EXPR,
-            expr=expr
+            expr=expr,
+            lineno=lineno,
+            col=col,
         )
     
     # * method: new_snippet_stmt
@@ -847,7 +869,7 @@ class StatementAggregate(Statement):
 
     # * method: new_comment_stmt
     @staticmethod
-    def new_comment_stmt(comment: ExpressionAggregate) -> 'StatementAggregate':
+    def new_comment_stmt(comment: ExpressionAggregate, lineno: Optional[int] = None, col: Optional[int] = None) -> 'StatementAggregate':
         """
         Create a new StatementAggregate representing a comment statement.
         :param comment: The expression representing the comment.
@@ -858,12 +880,14 @@ class StatementAggregate(Statement):
 
         return StatementAggregate(
             kind=StatementKind.COMMENT,
-            expr=comment
+            expr=comment,
+            lineno=lineno,
+            col=col,
         )
 
     # * method: new_return_stmt
     @staticmethod
-    def new_return_stmt(return_expr: Optional[ExpressionAggregate] = None) -> 'StatementAggregate':
+    def new_return_stmt(return_expr: Optional[ExpressionAggregate] = None, lineno: Optional[int] = None, col: Optional[int] = None) -> 'StatementAggregate':
         """
         Create a new StatementAggregate representing a return statement.
         :param return_expr: The expression representing the value being returned (optional).
@@ -874,5 +898,7 @@ class StatementAggregate(Statement):
 
         return StatementAggregate(
             kind=StatementKind.RETURN,
-            expr=return_expr
+            expr=return_expr,
+            lineno=lineno,
+            col=col,
         )

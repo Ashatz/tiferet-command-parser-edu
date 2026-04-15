@@ -20,6 +20,9 @@ attrs:
   perform_semantic_analysis_event:
     module_path: src.events.semantic
     class_name: PerformSemanticAnalysis
+  perform_type_check_event:
+    module_path: src.events.typecheck
+    class_name: PerformTypeCheck
   emit_semantic_result_event:
     module_path: src.events.semantic
     class_name: EmitSemanticResult
@@ -86,6 +89,9 @@ features:
         - attribute_id: perform_semantic_analysis_event
           name: Build symbol table and resolve names
           data_key: semantic
+        - attribute_id: perform_type_check_event
+          name: Perform type checking against symbol table
+          data_key: semantic_errors
         - attribute_id: emit_semantic_result_event
           name: Assemble and emit semantic analysis result
   ir:
@@ -102,6 +108,9 @@ features:
         - attribute_id: perform_semantic_analysis_event
           name: Build symbol table and resolve names
           data_key: semantic
+        - attribute_id: perform_type_check_event
+          name: Perform type checking against symbol table
+          data_key: semantic_errors
         - attribute_id: generate_ir_event
           name: Generate keter IR from AST and symbol table
           params:
@@ -123,6 +132,9 @@ features:
         - attribute_id: perform_semantic_analysis_event
           name: Build symbol table and resolve names
           data_key: semantic
+        - attribute_id: perform_type_check_event
+          name: Perform type checking against symbol table
+          data_key: semantic_errors
         - attribute_id: generate_ir_event
           name: Generate keter IR from AST and symbol table
           params:
@@ -167,6 +179,16 @@ errors:
     message:
       - lang: en_US
         text: 'No AST received from syntactic analysis'
+  TYPE_MISMATCH_ASSIGNMENT:
+    name: Type Mismatch in Assignment
+    message:
+      - lang: en_US
+        text: 'Cannot assign {actual_type} to variable declared as {expected_type}'
+  TYPE_MISMATCH_OPERATION:
+    name: Type Mismatch in Operation
+    message:
+      - lang: en_US
+        text: 'Unsupported operand types for {operation}: {left_type} and {right_type}'
 
 logging: {}
 

@@ -73,6 +73,7 @@ class EmitSemanticResult(DomainEvent):
     @DomainEvent.parameters_required(['semantic'])
     def execute(self,
             semantic: Dict[str, Any],
+            semantic_errors: List[Dict] = None,
             ast: Decl = None,
             tokens: List[TokenAggregate] = None,
             source_file: str = None,
@@ -87,6 +88,8 @@ class EmitSemanticResult(DomainEvent):
 
         :param semantic: The semantic analysis result from PerformSemanticAnalysis.
         :type semantic: Dict[str, Any]
+        :param semantic_errors: List of type check error descriptors from PerformTypeCheck.
+        :type semantic_errors: List[Dict]
         :param ast: The parsed AST DeclarationAggregate (optional, included if include_ast is True).
         :type ast: Decl
         :param tokens: List of token aggregates from PerformLexicalAnalysis.
@@ -115,6 +118,20 @@ class EmitSemanticResult(DomainEvent):
             'symbol_table': semantic.get('symbol_table', {}),
             'resolution': semantic.get('resolution', {}),
         }
+
+        # Include type check errors if present.
+        if semantic_errors:
+            result['type_errors'] = semantic_errors
+            result['type_error_count'] = len(semantic_errors)
+
+            # Print errors to console.
+            for error in semantic_errors:
+                loc = ''
+                if error.get('lineno') is not None:
+                    loc = f" (line {error['lineno']}, col {error.get('col', '?')})"
+                print(f"Type Error [{error.get('error_code', 'UNKNOWN')}] "
+                      f"in {error.get('scope_path', '?')}{loc}: "
+                      f"{error.get('message', '')}")
 
         # Include AST if requested.
         if include_ast and ast and isinstance(ast, Decl):
