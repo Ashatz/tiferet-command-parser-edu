@@ -8,3 +8,4 @@ from .parser import TiferetParser
 from .output import ScanOutputWriter
 from .semantic import SymbolTableBuilder, NameResolver
 from .ir import DocstringParser, IRGenerator
+from .codegen import TiferetGenerator

@@ -1,0 +1,16 @@
+evt_grp:
+  name: pass_imports_only
+  desc: "Tiferet Empty Events Sample \u2014 imports section with no event definitions"
+  impt:
+    core:
+    - src: typing
+      tgts:
+      - Any
+    app:
+    - src: .settings
+      tgts:
+      - DomainEvent
+      - a
+    - src: ..interfaces
+      tgts:
+      - ErrorService

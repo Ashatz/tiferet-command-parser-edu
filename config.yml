@@ -32,6 +32,15 @@ attrs:
   ir_service:
     module_path: src.utils.ir
     class_name: IRGenerator
+  codegen_service:
+    module_path: src.utils.codegen
+    class_name: TiferetGenerator
+  generate_code_event:
+    module_path: src.events.codegen
+    class_name: GenerateCode
+  emit_codegen_result_event:
+    module_path: src.events.codegen
+    class_name: EmitCodegenResult
 
 features:
   scan:
@@ -94,6 +103,32 @@ features:
           data_key: ir
         - attribute_id: emit_ir_result_event
           name: Serialize and emit keter IR
+  codegen:
+    event:
+      name: 'Codegen Event'
+      description: 'Generate structured YAML output from a Tiferet event source file'
+      commands:
+        - attribute_id: perform_lexical_analysis_event
+          name: Tokenize and compute lexical metrics
+          data_key: tokens
+        - attribute_id: perform_syntactic_analysis_event
+          name: Parse token stream into AST
+          data_key: ast
+        - attribute_id: perform_semantic_analysis_event
+          name: Build symbol table and resolve names
+          data_key: semantic
+        - attribute_id: generate_ir_event
+          name: Generate keter IR from AST and symbol table
+          params:
+            ir_service: ir_service
+          data_key: ir
+        - attribute_id: generate_code_event
+          name: Generate structured output from IR
+          params:
+            codegen_service: codegen_service
+          data_key: codegen
+        - attribute_id: emit_codegen_result_event
+          name: Emit codegen result
 
 errors:
   TEXT_EXTRACTION_FAILED:
@@ -212,6 +247,25 @@ cli:
               - --output-format
             default: auto
             description: "Output format: keter or auto."
+
+    codegen:
+      event:
+        group_key: codegen
+        key: event
+        name: Codegen Event Command
+        description: Generate structured YAML output from a Tiferet event source file.
+        args:
+          - name_or_flags:
+              - source_file
+            description: Path to the Python source file to process.
+          - name_or_flags:
+              - -o
+              - --output
+            description: Path to output YAML/JSON file.
+          - name_or_flags:
+              - --output-format
+            default: auto
+            description: "Output format: yaml, json, or auto."
 
 interfaces:
   compiler:

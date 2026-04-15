@@ -16,12 +16,12 @@ from ...mappers import TokenAggregate
 @pytest.fixture
 def sample_text() -> str:
     '''
-    Returns the full add_error_event.py sample used throughout the project.
+    Returns a Tiferet-style source file with classes, methods, and artifact comments.
 
-    :return: Content of samples/add_error_event.py
+    :return: Content of samples/pass_multiple_operator_events.py
     :rtype: str
     '''
-    return Path("samples/add_error_event.py").read_text(encoding="utf-8")
+    return Path("samples/pass_multiple_operator_events.py").read_text(encoding="utf-8")
 
 
 # ** fixture: minimal_class_text

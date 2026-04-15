@@ -1,0 +1,28 @@
+evt_grp:
+  name: pass_minimal_injection_event
+  desc: Sample event for testing minimal injection and execution of a domain event.
+  impt:
+    app:
+    - src: .settings
+      tgts:
+      - DomainEvent
+  evts:
+    ping:
+      name: Ping
+      attributes:
+      - pong: str
+      injections:
+      - 'pong:str:true::':
+          assign:
+          - target: pong
+            value: pong
+      execute:
+        params:
+        - 'kwargs:dict:false::'
+        returns:
+        - 'str:'
+        snpt:
+        - coms:
+          - Return the pong string.
+          stmt:
+          - Return(self.pong)
