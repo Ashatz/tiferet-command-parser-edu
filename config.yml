@@ -41,6 +41,12 @@ attrs:
   emit_codegen_result_event:
     module_path: src.events.codegen
     class_name: EmitCodegenResult
+  optimizer_service:
+    module_path: src.utils.optimizer
+    class_name: YamlAnchorOptimizer
+  optimize_code_event:
+    module_path: src.events.codegen
+    class_name: OptimizeCode
 
 features:
   scan:
@@ -126,6 +132,11 @@ features:
           name: Generate structured output from IR
           params:
             codegen_service: codegen_service
+          data_key: codegen
+        - attribute_id: optimize_code_event
+          name: Optimize codegen output with anchors
+          params:
+            optimizer_service: optimizer_service
           data_key: codegen
         - attribute_id: emit_codegen_result_event
           name: Emit codegen result

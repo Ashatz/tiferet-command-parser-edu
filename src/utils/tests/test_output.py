@@ -186,3 +186,46 @@ def test_parse_extract_names_multiple() -> None:
 
     # Assert all names stripped and present in order.
     assert result == ['add_item', 'remove_item', 'get_item']
+
+
+# *** tests — anchored YAML output
+
+# ** test: anchored_yaml_output
+def test_anchored_yaml_output(tmp_path) -> None:
+    '''
+    Test that writing YAML with an anchor registry produces & and * markers.
+
+    :param tmp_path: Pytest temporary directory fixture.
+    :type tmp_path: pathlib.Path
+    '''
+
+    # Build a payload with shared list references.
+    shared_params = ['a:int:true::', 'b:int:true::']
+    payload = {
+        'evt_grp': {
+            'name': 'test',
+            'evts': {
+                'add': {'execute': {'params': shared_params}},
+                'sub': {'execute': {'params': shared_params}},
+            },
+        }
+    }
+
+    # Build an anchor registry for the shared list.
+    anchor_registry = {id(shared_params): 'int_a_b_params'}
+
+    # Write YAML with the anchor registry.
+    output_path = str(tmp_path / 'anchored.yaml')
+    ScanOutputWriter.write(payload, output_path, 'yaml', anchor_registry=anchor_registry)
+
+    # Read the raw YAML text.
+    with open(output_path) as f:
+        content = f.read()
+
+    # Assert anchor and alias markers are present.
+    assert '&int_a_b_params' in content
+    assert '*int_a_b_params' in content
+
+    # Assert the YAML is still valid and round-trips correctly.
+    loaded = yaml.safe_load(content)
+    assert loaded['evt_grp']['evts']['add']['execute']['params'] == ['a:int:true::', 'b:int:true::']

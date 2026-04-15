@@ -12,6 +12,82 @@ import yaml
 
 # *** utils
 
+# ** util: anchored_dumper
+class AnchoredDumper(yaml.Dumper):
+    '''
+    Custom YAML Dumper that assigns meaningful anchor names from a registry
+    instead of auto-generated id001-style labels.
+    '''
+
+    # * attribute: anchor_registry
+    anchor_registry: dict
+
+    # * attribute: _node_anchors
+    _node_anchors: dict
+
+    # * init
+    def __init__(self, *args, anchor_registry: dict = None, **kwargs):
+        '''
+        Initialize with an optional anchor registry.
+
+        :param anchor_registry: Dict mapping id(python_obj) to anchor name string.
+        :type anchor_registry: dict
+        '''
+
+        super().__init__(*args, **kwargs)
+
+        # Store the registry for anchor name lookups.
+        self.anchor_registry = anchor_registry or {}
+
+        # Internal mapping from id(yaml.Node) to anchor name, built during representation.
+        self._node_anchors = {}
+
+    # * method: represent_sequence
+    def represent_sequence(self, tag, sequence, flow_style=None):
+        '''
+        Override to capture the mapping from YAML node to anchor name
+        when the source Python sequence is in the anchor registry.
+
+        :param tag: The YAML tag.
+        :type tag: str
+        :param sequence: The Python sequence being represented.
+        :type sequence: list
+        :param flow_style: Optional flow style override.
+        :type flow_style: bool
+        :return: The YAML sequence node.
+        :rtype: yaml.SequenceNode
+        '''
+
+        # Create the node via the parent representer.
+        node = super().represent_sequence(tag, sequence, flow_style)
+
+        # If this Python list is registered, map its node for generate_anchor.
+        if id(sequence) in self.anchor_registry:
+            self._node_anchors[id(node)] = self.anchor_registry[id(sequence)]
+
+        return node
+
+    # * method: generate_anchor
+    def generate_anchor(self, node):
+        '''
+        Return a meaningful anchor name if this node was registered during
+        representation, otherwise fall back to the default.
+
+        :param node: The YAML representation node.
+        :type node: yaml.Node
+        :return: The anchor name string.
+        :rtype: str
+        '''
+
+        # Check if this node was registered during represent_sequence.
+        anchor = self._node_anchors.get(id(node), None)
+        if anchor:
+            return anchor
+
+        # Fall back to default behavior.
+        return super().generate_anchor(node)
+
+
 # ** util: scan_output_writer
 class ScanOutputWriter:
     '''
@@ -49,7 +125,11 @@ class ScanOutputWriter:
 
     # * method: write (static)
     @staticmethod
-    def write(result: Dict[str, Any], output_path: str, output_format: str = 'auto') -> None:
+    def write(result: Dict[str, Any],
+            output_path: str,
+            output_format: str = 'auto',
+            anchor_registry: Dict[int, str] = None,
+        ) -> None:
         '''
         Write a result payload to a file in the specified format.
 
@@ -59,6 +139,8 @@ class ScanOutputWriter:
         :type output_path: str
         :param output_format: The output format (``'yaml'``, ``'json'``, or ``'auto'``).
         :type output_format: str
+        :param anchor_registry: Optional anchor registry for YAML anchor names.
+        :type anchor_registry: Dict[int, str]
         '''
 
         # Resolve the format.
@@ -70,6 +152,15 @@ class ScanOutputWriter:
                 json.dump(result, f, indent=2, default=str)
             elif fmt == 'keter':
                 f.write(result if isinstance(result, str) else str(result))
+            elif anchor_registry:
+                yaml.dump(
+                    result, f,
+                    Dumper=lambda *a, **kw: AnchoredDumper(
+                        *a, anchor_registry=anchor_registry, **kw,
+                    ),
+                    default_flow_style=False,
+                    sort_keys=False,
+                )
             else:
                 yaml.dump(result, f, default_flow_style=False, sort_keys=False)
 

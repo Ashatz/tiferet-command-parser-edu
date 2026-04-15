@@ -12,10 +12,10 @@ evt_grp:
       name: Add
       desc: An event that performs addition of two numbers.
       execute:
-        params:
+        params: &int_a_b_params
         - 'a:int:true::'
         - 'b:int:true::'
-        returns:
+        returns: &int_returns
         - 'int:'
         snpt:
         - stmt:
@@ -24,11 +24,8 @@ evt_grp:
       name: Subtract
       desc: An event that performs subtraction of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'int:'
+        params: *int_a_b_params
+        returns: *int_returns
         snpt:
         - stmt:
           - Return(Sub(a, b))
@@ -36,11 +33,8 @@ evt_grp:
       name: Multiply
       desc: An event that performs multiplication of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'int:'
+        params: *int_a_b_params
+        returns: *int_returns
         snpt:
         - stmt:
           - Return(Mul(a, b))
@@ -48,10 +42,8 @@ evt_grp:
       name: Divide
       desc: An event that performs division of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
+        params: *int_a_b_params
+        returns: &float_returns
         - 'float:'
         snpt:
         - stmt:
@@ -60,11 +52,8 @@ evt_grp:
       name: Modulus
       desc: An event that performs modulus of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'int:'
+        params: *int_a_b_params
+        returns: *int_returns
         snpt:
         - stmt:
           - Return(Mod(a, b))
@@ -72,11 +61,8 @@ evt_grp:
       name: Exponentiate
       desc: An event that performs exponentiation of two numbers.
       execute:
-        params:
-        - 'a:int:true::'
-        - 'b:int:true::'
-        returns:
-        - 'float:'
+        params: *int_a_b_params
+        returns: *float_returns
         snpt:
         - stmt:
           - Return(Exp(a, b))
