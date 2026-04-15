@@ -5,12 +5,12 @@ EventGroup(pass_multiple_operator_events, "This module demonstrates how to defin
         )),
     ),
     Events(
-        Event(Add, "An event that performs addition of two numbers.",
+        Event(add, Add, "An event that performs addition of two numbers.",
             Attributes(
             ),
             Injections(
             ),
-            Execute(execute,
+            Execute(
                 Params(
                     Param("a:int:true::"),
                     Param("b:int:true::"),
@@ -30,12 +30,12 @@ EventGroup(pass_multiple_operator_events, "This module demonstrates how to defin
             ),
             Methods()
         ),
-        Event(Subtract, "An event that performs subtraction of two numbers.",
+        Event(subtract, Subtract, "An event that performs subtraction of two numbers.",
             Attributes(
             ),
             Injections(
             ),
-            Execute(execute,
+            Execute(
                 Params(
                     Param("a:int:true::"),
                     Param("b:int:true::"),
@@ -55,12 +55,12 @@ EventGroup(pass_multiple_operator_events, "This module demonstrates how to defin
             ),
             Methods()
         ),
-        Event(Multiply, "An event that performs multiplication of two numbers.",
+        Event(multiply, Multiply, "An event that performs multiplication of two numbers.",
             Attributes(
             ),
             Injections(
             ),
-            Execute(execute,
+            Execute(
                 Params(
                     Param("a:int:true::"),
                     Param("b:int:true::"),
@@ -80,12 +80,12 @@ EventGroup(pass_multiple_operator_events, "This module demonstrates how to defin
             ),
             Methods()
         ),
-        Event(Divide, "An event that performs division of two numbers.",
+        Event(divide, Divide, "An event that performs division of two numbers.",
             Attributes(
             ),
             Injections(
             ),
-            Execute(execute,
+            Execute(
                 Params(
                     Param("a:int:true::"),
                     Param("b:int:true::"),
@@ -105,12 +105,12 @@ EventGroup(pass_multiple_operator_events, "This module demonstrates how to defin
             ),
             Methods()
         ),
-        Event(Modulus, "An event that performs modulus of two numbers.",
+        Event(modulus, Modulus, "An event that performs modulus of two numbers.",
             Attributes(
             ),
             Injections(
             ),
-            Execute(execute,
+            Execute(
                 Params(
                     Param("a:int:true::"),
                     Param("b:int:true::"),
@@ -130,12 +130,12 @@ EventGroup(pass_multiple_operator_events, "This module demonstrates how to defin
             ),
             Methods()
         ),
-        Event(Exponentiate, "An event that performs exponentiation of two numbers.",
+        Event(exponentiate, Exponentiate, "An event that performs exponentiation of two numbers.",
             Attributes(
             ),
             Injections(
             ),
-            Execute(execute,
+            Execute(
                 Params(
                     Param("a:int:true::"),
                     Param("b:int:true::"),

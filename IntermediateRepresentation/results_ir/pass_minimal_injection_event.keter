@@ -5,7 +5,7 @@ EventGroup(pass_minimal_injection_event, "Sample event for testing minimal injec
         )),
     ),
     Events(
-        Event(Ping, "",
+        Event(ping, Ping, "",
             Attributes(
                 Attribute(pong, str),
             ),
@@ -14,7 +14,7 @@ EventGroup(pass_minimal_injection_event, "Sample event for testing minimal injec
                     Assign(Attribute(pong), pong)
                 ),
             ),
-            Execute(execute,
+            Execute(
                 Params(
                     Param("kwargs:dict:false::"),
                 ),

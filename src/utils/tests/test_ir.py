@@ -104,9 +104,9 @@ def minimal_event_ast() -> Decl:
 
     # Wrap class in event ** artifact.
     event_artifact_decl = Decl(
-        name='event: ping',
+        name='ping',
         type=TAgg(kind=TypeKind.ARTIFACT),
-        metadata={'type': '**'},
+        metadata={'type': '** event'},
     )
     event_artifact_stmt = Stmt(
         kind=StatementKind.ARTIFACT,
@@ -359,6 +359,7 @@ def test_ir_generator_generate_minimal_event(
     # Verify the event was extracted.
     assert len(ir.events.events) == 1
     event = ir.events.events[0]
+    assert event.artifact_name == 'ping'
     assert event.class_name == 'Ping'
     assert event.doc_string == 'A minimal event.'
     assert event.execute.name == 'execute'
@@ -387,6 +388,6 @@ def test_ir_generator_generate_keter_output(
     # Verify key structural elements appear in the output.
     assert 'EventGroup(pass_minimal_event' in keter
     assert 'ImportGroup(app' in keter
-    assert 'Event(Ping' in keter
-    assert 'Execute(execute' in keter
+    assert 'Event(ping, Ping' in keter
+    assert 'Execute(' in keter
     assert 'Return("str:' in keter

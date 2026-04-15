@@ -174,6 +174,23 @@ def test_token_stream_adapter() -> None:
     assert stream.token() is None
 
 
+# ** test: parse_artifact_header
+def test_parse_artifact_header() -> None:
+    '''parse_artifact_header extracts (name, type) from artifact header tokens.'''
+
+    # Simple group headers.
+    assert ParserBase.parse_artifact_header('# *** imports') == ('imports', '***')
+    assert ParserBase.parse_artifact_header('# *** events') == ('events', '***')
+
+    # Simple section headers (no colon).
+    assert ParserBase.parse_artifact_header('# ** app') == ('app', '**')
+    assert ParserBase.parse_artifact_header('# ** core') == ('core', '**')
+
+    # Colon-separated section headers.
+    assert ParserBase.parse_artifact_header('# ** event: ping') == ('ping', '** event')
+    assert ParserBase.parse_artifact_header('# ** model: error') == ('error', '** model')
+
+
 # ** test: parse_member_kind
 def test_parse_member_kind() -> None:
     '''parse_member_kind extracts kind from ARTIFACT_MEMBER values.'''

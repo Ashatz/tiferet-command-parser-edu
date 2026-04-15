@@ -218,7 +218,7 @@ def test_ir_execute_to_keter_contains_sections(sample_execute: IRExecute) -> Non
     '''
 
     result = sample_execute.to_keter(indent=0)
-    assert 'Execute(execute,' in result
+    assert 'Execute(' in result
     assert 'Params(' in result
     assert 'Returns(' in result
     assert 'Snippets(' in result

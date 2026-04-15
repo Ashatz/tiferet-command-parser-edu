@@ -662,9 +662,8 @@ class IRExecute(BaseModel):
         '''
 
         # Build the Execute constructor with params, returns, and snippets.
-        # Name is an identifier — no quotes.
         pad = INDENT * indent
-        lines = [f'{pad}Execute({self.name},']
+        lines = [f'{pad}Execute(']
         lines.append(self.params.to_keter(indent + 1))
         lines.append(self.returns.to_keter(indent + 1))
         lines.append(self.snippets.to_keter(indent + 1))
@@ -760,6 +759,12 @@ class IRMethods(BaseModel):
 class IREvent(BaseModel):
     """A domain event class in the IR."""
 
+    # * attribute: artifact_name
+    artifact_name: str = Field(
+        ...,
+        description='The artifact section name (e.g. "get_error" from "# ** event: get_error").'
+    )
+
     # * attribute: class_name
     class_name: str = Field(
         ...,
@@ -808,9 +813,9 @@ class IREvent(BaseModel):
         '''
 
         # Build the Event constructor with all member sections.
-        # Class name is an identifier; doc_string is text content — keep its quotes.
+        # Artifact name and class name are identifiers; doc_string is text content — keep its quotes.
         pad = INDENT * indent
-        lines = [f'{pad}Event({self.class_name}, "{self.doc_string}",']
+        lines = [f'{pad}Event({self.artifact_name}, {self.class_name}, "{self.doc_string}",']
         lines.append(self.attributes.to_keter(indent + 1))
         lines.append(self.injections.to_keter(indent + 1))
         lines.append(self.execute.to_keter(indent + 1))

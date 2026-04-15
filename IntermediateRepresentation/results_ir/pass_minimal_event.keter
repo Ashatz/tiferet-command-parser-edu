@@ -5,12 +5,12 @@ EventGroup(pass_minimal_event, "",
         )),
     ),
     Events(
-        Event(Ping, "A minimal event with no attributes and a single method.",
+        Event(ping, Ping, "A minimal event with no attributes and a single method.",
             Attributes(
             ),
             Injections(
             ),
-            Execute(execute,
+            Execute(
                 Params(
                     Param("kwargs:dict:false::"),
                 ),

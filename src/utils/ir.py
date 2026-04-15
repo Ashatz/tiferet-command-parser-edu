@@ -279,18 +279,24 @@ class IRGenerator(IRService):
         current = body_stmt
         while current:
             if current.kind == StatementKind.ARTIFACT and current.body:
-                event = self.extract_event_from_body(current.body)
+                artifact_name = current.decl.name if current.decl else ''
+                event = self.extract_event_from_body(current.body, artifact_name)
                 if event:
                     events.events.append(event)
             current = current.next
 
     # * method: extract_event_from_body
-    def extract_event_from_body(self, body_stmt: Statement) -> Optional[IREvent]:
+    def extract_event_from_body(self,
+            body_stmt: Statement,
+            artifact_name: str = '',
+        ) -> Optional[IREvent]:
         '''
         Extract an IREvent from a decl statement containing a class declaration.
 
         :param body_stmt: The statement wrapping the class declaration.
         :type body_stmt: Statement
+        :param artifact_name: The artifact section name (e.g. "ping" from "# ** event: ping").
+        :type artifact_name: str
         :return: The constructed IREvent, or None if the statement is not a class decl.
         :rtype: IREvent | None
         '''
@@ -302,10 +308,14 @@ class IRGenerator(IRService):
         # Extract class name and docstring, then delegate to build_event.
         class_decl = body_stmt.decl
         doc_string = DocstringParser.strip(class_decl.doc_string) if class_decl.doc_string else ''
-        return self.build_event(class_decl, doc_string)
+        return self.build_event(class_decl, doc_string, artifact_name)
 
     # * method: build_event
-    def build_event(self, class_decl: Declaration, doc_string: str) -> IREvent:
+    def build_event(self,
+            class_decl: Declaration,
+            doc_string: str,
+            artifact_name: str = '',
+        ) -> IREvent:
         '''
         Dispatch ARTIFACT_MEMBER nodes by role and assemble an IREvent.
 
@@ -313,6 +323,8 @@ class IRGenerator(IRService):
         :type class_decl: Declaration
         :param doc_string: The stripped class docstring.
         :type doc_string: str
+        :param artifact_name: The artifact section name (e.g. "ping").
+        :type artifact_name: str
         :return: The assembled IREvent.
         :rtype: IREvent
         '''
@@ -333,6 +345,7 @@ class IRGenerator(IRService):
 
         # Return the assembled event.
         return IREvent(
+            artifact_name=artifact_name,
             class_name=class_decl.name,
             doc_string=doc_string,
             attributes=attributes,

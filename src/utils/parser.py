@@ -105,6 +105,43 @@ class ParserBase(ParserService):
         # Parse the token stream and return the AST.
         return self.parser_service.parse(lexer=token_stream)
     
+    # * method: parse_artifact_header (helper)
+    @staticmethod
+    def parse_artifact_header(token_value: str) -> tuple:
+        '''
+        Parse an artifact header token value into a (name, type) tuple.
+
+        For colon-separated headers (e.g. "# ** event: ping"),
+        the name is the part after the colon and the type combines the
+        marker with the kind (e.g. "** event").
+
+        For simple headers (e.g. "# *** imports", "# ** app"),
+        the name is the trailing word and the type is the marker.
+
+        :param token_value: The raw artifact token value.
+        :type token_value: str
+        :return: A (name, type) tuple.
+        :rtype: tuple
+        '''
+
+        # Strip leading # and whitespace, then split marker from rest.
+        stripped = token_value.lstrip('#').strip()
+        parts = stripped.split(None, 1)
+        if len(parts) < 2:
+            return (parts[0] if parts else 'unknown', '')
+
+        # Extract the marker and the remainder.
+        marker = parts[0]
+        rest = parts[1]
+
+        # Check for colon-separated pattern (e.g. "event: ping").
+        if ':' in rest:
+            kind, _, name = rest.partition(':')
+            return (name.strip(), f'{marker} {kind.strip()}')
+
+        # Simple header (e.g. "imports", "app").
+        return (rest.strip(), marker)
+
     # * method: parse_member_kind (helper)
     @staticmethod
     def parse_member_kind(artifact_member_value: str) -> str:
@@ -216,16 +253,16 @@ class TiferetParser(ParserBase):
     def p_group_header_imports(self, p):
         '''group_header : ARTIFACT_IMPORTS_START'''
 
-        # Parse the group header token value.
-        _, type, name = p[1].split()
+        # Parse the group header token value via helper.
+        name, type = self.parse_artifact_header(p[1])
         p[0] = Decl.new_artifact_decl(name, type)
 
     # * method: p_group_header_start (rule)
     def p_group_header_start(self, p):
         '''group_header : ARTIFACT_START'''
 
-        # Parse the group header token value.
-        _, type, name = p[1].split()
+        # Parse the group header token value via helper.
+        name, type = self.parse_artifact_header(p[1])
         p[0] = Decl.new_artifact_decl(name, type)
 
     # -- Tier 2: Artifact Sections & Annotations --
@@ -273,22 +310,16 @@ class TiferetParser(ParserBase):
     def p_section_header_section(self, p):
         '''section_header : ARTIFACT_SECTION'''
 
-        # Parse the section header token value.
-        try:
-            _, type, name = p[1].split()
-        except ValueError:
-            _, type, name = p[1].split(maxsplit=2)
+        # Parse the section header token value via helper.
+        name, type = self.parse_artifact_header(p[1])
         p[0] = Decl.new_artifact_decl(name, type)
 
     # * method: p_section_header_import (rule)
     def p_section_header_import(self, p):
         '''section_header : ARTIFACT_IMPORT_GROUP'''
 
-        # Parse the section header token value.
-        try:
-            _, type, name = p[1].split()
-        except ValueError:
-            _, type, name = p[1].split(maxsplit=2)
+        # Parse the section header token value via helper.
+        name, type = self.parse_artifact_header(p[1])
         p[0] = Decl.new_artifact_decl(name, type)
 
     # * method: p_annots_single (rule)

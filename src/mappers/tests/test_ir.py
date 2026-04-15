@@ -34,7 +34,7 @@ def sample_event() -> IREvent:
     :rtype: IREvent
     '''
 
-    return IREvent(class_name='TestEvent', doc_string='A test event.')
+    return IREvent(artifact_name='test_event', class_name='TestEvent', doc_string='A test event.')
 
 
 # ** fixture: sample_import_group
@@ -113,8 +113,8 @@ def test_aggregate_add_multiple_events(
     '''
 
     # Add two events.
-    empty_aggregate.add_event(IREvent(class_name='Add', doc_string=''))
-    empty_aggregate.add_event(IREvent(class_name='Subtract', doc_string=''))
+    empty_aggregate.add_event(IREvent(artifact_name='add', class_name='Add', doc_string=''))
+    empty_aggregate.add_event(IREvent(artifact_name='subtract', class_name='Subtract', doc_string=''))
 
     # Verify order and count.
     assert len(empty_aggregate.events.events) == 2
@@ -146,4 +146,4 @@ def test_aggregate_to_keter_after_mutation(
     # Verify keter output contains both added items.
     keter = empty_aggregate.to_keter()
     assert 'ImportGroup(app' in keter
-    assert 'Event(TestEvent' in keter
+    assert 'Event(test_event, TestEvent' in keter
