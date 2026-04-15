@@ -249,12 +249,12 @@ def test_optimize_code_success(
     # Arrange the service to return the same dict.
     mock_optimizer_service.optimize.return_value = sample_codegen_output
 
-    # Execute via DomainEvent.handle with optimize flag.
+    # Execute via DomainEvent.handle with O1 optimization level.
     result = DomainEvent.handle(
         OptimizeCode,
         dependencies={'optimizer_service': mock_optimizer_service},
         codegen=sample_codegen_output,
-        optimize='true',
+        O='O1',
     )
 
     # Assert the result is the optimized dict and the service was called.

@@ -83,32 +83,36 @@ class OptimizeCode(DomainEvent):
     @DomainEvent.parameters_required(['codegen'])
     def execute(self,
             codegen: Dict[str, Any],
-            optimize: str = None,
+            O: str = 'O0',
             **kwargs,
         ) -> Dict[str, Any]:
         '''
-        Optimize the codegen dict by sharing repeated structures.
-        Passes through unchanged when the optimize flag is not set.
+        Optimize the codegen dict based on the requested optimization level.
+        O0 passes through unchanged; O1 applies YAML anchor/alias deduplication.
 
         :param codegen: The codegen output dict from GenerateCode.
         :type codegen: Dict[str, Any]
-        :param optimize: When set, enables optimization.
-        :type optimize: str
+        :param O: Optimization level (O0, O1, etc.).
+        :type O: str
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
         :return: The optimized or original codegen dict.
         :rtype: Dict[str, Any]
         '''
 
-        # Pass through unchanged when optimization is not requested.
-        if not optimize:
+        # Normalize the optimization level.
+        level = O.strip().upper() if O else 'O0'
+
+        # Pass through unchanged at O0.
+        if level == 'O0':
             return codegen
 
-        # Run the optimizer to share repeated structures.
-        optimized = self.optimizer_service.optimize(codegen)
+        # O1: YAML anchor/alias deduplication.
+        if level >= 'O1':
+            codegen = self.optimizer_service.optimize(codegen)
 
         # Return the optimized dict.
-        return optimized
+        return codegen
 
 
 # ** event: emit_codegen_result
