@@ -1,0 +1,38 @@
+EventGroup(pass_minimal_injection_event, "Sample event for testing minimal injection and execution of a domain event.",
+    ImportGroups(
+        ImportGroup(app, Imports(
+            Import(.settings, DomainEvent),
+        )),
+    ),
+    Events(
+        Event(Ping, "",
+            Attributes(
+                Attribute(pong, str),
+            ),
+            Injections(
+                Injection("pong:str:true::",
+                    Assign(Attribute(pong), pong)
+                ),
+            ),
+            Execute(execute,
+                Params(
+                    Param("kwargs:dict:false::"),
+                ),
+                Returns(
+                    Return("str:"),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                            Comment("Return the pong string."),
+                        ),
+                        Statements(
+                            Statement(Return(self.pong)),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+    )
+)

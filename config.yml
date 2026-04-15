@@ -23,6 +23,15 @@ attrs:
   emit_semantic_result_event:
     module_path: src.events.semantic
     class_name: EmitSemanticResult
+  generate_ir_event:
+    module_path: src.events.ir
+    class_name: GenerateIR
+  emit_ir_result_event:
+    module_path: src.events.ir
+    class_name: EmitIRResult
+  ir_service:
+    module_path: src.utils.ir
+    class_name: IRGenerator
 
 features:
   scan:
@@ -64,6 +73,27 @@ features:
           data_key: semantic
         - attribute_id: emit_semantic_result_event
           name: Assemble and emit semantic analysis result
+  ir:
+    event:
+      name: 'IR Event'
+      description: 'Generate a keter IR from a Tiferet event source file'
+      commands:
+        - attribute_id: perform_lexical_analysis_event
+          name: Tokenize and compute lexical metrics
+          data_key: tokens
+        - attribute_id: perform_syntactic_analysis_event
+          name: Parse token stream into AST
+          data_key: ast
+        - attribute_id: perform_semantic_analysis_event
+          name: Build symbol table and resolve names
+          data_key: semantic
+        - attribute_id: generate_ir_event
+          name: Generate keter IR from AST and symbol table
+          params:
+            ir_service: ir_service
+          data_key: ir
+        - attribute_id: emit_ir_result_event
+          name: Serialize and emit keter IR
 
 errors:
   TEXT_EXTRACTION_FAILED:
@@ -163,6 +193,25 @@ cli:
           - name_or_flags:
               - --include-ast
             description: Include the AST in the output.
+
+    ir:
+      event:
+        group_key: ir
+        key: event
+        name: IR Event Command
+        description: Generate a keter IR from a Tiferet event source file.
+        args:
+          - name_or_flags:
+              - source_file
+            description: Path to the Python source file to process.
+          - name_or_flags:
+              - -o
+              - --output
+            description: Path to output .keter file.
+          - name_or_flags:
+              - --output-format
+            default: auto
+            description: "Output format: keter or auto."
 
 interfaces:
   compiler:

@@ -19,6 +19,7 @@ This project has two layers:
 - **Lexical scanning** (`src/events/lexer.py`) — Source file reading, tokenization via PLY, INDENT/DEDENT injection via `BlockTracker`.
 - **Syntactic parsing** (`src/events/parser.py`) — Token stream parsing into a Pydantic AST via PLY yacc, AST validation, result emission.
 - **Semantic analysis** (`SemanticRoutines/`) — AST domain objects and mappers for downstream analysis (symbol table, name resolution). Currently in development.
+- **IR generation** (`src/events/ir.py`) — Walks the parsed AST to produce a keter IR conforming to the schema in `IntermediateRepresentation/schema.txt`.
 
 ### Pipeline (Feature: `scan.event`)
 
@@ -34,6 +35,25 @@ Defined in `config.yml`. Three chained commands:
 1. **PerformLexicalAnalysis** — Same as `scan.event`.
 2. **PerformSyntacticAnalysis** — Parses token stream via `ParserService` (PLY yacc). Produces a `DeclarationAggregate` AST root, serialized to dict via `model_dump()`.
 3. **EmitParseResult** — Assembles parse result payload with AST, optional token list, and delegates file output to `ScanOutputWriter`.
+
+### Pipeline (Feature: `semantic.event`)
+
+Defined in `config.yml`. Four chained commands:
+
+1. **PerformLexicalAnalysis** — Same as `scan.event`.
+2. **PerformSyntacticAnalysis** — Same as `parse.event`.
+3. **PerformSemanticAnalysis** — Builds symbol table and resolves names from the AST.
+4. **EmitSemanticResult** — Assembles semantic result payload and delegates to output writer.
+
+### Pipeline (Feature: `ir.event`)
+
+Defined in `config.yml`. Five chained commands:
+
+1. **PerformLexicalAnalysis** — Same as `scan.event`.
+2. **PerformSyntacticAnalysis** — Same as `parse.event`.
+3. **PerformSemanticAnalysis** — Same as `semantic.event`.
+4. **GenerateIR** — Walks the AST via `IRGenerator` (injected as `IRService`) and produces an `IREventGroup`.
+5. **EmitIRResult** — Calls `ir.to_keter()` and writes the keter DSL to file via `ScanOutputWriter`.
 
 ## Project Structure
 
@@ -76,6 +96,12 @@ Parser/                  — Standalone parser deliverable (ECE 506 submission)
   test_parser.py         — Parser unit tests
   samples/               — Parser-specific test samples (pass/fail cases)
 
+IntermediateRepresentation/
+  schema.txt             — Keter IR schema definition (EventGroup, Events, Params, Returns, etc.)
+  samples/               — Tiferet source files for IR generation testing
+  results_ir/            — Pre-computed keter IR outputs
+    test_ir.keter        — Reference keter IR for GetError event
+
 SemanticRoutines/        — Semantic analysis layer (ECE 506 submission)
   ast_domain.py          — Pydantic AST domain objects (Type, Expression, Declaration, Statement, ParamList)
   ast_mapper.py          — Pydantic AST mapper aggregates with mutation methods
@@ -103,47 +129,56 @@ src/
     lexer.py             — Token constants (55 types), rule handlers, RULES mapping dict
     parser.py            — Grammar precedence, AST builder helpers (build_module, build_group, etc.)
   domain/
-    __init__.py          — Exports: TypeKind, ExprKind, StatementKind, Type, ParamList, Expression, Declaration, Statement, Token, SymbolKind, Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult
+    __init__.py          — Exports: TypeKind, ExprKind, StatementKind, Type, ParamList, Expression, Declaration, Statement, Token, SymbolKind, Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult, and all IR domain objects
     ast.py               — Pydantic AST domain objects (TypeKind, ExprKind, StatementKind enums; Type, ParamList, Expression, Declaration, Statement models)
+    ir.py                — Pydantic IR domain objects (IRImport, IRImportGroup, IRAttribute, IRInjection, IRParam, IRReturn, IRSnippet, IRExecute, IRMethod, IREvent, IREventGroup, etc.) each with to_keter() serialization
     lexer.py             — Pydantic Token domain object (type, value, lineno, lexpos)
     symbol.py            — Pydantic symbol table domain objects (SymbolKind enum; Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult models)
     tests/
       test_ast.py        — 13 tests for AST domain object instantiation and validation
+      test_ir.py         — 11 tests for IR domain objects and to_keter() output
       test_lexer.py      — 6 tests for Token domain object
-      test_symbol.py     — 9 tests for symbol table domain objects
+      test_semantic.py   — 9 tests for symbol table domain objects
   events/
     __init__.py          — Exports: DomainEvent, TiferetError, a (assets)
     settings.py          — Re-exports DomainEvent, TiferetError from tiferet; imports local assets as `a`
+    ir.py                — IR domain events: GenerateIR (injects IRService, produces IREventGroup), EmitIRResult (serializes to keter DSL)
     lexer.py             — Lexer domain events: PerformLexicalAnalysis, EmitScanResult
     parser.py            — Parser domain events: PerformSyntacticAnalysis, EmitParseResult
     tests/
+      test_ir.py         — 6 tests for GenerateIR and EmitIRResult
       test_lexer.py      — 6 tests for lexer events (DomainEvent.handle pattern)
       test_parser.py     — 6 tests for parser events
   interfaces/
-    __init__.py          — Exports: LexerService, ParserService
+    __init__.py          — Exports: LexerService, ParserService, IRService
+    ir.py                — IRService(Service): abstract `generate(ast, symbol_table) -> IREventGroup`
     lexer.py             — LexerService(Service): abstract `tokenize(text) -> List[TokenAggregate]`
     parser.py            — ParserService(Service): abstract `parse(tokens) -> Dict[str, Any]`
   mappers/
-    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope
-    lexer.py             — TokenAggregate: extends Token with factory methods (new, new_indent, new_dedent)
+    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate
     ast.py               — AST mappers: TypeAggregate, ParamListAggregate, ExpressionAggregate, DeclarationAggregate, StatementAggregate — all with mutation methods and static factories
+    ir.py                — IREventGroupAggregate: extends IREventGroup with add_event() and add_import_group() mutation helpers
+    lexer.py             — TokenAggregate: extends Token with factory methods (new, new_indent, new_dedent)
     symbol.py            — ScopeAggregate: extends Scope with static factories (new_module_scope, new_class_scope, new_method_scope) and mutation methods (add_symbol, add_child, remove_child, has_symbol, get_symbol)
     tests/
+      test_ir.py         — 4 tests for IREventGroupAggregate mutation helpers
       test_lexer.py      — 9 tests for TokenAggregate mapper
-      test_symbol.py     — 9 tests for ScopeAggregate factories and mutation
+      test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver
-    lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
-    parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
+    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, DocstringParser, IRGenerator
     artifact.py          — ArtifactBlockParser: static methods for block extraction and filtering
-    output.py            — ScanOutputWriter: YAML/JSON file output with format auto-detection
+    ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST via public build_* methods)
+    lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
+    output.py            — ScanOutputWriter: YAML/JSON/keter file output with format auto-detection
+    parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
     symbol.py            — SymbolTableBuilder (single-pass AST walker for scope/symbol construction) + NameResolver (second-pass name resolution against scope registry)
     tests/
-      test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
-      test_parser.py     — 45 tests for TiferetParser grammar rules and AST structure
       test_artifact.py   — 13 tests for ArtifactBlockParser
+      test_ir.py         — 12 tests for DocstringParser and IRGenerator
+      test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
       test_output.py     — 11 tests for ScanOutputWriter
-      test_symbol.py     — 9 tests for SymbolTableBuilder and NameResolver (4 builder + 3 resolver + 2 edge cases)
+      test_parser.py     — 45 tests for TiferetParser grammar rules and AST structure
+      test_semantic.py   — 9 tests for SymbolTableBuilder and NameResolver
 ```
 
 ## Key Concepts
@@ -213,18 +248,28 @@ Artifact block parser (`ArtifactBlockParser`) with static methods:
 - **`extract_artifact_blocks`** — Walks source lines to extract all blocks matching a group type.
 - **`filter_blocks`** — Applies an optional name filter to a list of blocks.
 
+### `src/utils/ir.py`
+Two classes:
+- **DocstringParser** — Static methods: `strip()`, `parse_param_descriptions()`, `parse_return_descriptions()` for RST docstring extraction.
+- **IRGenerator** — Implements `IRService`. Public `build_*` methods walk the `DeclarationAggregate` AST to produce an `IREventGroup`. `encode_expr()` encodes expression nodes to string.
+
 ### `src/utils/output.py`
 Scan output writer (`ScanOutputWriter`) with static methods:
-- **`detect_format`** — Resolves output format from explicit value or file extension auto-detection.
-- **`write`** — Writes a result payload to file as YAML or JSON.
+- **`detect_format`** — Resolves output format from extension (`yaml`, `json`, `keter`) or explicit value.
+- **`write`** — Writes a result payload to file as YAML, JSON, or plain-text keter DSL.
 - **`parse_extract_names`** — Converts comma-separated extract string to a list for payload inclusion.
+
+### `src/events/ir.py`
+Two domain events:
+- **GenerateIR** — Injects `IRService`; receives `ast` and optional `semantic` from pipeline; calls `ir_service.generate(ast, symbol_table)`; returns `IREventGroup`.
+- **EmitIRResult** — Receives `IREventGroup`; calls `ir.to_keter()`; writes to `.keter` file or returns string.
 
 ### `config.yml`
 Tiferet YAML configuration defining:
-- **attrs** — Container attributes: `perform_lexical_analysis_event`, `perform_syntactic_analysis_event`, `emit_scan_result_event`, `emit_parse_result_event`, `lexer_service`, `parser_service`
-- **features** — `scan.event` (2 commands: lex + emit) and `parse.event` (3 commands: lex + parse + emit)
+- **attrs** — Container attributes for all pipeline events and services including `ir_service`, `generate_ir_event`, `emit_ir_result_event`
+- **features** — `scan.event`, `parse.event`, `semantic.event`, and `ir.event` (5 commands: lex + parse + semantic + generate_ir + emit_ir)
 - **errors** — `TEXT_EXTRACTION_FAILED`, `LEXICAL_ERROR_DETECTED`, `PARSER_NOT_INITIALIZED`, `INVALID_AST_STRUCTURE`, `MISSING_AST`
-- **cli** — `scan event` and `parse event` commands with args (source_file, -o, --output-format, --summary-only, --include-tokens)
+- **cli** — `scan event`, `parse event`, `semantic event`, and `ir event` commands
 - **interfaces** — `compiler` (AppInterfaceContext) and `compiler_cli` (CliContext)
 
 ## CLI Usage
@@ -232,30 +277,38 @@ Tiferet YAML configuration defining:
 ```bash
 # Scan: tokenize and emit token list
 python compiler.py scan event <source_file> -o output.yaml
-python compiler.py scan event <source_file> -o output.json --output-format json
 
 # Parse: tokenize + parse into AST
 python compiler.py parse event <source_file> -o output.json
-python compiler.py parse event <source_file> -o output.json --include-tokens true
+
+# Semantic: lex + parse + build symbol table
+python compiler.py semantic event <source_file> -o output.json
+
+# IR: lex + parse + semantic + generate keter IR
+python compiler.py ir event <source_file> -o output.keter
 ```
 
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 149 tests total
+python -m pytest src/ -v    # 184 tests total
 ```
 
 Test breakdown:
 - `src/domain/tests/test_ast.py` — 13 tests (AST domain objects)
+- `src/domain/tests/test_ir.py` — 11 tests (IR domain objects, to_keter())
 - `src/domain/tests/test_lexer.py` — 6 tests (Token domain object)
-- `src/domain/tests/test_symbol.py` — 9 tests (Symbol table domain objects)
+- `src/domain/tests/test_semantic.py` — 9 tests (Symbol table domain objects)
+- `src/mappers/tests/test_ir.py` — 4 tests (IREventGroupAggregate mutation)
 - `src/mappers/tests/test_lexer.py` — 9 tests (TokenAggregate mapper)
-- `src/mappers/tests/test_symbol.py` — 9 tests (ScopeAggregate mapper)
-- `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
-- `src/utils/tests/test_parser.py` — 45 tests (TiferetParser grammar rules)
+- `src/mappers/tests/test_semantic.py` — 9 tests (ScopeAggregate factories and mutation)
 - `src/utils/tests/test_artifact.py` — 13 tests (ArtifactBlockParser)
+- `src/utils/tests/test_ir.py` — 12 tests (DocstringParser + IRGenerator)
+- `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
 - `src/utils/tests/test_output.py` — 11 tests (ScanOutputWriter)
-- `src/utils/tests/test_symbol.py` — 9 tests (SymbolTableBuilder + NameResolver)
+- `src/utils/tests/test_parser.py` — 45 tests (TiferetParser grammar rules)
+- `src/utils/tests/test_semantic.py` — 9 tests (SymbolTableBuilder + NameResolver)
+- `src/events/tests/test_ir.py` — 6 tests (GenerateIR + EmitIRResult)
 - `src/events/tests/test_lexer.py` — 6 tests (lexer domain events)
 - `src/events/tests/test_parser.py` — 6 tests (parser domain events)
 

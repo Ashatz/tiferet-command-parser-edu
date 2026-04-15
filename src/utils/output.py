@@ -31,7 +31,7 @@ class ScanOutputWriter:
         :type output_path: str
         :param output_format: Explicit format or ``'auto'`` for detection.
         :type output_format: str
-        :return: Resolved format string (``'yaml'`` or ``'json'``).
+        :return: Resolved format string (``'yaml'``, ``'json'``, or ``'keter'``).
         :rtype: str
         '''
 
@@ -40,6 +40,8 @@ class ScanOutputWriter:
             ext = os.path.splitext(output_path)[1].lower()
             if ext == '.json':
                 return 'json'
+            if ext == '.keter':
+                return 'keter'
             return 'yaml'
 
         # Return the explicit format.
@@ -66,6 +68,8 @@ class ScanOutputWriter:
         with open(output_path, 'w', encoding='utf-8') as f:
             if fmt == 'json':
                 json.dump(result, f, indent=2, default=str)
+            elif fmt == 'keter':
+                f.write(result if isinstance(result, str) else str(result))
             else:
                 yaml.dump(result, f, default_flow_style=False, sort_keys=False)
 

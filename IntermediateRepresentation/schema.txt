@@ -1,0 +1,141 @@
+# Keter IR Schema Definition
+# Notation: Type(required_arg, ..., optional_arg=default) | collection = [item, ...]
+
+# *** Top Level
+
+EventGroup(
+    name:         str,              # artifact group key (e.g. "error")
+    description:  str,              # human-readable label + source file path
+    ImportGroups: ImportGroups,
+    Events:       Events
+)
+
+# *** Imports
+
+ImportGroups( [ImportGroup, ...] )
+
+ImportGroup(
+    category:  str,                 # artifact label: "core" | "infra" | "app"
+    Imports:   Imports
+)
+
+Imports( [Import, ...] )
+
+Import(
+    module_path: str,               # e.g. "tiferet.events" | ".settings"
+    symbol:      str                # e.g. "DomainEvent"
+)
+
+# *** Events
+
+Events( [Event, ...] )
+
+Event(
+    class_name:  str,               # e.g. "GetError"
+    doc_string:  str,               # class-level docstring
+    Attributes:  Attributes,
+    Injections:  Injections,
+    Execute:     Execute,
+    Methods:     Methods            # empty if no helper methods
+)
+
+# *** Class Members
+
+Attributes( [Attribute, ...] )      # from # * attribute: <name> members
+
+Attribute(
+    name: str,                      # e.g. "error_service"
+    type: str                       # e.g. "ErrorService"
+)
+
+Injections( [Injection, ...] )      # from # * init block
+
+Injection(
+    param:  "name:type:required:default:description",  # same encoding as Param; description from init docstring
+    Assign: Assign                  # body assignment
+)
+
+Assign(
+    target: Attribute,              # e.g. Attribute("error_service")
+    source: str                     # bound name, e.g. "error_service"
+)
+
+Attribute(
+    name: str                       # e.g. "error_service" | "self.pong"
+)
+
+# *** Methods
+
+Execute(
+    name:     str,                  # always "execute"
+    Params:   Params,
+    Returns:  Returns,
+    Snippets: Snippets
+)
+
+Methods( [Method, ...] )            # from # * method: <name> (non-execute)
+
+Method(
+    name:     str,                  # e.g. "verify_number"
+    Params:   Params,
+    Returns:  Returns,
+    Snippets: Snippets
+)
+
+# *** Returns
+
+Returns( [Return, ...] )            # from :return: / :rtype: in method docstring
+
+Return( "type_name:description" )   # e.g. "str:The formatted result"
+
+# *** Parameters
+
+Params( [Param, ...] )
+
+Param( "name:type:required:default:description" )
+#   name:        identifier
+#   type:        str | int | float | bool | dict | list | None | unknown | <ClassName>
+#   required:    true | false
+#   default:     value literal or empty string
+#   description: human-readable text or empty string
+#
+#   Examples:
+#     Param("id:str:true::The unique identifier of the error")
+#     Param("include_defaults:bool:false:False:Search DEFAULT_ERRORS if not found")
+#     Param("kwargs:dict:false::")
+
+# *** Snippets
+
+Snippets( [Snippet, ...] )          # one Snippet per # * snippet comment block
+
+Snippet(
+    Comments:   Comments,
+    Statements: Statements
+)
+
+Comments( [Comment, ...] )
+
+Comment( text: str )                # comment line text (without leading #)
+
+Statements( [Statement, ...] )
+
+Statement( expr: str )              # string-encoded expression (see Expr grammar below)
+
+# *** Expression Grammar (used inside Statement strings)
+
+Expr ::=
+    Assign(target: Expr, source: Expr)
+  | Call(callee: Expr, method: str, args: [Expr, ...])
+  | If(condition: Expr, body: Expr)
+  | Return(value: Expr)
+  | Attribute(name: str)            # dotted name: "self.error_service" | "a.DEFAULT_ERRORS"
+  | Name(value: str)                # simple identifier: "id" | "error"
+  | Add(left: Expr, right: Expr)
+  | Sub(left: Expr, right: Expr)
+  | Mul(left: Expr, right: Expr)
+  | Div(left: Expr, right: Expr)
+  | Mod(left: Expr, right: Expr)
+  | Exp(left: Expr, right: Expr)
+  | StrLit(value: str)              # string literal
+  | NumLit(value: str)              # numeric literal
+  | BoolLit(value: str)             # True | False

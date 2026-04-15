@@ -1,0 +1,14 @@
+EventGroup(pass_imports_only, "Tiferet Empty Events Sample — imports section with no event definitions",
+    ImportGroups(
+        ImportGroup(core, Imports(
+            Import(typing, Any),
+        )),
+        ImportGroup(app, Imports(
+            Import(.settings, DomainEvent),
+            Import(.settings, a),
+            Import(..interfaces, ErrorService),
+        )),
+    ),
+    Events(
+    )
+)

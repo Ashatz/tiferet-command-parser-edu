@@ -1,0 +1,159 @@
+EventGroup(pass_multiple_operator_events, "This module demonstrates how to define multiple operator events in the Tiferet Dialect, and how to parse them using the event parser",
+    ImportGroups(
+        ImportGroup(infra, Imports(
+            Import(tiferet.events, DomainEvent),
+        )),
+    ),
+    Events(
+        Event(Add, "An event that performs addition of two numbers.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(execute,
+                Params(
+                    Param("a:int:true::"),
+                    Param("b:int:true::"),
+                ),
+                Returns(
+                    Return("int:"),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                        ),
+                        Statements(
+                            Statement(Return(Add(a, b))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+        Event(Subtract, "An event that performs subtraction of two numbers.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(execute,
+                Params(
+                    Param("a:int:true::"),
+                    Param("b:int:true::"),
+                ),
+                Returns(
+                    Return("int:"),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                        ),
+                        Statements(
+                            Statement(Return(Sub(a, b))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+        Event(Multiply, "An event that performs multiplication of two numbers.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(execute,
+                Params(
+                    Param("a:int:true::"),
+                    Param("b:int:true::"),
+                ),
+                Returns(
+                    Return("int:"),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                        ),
+                        Statements(
+                            Statement(Return(Mul(a, b))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+        Event(Divide, "An event that performs division of two numbers.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(execute,
+                Params(
+                    Param("a:int:true::"),
+                    Param("b:int:true::"),
+                ),
+                Returns(
+                    Return("float:"),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                        ),
+                        Statements(
+                            Statement(Return(Div(a, b))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+        Event(Modulus, "An event that performs modulus of two numbers.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(execute,
+                Params(
+                    Param("a:int:true::"),
+                    Param("b:int:true::"),
+                ),
+                Returns(
+                    Return("int:"),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                        ),
+                        Statements(
+                            Statement(Return(Mod(a, b))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+        Event(Exponentiate, "An event that performs exponentiation of two numbers.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(execute,
+                Params(
+                    Param("a:int:true::"),
+                    Param("b:int:true::"),
+                ),
+                Returns(
+                    Return("float:"),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                        ),
+                        Statements(
+                            Statement(Return(Exp(a, b))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+    )
+)

@@ -17,3 +17,4 @@ from .ast import (
     ParamListAggregate as ParamList,
     )
 from .semantic import ScopeAggregate, ScopeAggregate as SymbolScope
+from .ir import IREventGroupAggregate

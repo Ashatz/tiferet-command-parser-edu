@@ -1,0 +1,34 @@
+EventGroup(pass_minimal_event, "",
+    ImportGroups(
+        ImportGroup(app, Imports(
+            Import(.settings, DomainEvent),
+        )),
+    ),
+    Events(
+        Event(Ping, "A minimal event with no attributes and a single method.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(execute,
+                Params(
+                    Param("kwargs:dict:false::"),
+                ),
+                Returns(
+                    Return("str:"),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                            Comment("Return pong."),
+                        ),
+                        Statements(
+                            Statement(Return('pong')),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+    )
+)
