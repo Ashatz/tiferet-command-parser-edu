@@ -1,6 +1,6 @@
 {
   "event_type": "SemanticAnalysisCompleted",
-  "timestamp": "2026-04-15T23:53:41.832694+00:00",
+  "timestamp": "2026-04-16T00:01:26.643410+00:00",
   "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/samples/fail_type_mismatch.py",
   "symbol_table": {
     "module_name": "fail_type_mismatch",
@@ -122,28 +122,5 @@
       }
     ],
     "unresolved": []
-  },
-  "type_errors": [
-    {
-      "error_code": "TYPE_MISMATCH_ASSIGNMENT",
-      "message": "Cannot assign str to variable declared as int",
-      "scope_path": "module.BadMath.__init__",
-      "expected_type": "int",
-      "actual_type": "str",
-      "target_name": "self.count",
-      "lineno": 22,
-      "col": 19
-    },
-    {
-      "error_code": "TYPE_MISMATCH_OPERATION",
-      "message": "Unsupported operand types for add: int and str",
-      "scope_path": "module.BadMath.execute",
-      "operation": "add",
-      "left_type": "int",
-      "right_type": "str",
-      "lineno": 29,
-      "col": 17
-    }
-  ],
-  "type_error_count": 2
+  }
 }

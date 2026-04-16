@@ -119,12 +119,8 @@ class EmitSemanticResult(DomainEvent):
             'resolution': semantic.get('resolution', {}),
         }
 
-        # Include type check errors if present.
+        # Print type check errors to console (not included in file output).
         if semantic_errors:
-            result['type_errors'] = semantic_errors
-            result['type_error_count'] = len(semantic_errors)
-
-            # Print errors to console.
             for error in semantic_errors:
                 loc = ''
                 if error.get('lineno') is not None:
