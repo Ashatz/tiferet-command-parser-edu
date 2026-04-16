@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 # ** app
 from ..mappers import TokenAggregate, Decl
-from ..utils import ScanOutputWriter, SymbolTableBuilder, NameResolver
+from ..utils import ScanOutputWriter, SymbolTableBuilder, NameResolver, ASTPrinter
 from .settings import DomainEvent, a
 
 # *** events
@@ -145,5 +145,17 @@ class EmitSemanticResult(DomainEvent):
             ScanOutputWriter.write(result, output, output_format)
             return ''
         else:
-            # Otherwise, return the result payload.
+            # Print AST (post-order traversal) if requested and available.
+            if include_ast and ast and isinstance(ast, Decl):
+                print()
+                print('--- AST (Post-Order Traversal) ---')
+                print()
+                ASTPrinter.print_ast(ast)
+
+            # Print the symbol table if no errors.
+            if not semantic_errors:
+                print()
+                ASTPrinter.print_symbol_table(semantic.get('symbol_table', {}))
+
+            # Return the result payload.
             return result

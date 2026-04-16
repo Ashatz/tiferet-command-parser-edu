@@ -11,3 +11,4 @@ from .typecheck import TypeChecker
 from .ir import DocstringParser, IRGenerator
 from .codegen import TiferetGenerator
 from .optimizer import YamlAnchorOptimizer
+from .printer import ASTPrinter
