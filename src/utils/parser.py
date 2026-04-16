@@ -994,17 +994,15 @@ class TiferetParser(ParserBase):
 
     # * method: p_assign_rhs (rule)
     def p_assign_rhs(self, p):
-        '''assign_rhs : name_or_literal_expr
-                      | call_expr
-                      | operation_expr'''
+        '''assign_rhs : operation_expr
+                      | call_expr'''
 
         # Pass through the right-hand side expression.
         p[0] = p[1]
 
     # * method: p_return_expr (rule)
     def p_return_expr(self, p):
-        '''return_expr : name_or_literal_expr
-                 | operation_expr
+        '''return_expr : operation_expr
                  | call_expr'''
 
         # Pass through the return expression.
@@ -1019,11 +1017,76 @@ class TiferetParser(ParserBase):
 
     # * method: p_operation_expr (rule)
     def p_operation_expr(self, p):
-        '''operation_expr : name_or_literal_expr operator name_or_literal_expr'''
+        '''operation_expr : comparison_expr'''
 
-        # Build a binary operator expression using position captured at terminal level.
-        ln, col = getattr(self, '_last_op_pos', (0, 0))
-        p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
+        # Pass through the comparison expression.
+        p[0] = p[1]
+
+    # * method: p_comparison_expr (rule)
+    def p_comparison_expr(self, p):
+        '''comparison_expr : additive_expr comparison_op additive_expr
+                           | additive_expr'''
+
+        # Build a comparison expression or pass through the additive expression.
+        if len(p) == 4:
+            ln, col = getattr(self, '_last_op_pos', (0, 0))
+            p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
+        else:
+            p[0] = p[1]
+
+    # * method: p_comparison_op (rule)
+    def p_comparison_op(self, p):
+        '''comparison_op : EQEQ
+                         | NOTEQ
+                         | LT
+                         | GT
+                         | LTEQ
+                         | GTEQ
+                         | PIPE
+                         | AMPERSAND'''
+
+        # Pass through the comparison operator and capture its position.
+        p[0] = p[1]
+        self._last_op_pos = self.pos(p, 1)
+
+    # * method: p_additive_expr (rule)
+    def p_additive_expr(self, p):
+        '''additive_expr : additive_expr PLUS multiplicative_expr
+                         | additive_expr MINUS multiplicative_expr
+                         | multiplicative_expr'''
+
+        # Build an additive expression or pass through the multiplicative expression.
+        if len(p) == 4:
+            ln, col = self.pos(p, 2)
+            p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
+        else:
+            p[0] = p[1]
+
+    # * method: p_multiplicative_expr (rule)
+    def p_multiplicative_expr(self, p):
+        '''multiplicative_expr : multiplicative_expr STAR exponential_expr
+                               | multiplicative_expr SLASH exponential_expr
+                               | multiplicative_expr PERCENT exponential_expr
+                               | exponential_expr'''
+
+        # Build a multiplicative expression or pass through the exponential expression.
+        if len(p) == 4:
+            ln, col = self.pos(p, 2)
+            p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
+        else:
+            p[0] = p[1]
+
+    # * method: p_exponential_expr (rule)
+    def p_exponential_expr(self, p):
+        '''exponential_expr : name_or_literal_expr DOUBLESTAR exponential_expr
+                            | name_or_literal_expr'''
+
+        # Build an exponential expression (right-associative) or pass through the base expression.
+        if len(p) == 4:
+            ln, col = self.pos(p, 2)
+            p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
+        else:
+            p[0] = p[1]
 
     # * method: p_call_expr (rule)
     def p_call_expr(self, p):
@@ -1056,9 +1119,8 @@ class TiferetParser(ParserBase):
 
     # * method: p_call_arg (rule)
     def p_call_arg(self, p):
-        '''call_arg : name_or_literal_expr
-                    | call_expr
-                    | operation_expr'''
+        '''call_arg : operation_expr
+                    | call_expr'''
 
         # Pass through a call argument expression.
         p[0] = p[1]
@@ -1110,23 +1172,3 @@ class TiferetParser(ParserBase):
         # Build a dotted identifier expression (supports chained dots like self.a.b).
         p[0] = p[1] + '.' + p[3]
 
-    # * method: p_operator (rule)
-    def p_operator(self, p):
-        '''operator : PLUS
-                    | MINUS
-                    | LT
-                    | GT
-                    | LTEQ
-                    | GTEQ
-                    | NOTEQ
-                    | STAR
-                    | SLASH
-                    | PERCENT
-                    | DOUBLESTAR
-                    | PIPE
-                    | AMPERSAND
-                    | EQEQ'''
-
-        # Pass through an operator token and capture position at terminal level.
-        p[0] = p[1]
-        self._last_op_pos = self.pos(p, 1)

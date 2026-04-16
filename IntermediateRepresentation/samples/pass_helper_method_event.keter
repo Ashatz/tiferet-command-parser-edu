@@ -31,10 +31,10 @@ EventGroup(pass_helper_method_event, "A calculator event with a helper method to
                     ),
                     Snippet(
                         Comments(
-                            Comment("Return the sum."),
+                            Comment("Return the result of the following equation."),
                         ),
                         Statements(
-                            Statement(Return(Add(x, y))),
+                            Statement(Return(Sub(Add(x, Mul(y, 3)), 2))),
                         ),
                     ),
                 ),

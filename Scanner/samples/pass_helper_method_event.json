@@ -1,6 +1,6 @@
 event_type: TokensScanned
-timestamp: '2026-04-15T17:05:17.847564+00:00'
-source_file: samples/pass_helper_method_event.py
+timestamp: '2026-04-16T02:10:22.058027+00:00'
+source_file: /Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/samples/pass_helper_method_event.py
 tokens:
 - type: DOCSTRING
   value: '"""A calculator event with a helper method to convert values to integers."""'
@@ -450,7 +450,7 @@ tokens:
   lineno: 41
   lexpos: 1003
 - type: LINE_COMMENT
-  value: '# Return the sum.'
+  value: '# Return the result of the following equation.'
   lineno: 43
   lexpos: 1013
 - type: NEWLINE
@@ -458,29 +458,45 @@ tokens:
 
     '
   lineno: 43
-  lexpos: 1030
+  lexpos: 1059
 - type: RETURN
   value: return
   lineno: 44
-  lexpos: 1039
+  lexpos: 1068
 - type: IDENTIFIER
   value: x
   lineno: 44
-  lexpos: 1046
+  lexpos: 1075
 - type: PLUS
   value: +
   lineno: 44
-  lexpos: 1048
+  lexpos: 1077
 - type: IDENTIFIER
   value: y
   lineno: 44
-  lexpos: 1050
+  lexpos: 1079
+- type: STAR
+  value: '*'
+  lineno: 44
+  lexpos: 1081
+- type: NUMBER_LITERAL
+  value: '3'
+  lineno: 44
+  lexpos: 1083
+- type: MINUS
+  value: '-'
+  lineno: 44
+  lexpos: 1085
+- type: NUMBER_LITERAL
+  value: '2'
+  lineno: 44
+  lexpos: 1087
 - type: NEWLINE
   value: '
 
     '
   lineno: 44
-  lexpos: 1051
+  lexpos: 1088
 - type: DEDENT
   value: ''
   lineno: 0
@@ -489,4 +505,4 @@ tokens:
   value: ''
   lineno: 0
   lexpos: 0
-token_count: 108
+token_count: 112

@@ -1,7 +1,7 @@
 {
   "event_type": "SemanticAnalysisCompleted",
-  "timestamp": "2026-04-15T17:14:08.785100+00:00",
-  "source_file": "samples/pass_helper_method_event.py",
+  "timestamp": "2026-04-16T02:10:22.740683+00:00",
+  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/samples/pass_helper_method_event.py",
   "symbol_table": {
     "module_name": "pass_helper_method_event",
     "scopes": {

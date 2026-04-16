@@ -1,7 +1,7 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-04-15T17:12:13.248523+00:00",
-  "source_file": "samples/pass_helper_method_event.py",
+  "timestamp": "2026-04-16T02:10:22.396150+00:00",
+  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/samples/pass_helper_method_event.py",
   "ast": {
     "name": "pass_helper_method_event",
     "doc_string": "\"\"\"A calculator event with a helper method to convert values to integers.\"\"\"",
@@ -29,6 +29,8 @@
         },
         "body": {
           "kind": "import_from",
+          "lineno": 6,
+          "col": 0,
           "init_expr": {
             "kind": "name",
             "name": "tiferet.events"
@@ -113,25 +115,37 @@
                         "kind": "snippet",
                         "body": {
                           "kind": "comment",
+                          "lineno": 24,
+                          "col": 8,
                           "expr": {
                             "kind": "comment",
-                            "value": "# Return the integer conversion."
+                            "value": "# Return the integer conversion.",
+                            "lineno": 24,
+                            "col": 8
                           },
                           "next": {
                             "kind": "return",
+                            "lineno": 25,
+                            "col": 8,
                             "expr": {
                               "kind": "call",
                               "left": {
                                 "kind": "name",
-                                "name": "int"
+                                "name": "int",
+                                "lineno": 25,
+                                "col": 15
                               },
                               "right": {
                                 "kind": "args_list",
                                 "left": {
                                   "kind": "name",
-                                  "name": "value"
+                                  "name": "value",
+                                  "lineno": 25,
+                                  "col": 19
                                 }
-                              }
+                              },
+                              "lineno": 0,
+                              "col": 0
                             }
                           }
                         }
@@ -191,55 +205,83 @@
                           "kind": "snippet",
                           "body": {
                             "kind": "comment",
+                            "lineno": 39,
+                            "col": 8,
                             "expr": {
                               "kind": "comment",
-                              "value": "# Convert inputs to integers."
+                              "value": "# Convert inputs to integers.",
+                              "lineno": 39,
+                              "col": 8
                             },
                             "next": {
                               "kind": "expr",
+                              "lineno": 0,
+                              "col": 0,
                               "expr": {
                                 "kind": "assign",
                                 "left": {
                                   "kind": "name",
-                                  "name": "x"
+                                  "name": "x",
+                                  "lineno": 40,
+                                  "col": 8
                                 },
                                 "right": {
                                   "kind": "call",
                                   "left": {
                                     "kind": "name",
-                                    "name": "self.to_int"
+                                    "name": "self.to_int",
+                                    "lineno": 40,
+                                    "col": 12
                                   },
                                   "right": {
                                     "kind": "args_list",
                                     "left": {
                                       "kind": "name",
-                                      "name": "a"
+                                      "name": "a",
+                                      "lineno": 40,
+                                      "col": 24
                                     }
-                                  }
-                                }
+                                  },
+                                  "lineno": 0,
+                                  "col": 0
+                                },
+                                "lineno": 40,
+                                "col": 10
                               },
                               "next": {
                                 "kind": "expr",
+                                "lineno": 0,
+                                "col": 0,
                                 "expr": {
                                   "kind": "assign",
                                   "left": {
                                     "kind": "name",
-                                    "name": "y"
+                                    "name": "y",
+                                    "lineno": 41,
+                                    "col": 8
                                   },
                                   "right": {
                                     "kind": "call",
                                     "left": {
                                       "kind": "name",
-                                      "name": "self.to_int"
+                                      "name": "self.to_int",
+                                      "lineno": 41,
+                                      "col": 12
                                     },
                                     "right": {
                                       "kind": "args_list",
                                       "left": {
                                         "kind": "name",
-                                        "name": "b"
+                                        "name": "b",
+                                        "lineno": 41,
+                                        "col": 24
                                       }
-                                    }
-                                  }
+                                    },
+                                    "lineno": 0,
+                                    "col": 0
+                                  },
+                                  "lineno": 41,
+                                  "col": 10
                                 }
                               }
                             }
@@ -248,23 +290,59 @@
                             "kind": "snippet",
                             "body": {
                               "kind": "comment",
+                              "lineno": 43,
+                              "col": 8,
                               "expr": {
                                 "kind": "comment",
-                                "value": "# Return the sum."
+                                "value": "# Return the result of the following equation.",
+                                "lineno": 43,
+                                "col": 8
                               },
                               "next": {
                                 "kind": "return",
+                                "lineno": 44,
+                                "col": 8,
                                 "expr": {
-                                  "kind": "add",
-                                  "value": "+",
+                                  "kind": "sub",
+                                  "value": "-",
                                   "left": {
-                                    "kind": "name",
-                                    "name": "x"
+                                    "kind": "add",
+                                    "value": "+",
+                                    "left": {
+                                      "kind": "name",
+                                      "name": "x",
+                                      "lineno": 44,
+                                      "col": 15
+                                    },
+                                    "right": {
+                                      "kind": "mul",
+                                      "value": "*",
+                                      "left": {
+                                        "kind": "name",
+                                        "name": "y",
+                                        "lineno": 44,
+                                        "col": 19
+                                      },
+                                      "right": {
+                                        "kind": "str_val",
+                                        "value": "3",
+                                        "lineno": 44,
+                                        "col": 23
+                                      },
+                                      "lineno": 44,
+                                      "col": 21
+                                    },
+                                    "lineno": 44,
+                                    "col": 17
                                   },
                                   "right": {
-                                    "kind": "name",
-                                    "name": "y"
-                                  }
+                                    "kind": "str_val",
+                                    "value": "2",
+                                    "lineno": 44,
+                                    "col": 27
+                                  },
+                                  "lineno": 44,
+                                  "col": 25
                                 }
                               }
                             }
