@@ -1,6 +1,6 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-04-15T17:12:13.944767+00:00",
+  "timestamp": "2026-04-16T05:58:57.247891+00:00",
   "source_file": "samples/pass_minimal_injection_event.py",
   "ast": {
     "name": "pass_minimal_injection_event",
@@ -14,7 +14,9 @@
         },
         "metadata": {
           "type": "***"
-        }
+        },
+        "lineno": 3,
+        "col": 0
       },
       "body": {
         "kind": "artifact",
@@ -25,10 +27,14 @@
           },
           "metadata": {
             "type": "**"
-          }
+          },
+          "lineno": 5,
+          "col": 0
         },
         "body": {
           "kind": "import_from",
+          "lineno": 6,
+          "col": 0,
           "init_expr": {
             "kind": "name",
             "name": ".settings"
@@ -48,7 +54,9 @@
           },
           "metadata": {
             "type": "***"
-          }
+          },
+          "lineno": 8,
+          "col": 0
         },
         "body": {
           "kind": "artifact",
@@ -59,7 +67,9 @@
             },
             "metadata": {
               "type": "** event"
-            }
+            },
+            "lineno": 10,
+            "col": 0
           },
           "body": {
             "kind": "decl",
@@ -89,9 +99,13 @@
                       "name": "pong",
                       "type": {
                         "kind": "str"
-                      }
+                      },
+                      "lineno": 14,
+                      "col": 4
                     }
                   },
+                  "lineno": 13,
+                  "col": 4,
                   "next": {
                     "name": "init",
                     "type": {
@@ -129,28 +143,44 @@
                           "kind": "snippet",
                           "body": {
                             "kind": "comment",
+                            "lineno": 20,
+                            "col": 8,
                             "expr": {
                               "kind": "comment",
-                              "value": "# Set the pong attribute."
+                              "value": "# Set the pong attribute.",
+                              "lineno": 20,
+                              "col": 8
                             },
                             "next": {
                               "kind": "expr",
+                              "lineno": 0,
+                              "col": 0,
                               "expr": {
                                 "kind": "assign",
                                 "left": {
                                   "kind": "name",
-                                  "name": "self.pong"
+                                  "name": "self.pong",
+                                  "lineno": 21,
+                                  "col": 8
                                 },
                                 "right": {
                                   "kind": "name",
-                                  "name": "pong"
-                                }
+                                  "name": "pong",
+                                  "lineno": 21,
+                                  "col": 20
+                                },
+                                "lineno": 21,
+                                "col": 18
                               }
                             }
                           }
-                        }
+                        },
+                        "lineno": 17,
+                        "col": 4
                       }
                     },
+                    "lineno": 16,
+                    "col": 4,
                     "next": {
                       "name": "method",
                       "type": {
@@ -190,25 +220,39 @@
                             "kind": "snippet",
                             "body": {
                               "kind": "comment",
+                              "lineno": 27,
+                              "col": 8,
                               "expr": {
                                 "kind": "comment",
-                                "value": "# Return the pong string."
+                                "value": "# Return the pong string.",
+                                "lineno": 27,
+                                "col": 8
                               },
                               "next": {
                                 "kind": "return",
+                                "lineno": 28,
+                                "col": 8,
                                 "expr": {
                                   "kind": "name",
-                                  "name": "self.pong"
+                                  "name": "self.pong",
+                                  "lineno": 28,
+                                  "col": 15
                                 }
                               }
                             }
-                          }
+                          },
+                          "lineno": 24,
+                          "col": 4
                         }
-                      }
+                      },
+                      "lineno": 23,
+                      "col": 4
                     }
                   }
                 }
-              }
+              },
+              "lineno": 11,
+              "col": 0
             }
           }
         }

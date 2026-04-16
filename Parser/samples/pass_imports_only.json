@@ -1,6 +1,6 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-04-15T17:12:13.478370+00:00",
+  "timestamp": "2026-04-16T05:58:56.450403+00:00",
   "source_file": "samples/pass_imports_only.py",
   "ast": {
     "name": "pass_imports_only",
@@ -14,7 +14,9 @@
         },
         "metadata": {
           "type": "***"
-        }
+        },
+        "lineno": 3,
+        "col": 0
       },
       "body": {
         "kind": "artifact",
@@ -25,10 +27,14 @@
           },
           "metadata": {
             "type": "**"
-          }
+          },
+          "lineno": 5,
+          "col": 0
         },
         "body": {
           "kind": "import_from",
+          "lineno": 6,
+          "col": 0,
           "init_expr": {
             "kind": "name",
             "name": "typing"
@@ -47,10 +53,14 @@
             },
             "metadata": {
               "type": "**"
-            }
+            },
+            "lineno": 8,
+            "col": 0
           },
           "body": {
             "kind": "import_from",
+            "lineno": 9,
+            "col": 0,
             "init_expr": {
               "kind": "name",
               "name": ".settings"
@@ -68,6 +78,8 @@
             },
             "next": {
               "kind": "import_from",
+              "lineno": 10,
+              "col": 0,
               "init_expr": {
                 "kind": "name",
                 "name": "..interfaces"
@@ -89,7 +101,9 @@
           },
           "metadata": {
             "type": "***"
-          }
+          },
+          "lineno": 12,
+          "col": 0
         }
       }
     }

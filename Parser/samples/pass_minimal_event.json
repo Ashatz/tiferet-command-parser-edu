@@ -1,6 +1,6 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-04-15T17:12:13.709170+00:00",
+  "timestamp": "2026-04-16T05:58:56.852767+00:00",
   "source_file": "samples/pass_minimal_event.py",
   "ast": {
     "name": "pass_minimal_event",
@@ -13,7 +13,9 @@
         },
         "metadata": {
           "type": "***"
-        }
+        },
+        "lineno": 1,
+        "col": 0
       },
       "body": {
         "kind": "artifact",
@@ -24,10 +26,14 @@
           },
           "metadata": {
             "type": "**"
-          }
+          },
+          "lineno": 3,
+          "col": 0
         },
         "body": {
           "kind": "import_from",
+          "lineno": 4,
+          "col": 0,
           "init_expr": {
             "kind": "name",
             "name": ".settings"
@@ -47,7 +53,9 @@
           },
           "metadata": {
             "type": "***"
-          }
+          },
+          "lineno": 6,
+          "col": 0
         },
         "body": {
           "kind": "artifact",
@@ -58,7 +66,9 @@
             },
             "metadata": {
               "type": "** event"
-            }
+            },
+            "lineno": 8,
+            "col": 0
           },
           "body": {
             "kind": "decl",
@@ -114,23 +124,37 @@
                         "kind": "snippet",
                         "body": {
                           "kind": "comment",
+                          "lineno": 16,
+                          "col": 8,
                           "expr": {
                             "kind": "comment",
-                            "value": "# Return pong."
+                            "value": "# Return pong.",
+                            "lineno": 16,
+                            "col": 8
                           },
                           "next": {
                             "kind": "return",
+                            "lineno": 17,
+                            "col": 8,
                             "expr": {
                               "kind": "str_val",
-                              "value": "'pong'"
+                              "value": "'pong'",
+                              "lineno": 17,
+                              "col": 15
                             }
                           }
                         }
-                      }
+                      },
+                      "lineno": 13,
+                      "col": 4
                     }
-                  }
+                  },
+                  "lineno": 12,
+                  "col": 4
                 }
-              }
+              },
+              "lineno": 9,
+              "col": 0
             }
           }
         }

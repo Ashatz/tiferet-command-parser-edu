@@ -1,6 +1,6 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-04-15T17:12:14.418050+00:00",
+  "timestamp": "2026-04-16T05:58:57.648459+00:00",
   "source_file": "samples/pass_multiple_operator_events.py",
   "ast": {
     "name": "pass_multiple_operator_events",
@@ -14,7 +14,9 @@
         },
         "metadata": {
           "type": "***"
-        }
+        },
+        "lineno": 3,
+        "col": 0
       },
       "body": {
         "kind": "artifact",
@@ -25,10 +27,14 @@
           },
           "metadata": {
             "type": "**"
-          }
+          },
+          "lineno": 5,
+          "col": 0
         },
         "body": {
           "kind": "import_from",
+          "lineno": 6,
+          "col": 0,
           "init_expr": {
             "kind": "name",
             "name": "tiferet.events"
@@ -48,7 +54,9 @@
           },
           "metadata": {
             "type": "***"
-          }
+          },
+          "lineno": 8,
+          "col": 0
         },
         "body": {
           "kind": "artifact",
@@ -59,7 +67,9 @@
             },
             "metadata": {
               "type": "** event"
-            }
+            },
+            "lineno": 10,
+            "col": 0
           },
           "body": {
             "kind": "decl",
@@ -120,24 +130,38 @@
                         "kind": "snippet",
                         "body": {
                           "kind": "return",
+                          "lineno": 18,
+                          "col": 8,
                           "expr": {
                             "kind": "add",
                             "value": "+",
                             "left": {
                               "kind": "name",
-                              "name": "a"
+                              "name": "a",
+                              "lineno": 18,
+                              "col": 15
                             },
                             "right": {
                               "kind": "name",
-                              "name": "b"
-                            }
+                              "name": "b",
+                              "lineno": 18,
+                              "col": 19
+                            },
+                            "lineno": 18,
+                            "col": 17
                           }
                         }
-                      }
+                      },
+                      "lineno": 15,
+                      "col": 4
                     }
-                  }
+                  },
+                  "lineno": 14,
+                  "col": 4
                 }
-              }
+              },
+              "lineno": 11,
+              "col": 0
             }
           },
           "next": {
@@ -149,7 +173,9 @@
               },
               "metadata": {
                 "type": "** event"
-              }
+              },
+              "lineno": 20,
+              "col": 0
             },
             "body": {
               "kind": "decl",
@@ -210,24 +236,38 @@
                           "kind": "snippet",
                           "body": {
                             "kind": "return",
+                            "lineno": 28,
+                            "col": 8,
                             "expr": {
                               "kind": "sub",
                               "value": "-",
                               "left": {
                                 "kind": "name",
-                                "name": "a"
+                                "name": "a",
+                                "lineno": 28,
+                                "col": 15
                               },
                               "right": {
                                 "kind": "name",
-                                "name": "b"
-                              }
+                                "name": "b",
+                                "lineno": 28,
+                                "col": 19
+                              },
+                              "lineno": 28,
+                              "col": 17
                             }
                           }
-                        }
+                        },
+                        "lineno": 25,
+                        "col": 4
                       }
-                    }
+                    },
+                    "lineno": 24,
+                    "col": 4
                   }
-                }
+                },
+                "lineno": 21,
+                "col": 0
               }
             },
             "next": {
@@ -239,7 +279,9 @@
                 },
                 "metadata": {
                   "type": "** event"
-                }
+                },
+                "lineno": 30,
+                "col": 0
               },
               "body": {
                 "kind": "decl",
@@ -300,24 +342,38 @@
                             "kind": "snippet",
                             "body": {
                               "kind": "return",
+                              "lineno": 38,
+                              "col": 8,
                               "expr": {
                                 "kind": "mul",
                                 "value": "*",
                                 "left": {
                                   "kind": "name",
-                                  "name": "a"
+                                  "name": "a",
+                                  "lineno": 38,
+                                  "col": 15
                                 },
                                 "right": {
                                   "kind": "name",
-                                  "name": "b"
-                                }
+                                  "name": "b",
+                                  "lineno": 38,
+                                  "col": 19
+                                },
+                                "lineno": 38,
+                                "col": 17
                               }
                             }
-                          }
+                          },
+                          "lineno": 35,
+                          "col": 4
                         }
-                      }
+                      },
+                      "lineno": 34,
+                      "col": 4
                     }
-                  }
+                  },
+                  "lineno": 31,
+                  "col": 0
                 }
               },
               "next": {
@@ -329,7 +385,9 @@
                   },
                   "metadata": {
                     "type": "** event"
-                  }
+                  },
+                  "lineno": 40,
+                  "col": 0
                 },
                 "body": {
                   "kind": "decl",
@@ -390,24 +448,38 @@
                               "kind": "snippet",
                               "body": {
                                 "kind": "return",
+                                "lineno": 48,
+                                "col": 8,
                                 "expr": {
                                   "kind": "div",
                                   "value": "/",
                                   "left": {
                                     "kind": "name",
-                                    "name": "a"
+                                    "name": "a",
+                                    "lineno": 48,
+                                    "col": 15
                                   },
                                   "right": {
                                     "kind": "name",
-                                    "name": "b"
-                                  }
+                                    "name": "b",
+                                    "lineno": 48,
+                                    "col": 19
+                                  },
+                                  "lineno": 48,
+                                  "col": 17
                                 }
                               }
-                            }
+                            },
+                            "lineno": 45,
+                            "col": 4
                           }
-                        }
+                        },
+                        "lineno": 44,
+                        "col": 4
                       }
-                    }
+                    },
+                    "lineno": 41,
+                    "col": 0
                   }
                 },
                 "next": {
@@ -419,7 +491,9 @@
                     },
                     "metadata": {
                       "type": "** event"
-                    }
+                    },
+                    "lineno": 50,
+                    "col": 0
                   },
                   "body": {
                     "kind": "decl",
@@ -480,24 +554,38 @@
                                 "kind": "snippet",
                                 "body": {
                                   "kind": "return",
+                                  "lineno": 58,
+                                  "col": 8,
                                   "expr": {
                                     "kind": "mod",
                                     "value": "%",
                                     "left": {
                                       "kind": "name",
-                                      "name": "a"
+                                      "name": "a",
+                                      "lineno": 58,
+                                      "col": 15
                                     },
                                     "right": {
                                       "kind": "name",
-                                      "name": "b"
-                                    }
+                                      "name": "b",
+                                      "lineno": 58,
+                                      "col": 19
+                                    },
+                                    "lineno": 58,
+                                    "col": 17
                                   }
                                 }
-                              }
+                              },
+                              "lineno": 55,
+                              "col": 4
                             }
-                          }
+                          },
+                          "lineno": 54,
+                          "col": 4
                         }
-                      }
+                      },
+                      "lineno": 51,
+                      "col": 0
                     }
                   },
                   "next": {
@@ -509,7 +597,9 @@
                       },
                       "metadata": {
                         "type": "** event"
-                      }
+                      },
+                      "lineno": 60,
+                      "col": 0
                     },
                     "body": {
                       "kind": "decl",
@@ -570,24 +660,38 @@
                                   "kind": "snippet",
                                   "body": {
                                     "kind": "return",
+                                    "lineno": 68,
+                                    "col": 8,
                                     "expr": {
-                                      "kind": "name",
+                                      "kind": "exp",
                                       "value": "**",
                                       "left": {
                                         "kind": "name",
-                                        "name": "a"
+                                        "name": "a",
+                                        "lineno": 68,
+                                        "col": 15
                                       },
                                       "right": {
                                         "kind": "name",
-                                        "name": "b"
-                                      }
+                                        "name": "b",
+                                        "lineno": 68,
+                                        "col": 20
+                                      },
+                                      "lineno": 68,
+                                      "col": 17
                                     }
                                   }
-                                }
+                                },
+                                "lineno": 65,
+                                "col": 4
                               }
-                            }
+                            },
+                            "lineno": 64,
+                            "col": 4
                           }
-                        }
+                        },
+                        "lineno": 61,
+                        "col": 0
                       }
                     }
                   }

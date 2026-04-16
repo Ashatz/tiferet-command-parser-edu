@@ -1,6 +1,6 @@
 # tiferet-command-parser-edu
 
-Educational parser and static analysis tool for the Tiferet Domain Event pattern — extracts structured YAML metadata and dependency graphs from domain-driven Python event code. Built for ECE 506: Compiler Design at the University of Arizona.
+Educational compiler and static analysis tool for the Tiferet Domain Event pattern — performs lexical scanning, syntactic parsing, semantic analysis, type checking, intermediate representation generation, code generation, and optimization on domain-driven Python event code. Built for ECE 506: Compiler Design at the University of Arizona.
 
 ### Project Abstract
 
@@ -10,7 +10,7 @@ In DDD, a Domain Event represents a discrete, well-defined operation within the 
 
 This project focuses exclusively on Domain Events, which reside at the heart of every working Tiferet application. The Domain Event dialect is defined by a precise syntactic language: artifact comments serve as domain documentation, `DomainEvent` inheritance establishes the service boundary, `execute` methods orchestrate transactional use cases, injected service contracts provide infrastructure abstraction, model factories act as aggregate roots, and error codes form part of the shared domain vocabulary.
 
-The compiler applies lexical analysis via PLY to recognize Tiferet idioms (artifact sections, import groups, validation decorators), syntactic analysis via PLY yacc to parse Domain Event classes into a structured Pydantic AST, semantic analysis to build symbol tables and resolve name references, and intermediate representation generation to produce a keter DSL capturing parameter contracts, ordered execution flow, and aggregated domain dependencies — serving as a semantically rich context store optimized for AI-assisted workflows.
+The compiler applies lexical analysis via PLY to recognize Tiferet idioms (artifact sections, import groups, validation decorators), syntactic analysis via PLY yacc to parse Domain Event classes into a structured Pydantic AST with PEMDAS-correct arithmetic precedence, semantic analysis to build symbol tables and resolve name references, type checking to validate assignments and operations against the symbol table, intermediate representation generation to produce a keter DSL capturing parameter contracts, ordered execution flow, and aggregated domain dependencies, and code generation to emit structured YAML output with optional anchor/alias optimization — serving as a semantically rich context store optimized for AI-assisted workflows.
 
 ### Project Overview
 
@@ -35,7 +35,7 @@ pip install -e ".[dev]"
 
 ### Usage
 
-The compiler performs lexical scanning, syntactic parsing, semantic analysis, and intermediate representation generation on Python source files written in the Tiferet Domain Event pattern. It recognizes domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords, builds a structured Pydantic AST reflecting the three-tier artifact hierarchy, constructs symbol tables with name resolution, and generates a keter IR.
+The compiler performs lexical scanning, syntactic parsing, semantic analysis, type checking, intermediate representation generation, code generation, and optimization on Python source files written in the Tiferet Domain Event pattern. It recognizes domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords, builds a structured Pydantic AST reflecting the three-tier artifact hierarchy, constructs symbol tables with name resolution, performs structural and type validation, generates a keter IR, and emits structured YAML output with optional YAML anchor/alias optimization.
 
 #### CLI Commands
 
@@ -46,11 +46,20 @@ python compiler.py scan event <source_file> -o output.yaml
 # Parse: tokenize + parse into AST
 python compiler.py parse event <source_file> -o output.json
 
-# Semantic: lex + parse + build symbol table and resolve names
+# Semantic: lex + parse + type check + build symbol table and resolve names
 python compiler.py semantic event <source_file> -o output.json
 
-# IR: lex + parse + semantic + generate keter IR
+# IR: lex + parse + semantic + type check + generate keter IR
 python compiler.py ir event <source_file> -o output.keter
+
+# Compile: full pipeline from source to structured YAML
+python compiler.py compile event <source_file> -o output.yaml
+
+# Compile from a .keter IR file
+python compiler.py compile keter <keter_file> -o output.yaml
+
+# Compile from a JSON AST file
+python compiler.py compile ast <ast_file> -o output.yaml
 ```
 
 **Common Options:**
@@ -62,6 +71,7 @@ python compiler.py ir event <source_file> -o output.keter
 | `--summary-only` | (scan) Output only metrics/summary (omit the full token list) |
 | `--include-tokens` | (parse/semantic) Include tokens in the output |
 | `--include-ast` | (semantic) Include the AST in the output |
+| `-O` | (compile) Optimization level: `O0` (none, default), `O1` (YAML anchor/alias deduplication) |
 
 **Examples:**
 
@@ -77,6 +87,15 @@ python compiler.py semantic event samples/pass_multiple_operator_events.py -o re
 
 # Generate keter IR
 python compiler.py ir event samples/pass_helper_method_event.py -o output.keter
+
+# Compile to YAML with optimization
+python compiler.py compile event samples/pass_minimal_event.py -o output.yaml -O O1
+
+# Compile from keter IR
+python compiler.py compile keter IntermediateRepresentation/samples/pass_minimal_event.keter -o output.yaml
+
+# Compile from JSON AST
+python compiler.py compile ast Parser/samples/pass_minimal_event.json -o output.yaml
 ```
 
 #### Token Categories
@@ -96,7 +115,7 @@ Unrecognized characters are emitted as `UNKNOWN` tokens for error reporting.
 
 ### Sample Files
 
-The `samples/` directory contains 14 Tiferet Domain Event source files used for end-to-end testing across all pipeline stages. Five are well-formed success cases; nine are intentional failure cases exercising parser, semantic, and structural error detection.
+The `samples/` directory contains 22 Tiferet Domain Event source files used for end-to-end testing across all pipeline stages. Five are well-formed success cases; seventeen are intentional failure cases exercising parser, semantic, type checking, and structural error detection.
 
 **Success cases:**
 
@@ -106,7 +125,7 @@ The `samples/` directory contains 14 Tiferet Domain Event source files used for 
 | `pass_minimal_event.py` | Single minimal `Ping` event with no injection or dependencies |
 | `pass_minimal_injection_event.py` | Event with constructor injection and service dependency |
 | `pass_multiple_operator_events.py` | Multi-event module with arithmetic operators |
-| `pass_helper_method_event.py` | Event with a helper method alongside `execute` |
+| `pass_helper_method_event.py` | Event with helper method and chained arithmetic expression |
 
 **Failure cases:**
 
@@ -121,13 +140,21 @@ The `samples/` directory contains 14 Tiferet Domain Event source files used for 
 | `fail_missing_member_artifact.py` | Member without required artifact annotation |
 | `fail_unresolved_attribute.py` | Reference to an undefined attribute (semantic error) |
 | `fail_unresolved_import.py` | Reference to an unresolved import (semantic error) |
+| `fail_attribute_is_function.py` | Attribute member is a function declaration |
+| `fail_event_class_mismatch.py` | Section artifact name doesn't match class name |
+| `fail_event_missing_execute.py` | Event class missing required `execute` method |
+| `fail_import_with_class.py` | Import section contains non-import statements |
+| `fail_invalid_import_group.py` | Import group name not in `core`, `infra`, `app` |
+| `fail_method_member_not_func.py` | Method member is not a function declaration |
+| `fail_multiple_artifact_errors.py` | Multiple structural artifact errors in one file |
+| `fail_type_mismatch.py` | Type mismatch in assignment or operation |
 
 ### Running Tests
 
 The test suite validates domain objects, mappers, utilities, and domain events across all pipeline stages.
 
 ```bash
-# Run all tests (196 total)
+# Run all tests (237 total)
 python -m pytest src/ -v
 
 # Domain object tests
@@ -137,13 +164,13 @@ python -m pytest src/domain/tests/ -v        # 40 tests (AST, Token, IR, Semanti
 python -m pytest src/mappers/tests/ -v        # 22 tests (Token, AST, Semantic, IR)
 
 # Utility tests
-python -m pytest src/utils/tests/ -v          # 116 tests (Lexer, Parser, Artifact, Output, Semantic, IR)
+python -m pytest src/utils/tests/ -v          # 149 tests (Lexer, Parser, Artifact, Output, Semantic, IR, Codegen, Optimizer)
 
 # Domain event tests
-python -m pytest src/events/tests/ -v         # 18 tests (Lexer, Parser, IR)
+python -m pytest src/events/tests/ -v         # 26 tests (Lexer, Parser, IR, Codegen)
 ```
 
-**Total: 196 tests** across 16 test files
+**Total: 237 tests** across 19 test files
 
 ### Project Structure
 
@@ -157,15 +184,20 @@ docs/
     lexical_spec.md      — Formal lexical specification for all 58 token types
     grammar_spec.md      — Context-free grammar specification and LR(1)/LALR verification
     utils/
+      artifact.md        — Artifact block parser utility guide
+      codegen.md         — Code generation utility guide (TiferetGenerator, schema)
+      ir.md              — IR generator utility guide (DocstringParser, IRGenerator)
       lexer.md           — Lexer utility guide (dynamic PLY pattern, BlockTracker)
+      output.md          — Output writer utility guide (ScanOutputWriter)
       parser.md          — Parser utility guide (TiferetParser, AST structure)
+      semantic.md        — Semantic analysis utility guide (SymbolTableBuilder, NameResolver)
 
-samples/                 — End-to-end sample files for all pipeline stages
+samples/                 — End-to-end sample files for all pipeline stages (22 files)
   pass_imports_only.py               — Imports-only module (success case)
   pass_minimal_event.py              — Minimal event with no injection (success case)
   pass_minimal_injection_event.py    — Event with service injection (success case)
   pass_multiple_operator_events.py   — Multi-event module with operators (success case)
-  pass_helper_method_event.py        — Event with helper method (success case)
+  pass_helper_method_event.py        — Event with helper method and chained arithmetic (success case)
   fail_bare_function.py              — Top-level function outside artifact structure (failure case)
   fail_class_bare_attribute.py       — Class attribute without member artifact (failure case)
   fail_class_bare_method.py          — Class method without member artifact (failure case)
@@ -175,16 +207,24 @@ samples/                 — End-to-end sample files for all pipeline stages
   fail_missing_member_artifact.py    — Member without artifact annotation (failure case)
   fail_unresolved_attribute.py       — Undefined attribute reference (semantic failure)
   fail_unresolved_import.py          — Unresolved import reference (semantic failure)
+  fail_attribute_is_function.py      — Attribute member is a function declaration (type check failure)
+  fail_event_class_mismatch.py       — Section name doesn't match class name (type check failure)
+  fail_event_missing_execute.py      — Event class missing execute method (type check failure)
+  fail_import_with_class.py          — Import section with non-import statements (type check failure)
+  fail_invalid_import_group.py       — Invalid import group name (type check failure)
+  fail_method_member_not_func.py     — Method member is not a function (type check failure)
+  fail_multiple_artifact_errors.py   — Multiple structural errors (type check failure)
+  fail_type_mismatch.py              — Type mismatch in assignment/operation (type check failure)
 
 src/
   __init__.py            — Package exports and version (0.3.2)
   assets/
     __init__.py          — Exports `lexer` and `parser` asset modules
     lexer.py             — Token constants (58 types), rule handlers, RULES mapping dict
-    parser.py            — Grammar precedence, AST builder helpers (build_module, build_group, etc.)
+    parser.py            — Grammar precedence (PEMDAS hierarchy), AST builder helpers (build_module, build_group, etc.)
   domain/
     __init__.py          — Exports: TypeKind, ExprKind, StatementKind, Type, ParamList, Expression, Declaration, Statement, Token, SymbolKind, Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult, and all IR domain objects
-    ast.py               — Pydantic AST domain objects (TypeKind, ExprKind, StatementKind enums; Type, ParamList, Expression, Declaration, Statement models)
+    ast.py               — Pydantic AST domain objects with lineno/col position tracking (TypeKind, ExprKind, StatementKind enums; Type, ParamList, Expression, Declaration, Statement models)
     ir.py                — Pydantic IR domain objects (IRImport, IRImportGroup, IRAttribute, IREvent, IREventGroup, etc.) each with to_keter() serialization
     lexer.py             — Pydantic Token domain object (type, value, lineno, lexpos)
     semantic.py          — Pydantic symbol table domain objects (SymbolKind enum; Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult models)
@@ -199,20 +239,25 @@ src/
     lexer.py             — Lexer domain events: PerformLexicalAnalysis, EmitScanResult
     parser.py            — Parser domain events: PerformSyntacticAnalysis, EmitParseResult
     semantic.py          — Semantic domain events: PerformSemanticAnalysis, EmitSemanticResult
+    typecheck.py         — Type checking domain event: PerformTypeCheck
     ir.py                — IR domain events: GenerateIR, EmitIRResult
+    codegen.py           — Codegen domain events: GenerateCode, OptimizeCode, EmitCodegenResult, LoadFromKeter, LoadFromAST
     tests/
       test_lexer.py      — 6 tests for lexer events (DomainEvent.handle pattern)
       test_parser.py     — 6 tests for parser events
       test_ir.py         — 6 tests for GenerateIR and EmitIRResult
+      test_codegen.py    — 8 tests for codegen events (GenerateCode, OptimizeCode, EmitCodegenResult)
   interfaces/
-    __init__.py          — Exports: LexerService, ParserService, IRService
+    __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService
     lexer.py             — LexerService abstract interface (extends tiferet Service)
     parser.py            — ParserService abstract interface (extends tiferet Service)
     ir.py                — IRService abstract interface (extends tiferet Service)
+    codegen.py           — CodegenService abstract interface (extends tiferet Service)
+    optimizer.py         — OptimizerService abstract interface (extends tiferet Service)
   mappers/
-    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate
+    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate, KeterIREventGroup
     ast.py               — AST mappers with mutation methods and static factories
-    ir.py                — IREventGroupAggregate with add_event() and add_import_group() helpers
+    ir.py                — IREventGroupAggregate with mutation helpers + KeterIREventGroup (keter DSL parser with KeterLexer)
     lexer.py             — TokenAggregate with factory methods (new, new_indent, new_dedent)
     semantic.py          — ScopeAggregate with scope factories and mutation methods
     tests/
@@ -220,20 +265,25 @@ src/
       test_lexer.py      — 9 tests for TokenAggregate mapper
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, DocstringParser, IRGenerator
+    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer
     artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST to produce IREventGroup)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     output.py            — ScanOutputWriter: YAML/JSON/keter file output with format auto-detection
     parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
     semantic.py          — SymbolTableBuilder (single-pass scope/symbol construction) + NameResolver (name resolution against scope registry)
+    typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
+    codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
+    optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; deduplicates repeated params/returns for YAML anchor/alias emission)
     tests/
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
-      test_output.py     — 11 tests for ScanOutputWriter
+      test_output.py     — 12 tests for ScanOutputWriter
       test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
-      test_semantic.py   — 9 tests for SymbolTableBuilder and NameResolver
+      test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
+      test_codegen.py    — 10 tests for TiferetGenerator
+      test_optimizer.py  — 5 tests for YamlAnchorOptimizer
 ```
 
 ### Project Documentation
@@ -243,15 +293,20 @@ src/
 - **[grammar_spec.md](./docs/guides/grammar_spec.md)** — Context-free grammar specification and LALR verification
 - **[AGENTS.md](./AGENTS.md)** — AI agent codebase index
 
-**Guides:**
+**Utility Guides:**
+- **[Artifact Parser](./docs/guides/utils/artifact.md)** — Artifact block extraction and filtering
+- **[Code Generator](./docs/guides/utils/codegen.md)** — Code generation utility (TiferetGenerator, output schema)
+- **[IR Generator](./docs/guides/utils/ir.md)** — IR generation utility (DocstringParser, IRGenerator)
 - **[Dynamic PLY Lexer](./docs/guides/utils/lexer.md)** — Architecture guide for the dynamic lexer pattern (assets, import chain, rule composition)
+- **[Output Writer](./docs/guides/utils/output.md)** — Output writer utility (ScanOutputWriter, format detection)
 - **[Parser Utility](./docs/guides/utils/parser.md)** — Parser utility guide (TiferetParser, AST structure)
+- **[Semantic Analysis](./docs/guides/utils/semantic.md)** — Semantic analysis utility (SymbolTableBuilder, NameResolver)
 
 ### Development Status
 
 - **Current branch**: `ece-506-submission`
 - **Version**: 0.3.2
-- **Focus**: Full compiler front-end (lexer, parser, semantic analysis, IR generation) for the Tiferet Domain Event pattern
+- **Focus**: Full compiler pipeline (lexer, parser, semantic analysis, type checking, IR generation, code generation, optimization) for the Tiferet Domain Event pattern
 - **License**: MIT (educational reuse encouraged)
 
 ### Acknowledgments

@@ -1,7 +1,7 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-04-16T02:10:22.396150+00:00",
-  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/samples/pass_helper_method_event.py",
+  "timestamp": "2026-04-16T05:58:58.046345+00:00",
+  "source_file": "samples/pass_helper_method_event.py",
   "ast": {
     "name": "pass_helper_method_event",
     "doc_string": "\"\"\"A calculator event with a helper method to convert values to integers.\"\"\"",
@@ -14,7 +14,9 @@
         },
         "metadata": {
           "type": "***"
-        }
+        },
+        "lineno": 3,
+        "col": 0
       },
       "body": {
         "kind": "artifact",
@@ -25,7 +27,9 @@
           },
           "metadata": {
             "type": "**"
-          }
+          },
+          "lineno": 5,
+          "col": 0
         },
         "body": {
           "kind": "import_from",
@@ -50,7 +54,9 @@
           },
           "metadata": {
             "type": "***"
-          }
+          },
+          "lineno": 8,
+          "col": 0
         },
         "body": {
           "kind": "artifact",
@@ -61,7 +67,9 @@
             },
             "metadata": {
               "type": "** event"
-            }
+            },
+            "lineno": 10,
+            "col": 0
           },
           "body": {
             "kind": "decl",
@@ -149,9 +157,13 @@
                             }
                           }
                         }
-                      }
+                      },
+                      "lineno": 15,
+                      "col": 4
                     }
                   },
+                  "lineno": 14,
+                  "col": 4,
                   "next": {
                     "name": "method",
                     "type": {
@@ -347,12 +359,18 @@
                               }
                             }
                           }
-                        }
+                        },
+                        "lineno": 28,
+                        "col": 4
                       }
-                    }
+                    },
+                    "lineno": 27,
+                    "col": 4
                   }
                 }
-              }
+              },
+              "lineno": 11,
+              "col": 0
             }
           }
         }
