@@ -24,9 +24,9 @@ evt_grp:
           - Assign(x, Call(self.to_int, a))
           - Assign(y, Call(self.to_int, b))
         - coms:
-          - Return the sum.
+          - Return the result of the following equation.
           stmt:
-          - Return(Add(x, y))
+          - Return(Sub(Add(x, Mul(y, 3)), 2))
       methods:
         to_int:
           params:
