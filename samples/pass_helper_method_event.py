@@ -40,5 +40,5 @@ class AddInteger(DomainEvent):
         x = self.to_int(a)
         y = self.to_int(b)
 
-        # Return the sum.
-        return x + y
+        # Return the result of the following equation.
+        return x + y * 3 - 2
