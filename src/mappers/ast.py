@@ -600,7 +600,7 @@ class DeclarationAggregate(Declaration):
 
     # * method: new_artifact
     @staticmethod
-    def new_artifact_decl(name: str, type: str) -> 'DeclarationAggregate':
+    def new_artifact_decl(name: str, type: str, lineno: Optional[int] = None, col: Optional[int] = None) -> 'DeclarationAggregate':
         """
         Create a new DeclarationAggregate representing an artifact declaration (e.g., class or method declaration).
 
@@ -608,6 +608,10 @@ class DeclarationAggregate(Declaration):
         :type name: str
         :param type: The type of the artifact token being captured (e.g. ARTIFACT_SECTION, ARTIFACT_MEMBER).
         :type type: str
+        :param lineno: Optional source line number.
+        :type lineno: int | None
+        :param col: Optional 0-based column offset.
+        :type col: int | None
         :return: A new DeclarationAggregate instance representing the artifact declaration.
         :rtype: DeclarationAggregate
         """
@@ -617,19 +621,27 @@ class DeclarationAggregate(Declaration):
             type=TypeAggregate.new_artifact_type(),
             metadata={
                 'type': type
-            }
+            },
+            lineno=lineno,
+            col=col,
         )
     
     # * method: new_member_decl
     @staticmethod
-    def new_member_decl(name: str, member_body: 'StatementAggregate' = None, annots: dict = None) -> 'DeclarationAggregate':
+    def new_member_decl(name: str, member_body: 'StatementAggregate' = None, annots: dict = None, lineno: Optional[int] = None, col: Optional[int] = None) -> 'DeclarationAggregate':
         """
         Create a new DeclarationAggregate representing a member declaration within an artifact (e.g., class attribute or method declaration).
 
         :param name: The name of the member being declared (e.g., attribute name, method name).
         :type name: str
-        :param type: The type of the member token being captured (e.g. ARTIFACT_MEMBER).
-        :type type: str
+        :param member_body: Optional statement body of the member.
+        :type member_body: StatementAggregate | None
+        :param annots: Optional annotations dict.
+        :type annots: dict | None
+        :param lineno: Optional source line number.
+        :type lineno: int | None
+        :param col: Optional 0-based column offset.
+        :type col: int | None
         :return: A new DeclarationAggregate instance representing the member declaration.
         :rtype: DeclarationAggregate
         """
@@ -641,6 +653,8 @@ class DeclarationAggregate(Declaration):
             metadata={
                 'type': 'ARTIFACT_MEMBER'
             },
+            lineno=lineno,
+            col=col,
         )
 
         # If there is a member body (e.g., method body or attribute declaration), add it to the code field of the declaration aggregate.
@@ -655,19 +669,22 @@ class DeclarationAggregate(Declaration):
 
     # * method: new_func_decl
     @staticmethod
-    def new_func_decl(name: str, type: Optional['ParamListAggregate'] = None, doc_string: Optional[str] = None, body: Optional['StatementAggregate'] = None) -> 'DeclarationAggregate':
-        """ Create a new DeclarationAggregate representing a function/method declaration.
+    def new_func_decl(name: str, type: Optional['ParamListAggregate'] = None, doc_string: Optional[str] = None, body: Optional['StatementAggregate'] = None, lineno: Optional[int] = None, col: Optional[int] = None) -> 'DeclarationAggregate':
+        """
+        Create a new DeclarationAggregate representing a function/method declaration.
 
         :param name: The name of the function being declared.
         :type name: str
-        :param params: Optional ParamListAggregate representing the parameters of the function.
-        :type params: ParamListAggregate | None
-        :param return_type: Optional TypeAggregate representing the return type of the function.
-        :type return_type: TypeAggregate | None
+        :param type: Optional TypeAggregate representing the function type.
+        :type type: TypeAggregate | None
         :param doc_string: Optional docstring for the function declaration.
         :type doc_string: str | None
         :param body: Optional StatementAggregate representing the body of the function.
         :type body: StatementAggregate | None
+        :param lineno: Optional source line number.
+        :type lineno: int | None
+        :param col: Optional 0-based column offset.
+        :type col: int | None
         :return: A new DeclarationAggregate instance representing the function declaration.
         :rtype: DeclarationAggregate
         """
@@ -676,17 +693,29 @@ class DeclarationAggregate(Declaration):
             name=name,
             type=type,
             doc_string=doc_string,
-            code=body
-        )    
+            code=body,
+            lineno=lineno,
+            col=col,
+        )
     # * method: new_class_decl
     @staticmethod
-    def new_class_decl(name: str, subclasses: TypeAggregate, doc_string: str, members: 'StatementAggregate') -> 'DeclarationAggregate':
+    def new_class_decl(name: str, subclasses: TypeAggregate, doc_string: str, members: 'StatementAggregate', lineno: Optional[int] = None, col: Optional[int] = None) -> 'DeclarationAggregate':
         """
         Create a new DeclarationAggregate representing a class declaration.
 
         :param name: The name of the class being declared.
         :type name: str
-        :return: A new DeclarationAggregate instance representing the class declaration
+        :param subclasses: The TypeAggregate representing base classes.
+        :type subclasses: TypeAggregate
+        :param doc_string: Optional docstring for the class.
+        :type doc_string: str
+        :param members: StatementAggregate representing the class body.
+        :type members: StatementAggregate
+        :param lineno: Optional source line number.
+        :type lineno: int | None
+        :param col: Optional 0-based column offset.
+        :type col: int | None
+        :return: A new DeclarationAggregate instance representing the class declaration.
         :rtype: DeclarationAggregate
         """
 
@@ -694,19 +723,27 @@ class DeclarationAggregate(Declaration):
             name=name,
             type=TypeAggregate.new_class_type(name, subclasses),
             doc_string=doc_string,
-            code=members
+            code=members,
+            lineno=lineno,
+            col=col,
         )
     
     # * method: new_attr_decl
     @staticmethod
-    def new_attr_decl(name: str, types: Optional[TypeAggregate] = None, value: Optional[ExpressionAggregate] = None) -> 'DeclarationAggregate':
+    def new_attr_decl(name: str, types: Optional[TypeAggregate] = None, value: Optional[ExpressionAggregate] = None, lineno: Optional[int] = None, col: Optional[int] = None) -> 'DeclarationAggregate':
         """
         Create a new DeclarationAggregate representing an attribute declaration.
 
         :param name: The name of the attribute being declared.
         :type name: str
         :param types: The TypeAggregate representing the type(s) of the attribute.
-        :type types: TypeAggregate
+        :type types: TypeAggregate | None
+        :param value: Optional expression value for the attribute.
+        :type value: ExpressionAggregate | None
+        :param lineno: Optional source line number.
+        :type lineno: int | None
+        :param col: Optional 0-based column offset.
+        :type col: int | None
         :return: A new DeclarationAggregate instance representing the attribute declaration.
         :rtype: DeclarationAggregate
         """
@@ -714,6 +751,8 @@ class DeclarationAggregate(Declaration):
         # Create the declaration aggregate with the given name. If there are types, set the type field of the declaration aggregate to a new class type with the given types as subclasses. If there is a value, set the value field of the declaration aggregate to the given value.
         agg = DeclarationAggregate(
             name=name,
+            lineno=lineno,
+            col=col,
         )
 
         # If there are types, set the type field of the declaration aggregate to a new class type with the given types as subclasses.

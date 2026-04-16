@@ -110,16 +110,7 @@ class EmitSemanticResult(DomainEvent):
         :rtype: Dict[str, Any]
         '''
 
-        # Build base payload with semantic analysis data.
-        result = {
-            'event_type': 'SemanticAnalysisCompleted',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'source_file': source_file,
-            'symbol_table': semantic.get('symbol_table', {}),
-            'resolution': semantic.get('resolution', {}),
-        }
-
-        # Print type check errors to console (not included in file output).
+        # Print type check errors to console and omit symbol table when errors exist.
         if semantic_errors:
             for error in semantic_errors:
                 loc = ''
@@ -128,6 +119,17 @@ class EmitSemanticResult(DomainEvent):
                 print(f"Type Error [{error.get('error_code', 'UNKNOWN')}] "
                       f"in {error.get('scope_path', '?')}{loc}: "
                       f"{error.get('message', '')}")
+
+        # Build base payload — omit symbol_table and resolution when errors are present.
+        result = {
+            'event_type': 'SemanticAnalysisCompleted',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'source_file': source_file,
+        }
+
+        if not semantic_errors:
+            result['symbol_table'] = semantic.get('symbol_table', {})
+            result['resolution'] = semantic.get('resolution', {})
 
         # Include AST if requested.
         if include_ast and ast and isinstance(ast, Decl):

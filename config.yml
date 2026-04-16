@@ -254,6 +254,56 @@ errors:
     message:
       - lang: en_US
         text: 'Failed to parse codegen schema from {source_file}'
+  INVALID_IMPORT_GROUP:
+    name: Invalid Import Group
+    message:
+      - lang: en_US
+        text: "Import group '{group_name}' must be one of: core, infra, app"
+  INVALID_IMPORT_CONTENT:
+    name: Invalid Import Content
+    message:
+      - lang: en_US
+        text: "Import section '{section_name}' contains non-import statements"
+  ARTIFACT_CLASS_NAME_MISMATCH:
+    name: Artifact Class Name Mismatch
+    message:
+      - lang: en_US
+        text: "Section expects class '{expected_class}' but found '{actual_class}'"
+  INVALID_ATTRIBUTE_MEMBER_TYPE:
+    name: Invalid Attribute Member Type
+    message:
+      - lang: en_US
+        text: "Attribute member '{attribute_name}' must be a variable declaration, not a {found_type}"
+  ATTRIBUTE_MEMBER_NAME_MISMATCH:
+    name: Attribute Member Name Mismatch
+    message:
+      - lang: en_US
+        text: "Attribute member expects '{expected_name}' but declaration is '{actual_name}'"
+  INVALID_METHOD_MEMBER_TYPE:
+    name: Invalid Method Member Type
+    message:
+      - lang: en_US
+        text: "Method member '{method_name}' must be a function declaration"
+  METHOD_MEMBER_NAME_MISMATCH:
+    name: Method Member Name Mismatch
+    message:
+      - lang: en_US
+        text: "Method member expects '{expected_name}' but declaration is '{actual_name}'"
+  METHOD_MISSING_SELF:
+    name: Method Missing Self
+    message:
+      - lang: en_US
+        text: "Method '{method_name}' must have 'self' as first parameter"
+  INVALID_METHOD_RETURN_TYPE:
+    name: Invalid Method Return Type
+    message:
+      - lang: en_US
+        text: "Method '{method_name}' has invalid return type '{return_type}'"
+  EVENT_MISSING_EXECUTE:
+    name: Event Missing Execute
+    message:
+      - lang: en_US
+        text: "Event '{event_name}' class '{class_name}' must declare an 'execute' method"
 
 logging: {}
 

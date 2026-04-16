@@ -866,3 +866,403 @@ def test_type_check_str_subtraction_invalid():
     errors = checker.check(module)
     assert len(errors) == 1
     assert errors[0]['error_code'] == 'TYPE_MISMATCH_OPERATION'
+
+
+# ** test: artifact_valid_import_groups
+def test_artifact_valid_import_groups(imports_only_ast: Decl):
+    '''Valid import groups (core, app) should produce no artifact errors.'''
+
+    builder = SymbolTableBuilder()
+    builder.build(imports_only_ast)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(imports_only_ast)
+
+    # No artifact structural errors expected.
+    artifact_errors = [e for e in errors if e['error_code'].startswith('INVALID_IMPORT')]
+    assert len(artifact_errors) == 0
+
+
+# ** test: artifact_invalid_import_group_name
+def test_artifact_invalid_import_group_name():
+    '''Import group with invalid name should produce INVALID_IMPORT_GROUP.'''
+
+    # Build a module with an import group named 'infra_bad'.
+    import_any = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('typing'),
+        import_expr=Expr.new_name_expr('Any'),
+    )
+    bad_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('infra_bad', '**'),
+        section_body=import_any,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=bad_group,
+    )
+    module = Decl.new_module_decl(name='fail_import_group', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    import_errors = [e for e in errors if e['error_code'] == 'INVALID_IMPORT_GROUP']
+    assert len(import_errors) == 1
+    assert import_errors[0]['group_name'] == 'infra_bad'
+
+
+# ** test: artifact_import_section_with_class_decl
+def test_artifact_import_section_with_class_decl():
+    '''Class declaration in import section should produce INVALID_IMPORT_CONTENT.'''
+
+    # Build a module with a class inside the 'core' import section.
+    bad_class = Decl.new_class_decl(
+        name='BadClass',
+        subclasses=None,
+        doc_string=None,
+        members=None,
+    )
+    bad_stmt = Stmt.new_decl_stmt(bad_class)
+    core_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('core', '**'),
+        section_body=bad_stmt,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=core_group,
+    )
+    module = Decl.new_module_decl(name='fail_import_content', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    content_errors = [e for e in errors if e['error_code'] == 'INVALID_IMPORT_CONTENT']
+    assert len(content_errors) == 1
+    assert content_errors[0]['section_name'] == 'core'
+
+
+# ** test: artifact_section_class_name_match
+def test_artifact_section_class_name_match(minimal_event_ast: Decl):
+    '''Correct snake-to-pascal matching (ping -> Ping) should produce no errors.'''
+
+    builder = SymbolTableBuilder()
+    builder.build(minimal_event_ast)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(minimal_event_ast)
+
+    mismatch_errors = [e for e in errors if e['error_code'] == 'ARTIFACT_CLASS_NAME_MISMATCH']
+    assert len(mismatch_errors) == 0
+
+
+# ** test: artifact_section_class_name_mismatch
+def test_artifact_section_class_name_mismatch():
+    '''Mismatched class name should produce ARTIFACT_CLASS_NAME_MISMATCH.'''
+
+    # Build event: add_error section with class named 'WrongName' instead of 'AddError'.
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    kwargs_param = ParamList.new_kwargs_param()
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    self_param.set_next(kwargs_param)
+
+    execute_decl = Decl.new_func_decl(
+        name='execute',
+        type=Type.new_func_type(params=self_param, return_type=Type.new(kind='str')),
+        body=None,
+    )
+    method_member = Decl.new_member_decl(
+        name='method',
+        member_body=Stmt.new_decl_stmt(execute_decl),
+    )
+    wrong_class = Decl.new_class_decl(
+        name='WrongName',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None,
+        members=Stmt.new_decl_stmt(method_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('add_error', '** event'),
+        section_body=Stmt.new_decl_stmt(wrong_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='fail_class_name', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    mismatch_errors = [e for e in errors if e['error_code'] == 'ARTIFACT_CLASS_NAME_MISMATCH']
+    assert len(mismatch_errors) == 1
+    assert mismatch_errors[0]['expected_class'] == 'AddError'
+    assert mismatch_errors[0]['actual_class'] == 'WrongName'
+
+
+# ** test: artifact_attribute_member_with_func
+def test_artifact_attribute_member_with_func():
+    '''Attribute member containing a function decl should produce INVALID_ATTRIBUTE_MEMBER_TYPE.'''
+
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    # Attribute member wrapping a function instead of a variable.
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    bad_func = Decl.new_func_decl(
+        name='bad_attr',
+        type=Type.new_func_type(params=self_param, return_type=Type.new_null_type()),
+        body=None,
+    )
+    attr_member = Decl.new_member_decl(
+        name='attribute',
+        member_body=Stmt.new_decl_stmt(bad_func),
+    )
+
+    bad_class = Decl.new_class_decl(
+        name='BadAttr',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None,
+        members=Stmt.new_decl_stmt(attr_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('bad_attr', '** event'),
+        section_body=Stmt.new_decl_stmt(bad_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='fail_attr_type', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    attr_errors = [e for e in errors if e['error_code'] == 'INVALID_ATTRIBUTE_MEMBER_TYPE']
+    assert len(attr_errors) == 1
+    assert attr_errors[0]['found_type'] == 'function'
+
+
+# ** test: artifact_method_member_missing_self
+def test_artifact_method_member_missing_self():
+    '''Method without self as first param should produce METHOD_MISSING_SELF.'''
+
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    # Method with 'cls' instead of 'self'.
+    cls_param = ParamList.new(name='cls', type=Type.new_unknown_type(), required=True)
+    bad_method = Decl.new_func_decl(
+        name='execute',
+        type=Type.new_func_type(params=cls_param, return_type=Type.new(kind='str')),
+        body=None,
+    )
+    method_member = Decl.new_member_decl(
+        name='method',
+        member_body=Stmt.new_decl_stmt(bad_method),
+    )
+
+    bad_class = Decl.new_class_decl(
+        name='NoSelf',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None,
+        members=Stmt.new_decl_stmt(method_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('no_self', '** event'),
+        section_body=Stmt.new_decl_stmt(bad_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='fail_no_self', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    self_errors = [e for e in errors if e['error_code'] == 'METHOD_MISSING_SELF']
+    assert len(self_errors) == 1
+    assert self_errors[0]['method_name'] == 'execute'
+    assert self_errors[0]['first_param'] == 'cls'
+
+
+# ** test: artifact_method_member_not_func
+def test_artifact_method_member_not_func():
+    '''Method member containing an attribute decl should produce INVALID_METHOD_MEMBER_TYPE.'''
+
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    # Method member wrapping a variable instead of a function.
+    bad_attr = Decl.new_attr_decl(name='execute', types=Type.new(kind='str'))
+    method_member = Decl.new_member_decl(
+        name='method',
+        member_body=Stmt.new_decl_stmt(bad_attr),
+    )
+
+    bad_class = Decl.new_class_decl(
+        name='BadMethod',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None,
+        members=Stmt.new_decl_stmt(method_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('bad_method', '** event'),
+        section_body=Stmt.new_decl_stmt(bad_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='fail_method_type', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    method_errors = [e for e in errors if e['error_code'] == 'INVALID_METHOD_MEMBER_TYPE']
+    assert len(method_errors) == 1
+
+
+# ** test: artifact_event_has_execute
+def test_artifact_event_has_execute(minimal_event_ast: Decl):
+    '''Valid event with execute method should produce no EVENT_MISSING_EXECUTE errors.'''
+
+    builder = SymbolTableBuilder()
+    builder.build(minimal_event_ast)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(minimal_event_ast)
+
+    execute_errors = [e for e in errors if e['error_code'] == 'EVENT_MISSING_EXECUTE']
+    assert len(execute_errors) == 0
+
+
+# ** test: artifact_event_missing_execute
+def test_artifact_event_missing_execute():
+    '''Event class without execute method should produce EVENT_MISSING_EXECUTE.'''
+
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    # Event class with only an attribute — no execute method.
+    pong_attr = Decl.new_attr_decl(name='pong', types=Type.new(kind='str'))
+    attr_member = Decl.new_member_decl(
+        name='attribute',
+        member_body=Stmt.new_decl_stmt(pong_attr),
+    )
+
+    no_exec_class = Decl.new_class_decl(
+        name='Ping',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None,
+        members=Stmt.new_decl_stmt(attr_member),
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('ping', '** event'),
+        section_body=Stmt.new_decl_stmt(no_exec_class),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='fail_no_execute', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    exec_errors = [e for e in errors if e['error_code'] == 'EVENT_MISSING_EXECUTE']
+    assert len(exec_errors) == 1
+    assert exec_errors[0]['event_name'] == 'ping'
+    assert exec_errors[0]['class_name'] == 'Ping'
+
+
+# ** test: artifact_snake_to_pascal_conversion
+def test_artifact_snake_to_pascal_conversion():
+    '''Verify snake_to_pascal static method correctness.'''
+
+    assert TypeChecker.snake_to_pascal('ping') == 'Ping'
+    assert TypeChecker.snake_to_pascal('add_error') == 'AddError'
+    assert TypeChecker.snake_to_pascal('perform_lexical_analysis') == 'PerformLexicalAnalysis'
+    assert TypeChecker.snake_to_pascal('a') == 'A'

@@ -297,7 +297,8 @@ class TiferetParser(ParserBase):
 
         # Parse the group header token value via helper.
         name, type = self.parse_artifact_header(p[1])
-        p[0] = Decl.new_artifact_decl(name, type)
+        ln, col = self.pos(p, 1)
+        p[0] = Decl.new_artifact_decl(name, type, lineno=ln, col=col)
 
     # * method: p_group_header_start (rule)
     def p_group_header_start(self, p):
@@ -305,7 +306,8 @@ class TiferetParser(ParserBase):
 
         # Parse the group header token value via helper.
         name, type = self.parse_artifact_header(p[1])
-        p[0] = Decl.new_artifact_decl(name, type)
+        ln, col = self.pos(p, 1)
+        p[0] = Decl.new_artifact_decl(name, type, lineno=ln, col=col)
 
     # -- Tier 2: Artifact Sections & Annotations --
 
@@ -354,7 +356,8 @@ class TiferetParser(ParserBase):
 
         # Parse the section header token value via helper.
         name, type = self.parse_artifact_header(p[1])
-        p[0] = Decl.new_artifact_decl(name, type)
+        ln, col = self.pos(p, 1)
+        p[0] = Decl.new_artifact_decl(name, type, lineno=ln, col=col)
 
     # * method: p_section_header_import (rule)
     def p_section_header_import(self, p):
@@ -362,7 +365,8 @@ class TiferetParser(ParserBase):
 
         # Parse the section header token value via helper.
         name, type = self.parse_artifact_header(p[1])
-        p[0] = Decl.new_artifact_decl(name, type)
+        ln, col = self.pos(p, 1)
+        p[0] = Decl.new_artifact_decl(name, type, lineno=ln, col=col)
 
     # * method: p_annots_single (rule)
     def p_annots_single(self, p):
@@ -492,11 +496,14 @@ class TiferetParser(ParserBase):
         '''class_def : CLASS IDENTIFIER LPAREN super_cls_list RPAREN COLON NEWLINE INDENT class_body DEDENT'''
 
         # Build ClassDef AST node.
+        ln, col = self.pos(p, 1)
         p[0] = Decl.new_class_decl(
             name=p[2],
             subclasses=p[4],
             doc_string=p[9].get('docstring', None),
-            members=Stmt.new_decl_stmt(p[9].get('members', None))
+            members=Stmt.new_decl_stmt(p[9].get('members', None)),
+            lineno=ln,
+            col=col,
         )
 
     # * method: p_class_body_doc (rule)
@@ -573,7 +580,8 @@ class TiferetParser(ParserBase):
 
         # Build Member AST node.
         kind = self.parse_member_kind(p[1])
-        p[0] = Decl.new_member_decl(kind, p[3])
+        ln, col = self.pos(p, 1)
+        p[0] = Decl.new_member_decl(kind, p[3], lineno=ln, col=col)
 
     # * method: p_member_annotated (rule)
     def p_member_annotated(self, p):
@@ -581,7 +589,8 @@ class TiferetParser(ParserBase):
 
         # Build Member AST node with annotations.
         kind = self.parse_member_kind(p[2])
-        p[0] = Decl.new_member_decl(kind, p[4], annots=p[1])
+        ln, col = self.pos(p, 2)
+        p[0] = Decl.new_member_decl(kind, p[4], annots=p[1], lineno=ln, col=col)
 
     # * method: p_member_post_annotated (rule)
     def p_member_post_annotated(self, p):
@@ -589,7 +598,8 @@ class TiferetParser(ParserBase):
 
         # Build Member AST node with post-header annotations.
         kind = self.parse_member_kind(p[1])
-        p[0] = Decl.new_member_decl(kind, p[4], annots=p[3])
+        ln, col = self.pos(p, 1)
+        p[0] = Decl.new_member_decl(kind, p[4], annots=p[3], lineno=ln, col=col)
 
     # * method: p_member_attr_stmt (rule)
     def p_member_attr_stmt(self, p):
@@ -620,14 +630,16 @@ class TiferetParser(ParserBase):
         '''attr_decl : IDENTIFIER NEWLINE'''
 
         # Build AttrDecl AST node.
-        p[0] = Decl.new_attr_decl(name=p[1])
+        ln, col = self.pos(p, 1)
+        p[0] = Decl.new_attr_decl(name=p[1], lineno=ln, col=col)
 
     # * method: p_attr_decl_type (rule)
     def p_attr_decl_type(self, p):
         '''attr_decl : IDENTIFIER COLON attr_types NEWLINE'''
 
         # Build AttrDecl AST node with type annotation.
-        p[0] = Decl.new_attr_decl(name=p[1], types=p[3])
+        ln, col = self.pos(p, 1)
+        p[0] = Decl.new_attr_decl(name=p[1], types=p[3], lineno=ln, col=col)
 
     # * method: p_attr_types_single (rule)
     def p_attr_types_single(self, p):
@@ -702,11 +714,14 @@ class TiferetParser(ParserBase):
         '''method_decl : DEF method_name method_type COLON NEWLINE INDENT method_doc_string snippet_list DEDENT'''
 
         # Build MethodDecl AST node.
+        ln, col = self.pos(p, 1)
         p[0] = Decl.new_func_decl(
              name=p[2],
              type=p[3],
              doc_string=p[7],
-             body=p[8]
+             body=p[8],
+             lineno=ln,
+             col=col,
         )
 
     # * method: p_method_name (rule)

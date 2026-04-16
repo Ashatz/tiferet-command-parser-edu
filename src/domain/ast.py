@@ -232,6 +232,18 @@ class Declaration(BaseModel):
         description='The code block of the declaration, if applicable (e.g., for classes and methods).'
     )
 
+    # * attribute: lineno
+    lineno: Optional[int] = Field(
+        None,
+        description='The source line number where this declaration begins.'
+    )
+
+    # * attribute: col
+    col: Optional[int] = Field(
+        None,
+        description='The 0-based column offset where this declaration begins.'
+    )
+
     # * attribute: next
     next: Optional['Declaration'] = Field(
         None,
