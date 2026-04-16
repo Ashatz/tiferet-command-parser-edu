@@ -116,6 +116,7 @@ docs/
       output.md          — Output writer utility guide (ScanOutputWriter)
       parser.md          — Parser utility guide (TiferetParser, AST structure)
       semantic.md        — Semantic analysis utility guide (SymbolTableBuilder, NameResolver)
+      printer.md         — AST printer utility guide (ASTPrinter)
 
 samples/                 — End-to-end sample Tiferet source files for all pipeline stages (22 files)
   pass_imports_only.py               — Imports-only module (success case)
@@ -228,7 +229,7 @@ src/
       test_lexer.py      — 9 tests for TokenAggregate mapper
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer
+    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ASTPrinter
     artifact.py          — ArtifactBlockParser: static methods for block extraction and filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST via public build_* methods)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
@@ -238,6 +239,7 @@ src/
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
     optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; deduplicates repeated params/returns for YAML anchor/alias emission)
+    printer.py           — ASTPrinter: static post-order traversal printer for AST trees and symbol tables
     tests/
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
@@ -370,6 +372,10 @@ Four classes:
 Two classes:
 - **SymbolTableBuilder** — Single-pass AST walker that constructs scopes (module, class, method) and populates symbol entries (imports, attributes, parameters, variables).
 - **NameResolver** — Second-pass walker that resolves name references in expressions against the built scope registry, producing `ResolutionResult` with resolved and unresolved lists.
+
+### `src/utils/printer.py`
+One class:
+- **ASTPrinter** — Diagnostic utility with all-static methods for post-order AST traversal printing (`print_ast`, `print_statement`, `print_expression`, `print_type`, `print_param_list`) and formatted symbol table printing (`print_symbol_table`). Intended for debugging and educational demonstration.
 
 ### `config.yml`
 Tiferet YAML configuration defining:

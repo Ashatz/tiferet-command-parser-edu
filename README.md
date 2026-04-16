@@ -191,6 +191,7 @@ docs/
       output.md          — Output writer utility guide (ScanOutputWriter)
       parser.md          — Parser utility guide (TiferetParser, AST structure)
       semantic.md        — Semantic analysis utility guide (SymbolTableBuilder, NameResolver)
+      printer.md         — AST printer utility guide (ASTPrinter)
 
 samples/                 — End-to-end sample files for all pipeline stages (22 files)
   pass_imports_only.py               — Imports-only module (success case)
@@ -265,7 +266,7 @@ src/
       test_lexer.py      — 9 tests for TokenAggregate mapper
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer
+    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ASTPrinter
     artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST to produce IREventGroup)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
@@ -275,6 +276,7 @@ src/
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
     optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; deduplicates repeated params/returns for YAML anchor/alias emission)
+    printer.py           — ASTPrinter: static post-order traversal printer for AST trees and symbol tables
     tests/
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
@@ -301,6 +303,7 @@ src/
 - **[Output Writer](./docs/guides/utils/output.md)** — Output writer utility (ScanOutputWriter, format detection)
 - **[Parser Utility](./docs/guides/utils/parser.md)** — Parser utility guide (TiferetParser, AST structure)
 - **[Semantic Analysis](./docs/guides/utils/semantic.md)** — Semantic analysis utility (SymbolTableBuilder, NameResolver)
+- **[AST Printer](./docs/guides/utils/printer.md)** — AST and symbol table visualization utility (ASTPrinter)
 
 ### Development Status
 
