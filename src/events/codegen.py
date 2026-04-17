@@ -131,7 +131,7 @@ class EmitCodegenResult(DomainEvent):
     @DomainEvent.parameters_required(['codegen'])
     def execute(self,
             codegen: Dict[str, Any],
-            source_file: str = None,
+            semantic_errors: List[Dict[str, Any]] = None,
             output_format: str = 'auto',
             output: str = None,
             **kwargs,
@@ -152,6 +152,16 @@ class EmitCodegenResult(DomainEvent):
         :return: The codegen dict, or empty string if written to file.
         :rtype: Any
         '''
+    
+        # Print type check errors to console and omit symbol table when errors exist.
+        if semantic_errors:
+            for error in semantic_errors:
+                loc = ''
+                if error.get('lineno') is not None:
+                    loc = f" (line {error['lineno']}, col {error.get('col', '?')})"
+                print(f"Type Error [{error.get('error_code', 'UNKNOWN')}] "
+                      f"in {error.get('scope_path', '?')}{loc}: "
+                      f"{error.get('message', '')}")
 
         # Write to file if output path is specified.
         if output:
