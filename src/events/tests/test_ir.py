@@ -13,7 +13,7 @@ from tiferet.events import TiferetError, DomainEvent
 from ...domain.ir import IREventGroup, IRImportGroups, IREvents
 from ...interfaces.ir import IRService
 from ...mappers import Decl
-from ..ir import GenerateIR, EmitIRResult
+from ..ir import GenerateIR
 
 # *** fixtures
 
@@ -149,70 +149,3 @@ def test_generate_ir_missing_ast(mock_ir_service: IRService) -> None:
         )
 
 
-# *** tests — EmitIRResult
-
-# ** test: emit_ir_result_returns_keter_string
-def test_emit_ir_result_returns_keter_string(sample_ir: IREventGroup) -> None:
-    '''
-    Test that EmitIRResult returns the keter DSL string when no output path is given.
-
-    :param sample_ir: The sample IREventGroup.
-    :type sample_ir: IREventGroup
-    '''
-
-    # Execute without an output path.
-    result = DomainEvent.handle(
-        EmitIRResult,
-        dependencies={},
-        ir=sample_ir,
-    )
-
-    # Verify the result is a non-empty keter string.
-    assert isinstance(result, str)
-    assert 'EventGroup(test_module' in result
-
-
-# ** test: emit_ir_result_writes_to_file
-def test_emit_ir_result_writes_to_file(
-        sample_ir: IREventGroup,
-        tmp_path,
-    ) -> None:
-    '''
-    Test that EmitIRResult writes keter output to file when output path is given.
-
-    :param sample_ir: The sample IREventGroup.
-    :type sample_ir: IREventGroup
-    :param tmp_path: Pytest temporary path fixture.
-    :type tmp_path: pathlib.Path
-    '''
-
-    # Define a temporary output path.
-    output_path = str(tmp_path / 'output.keter')
-
-    # Execute with output path.
-    result = DomainEvent.handle(
-        EmitIRResult,
-        dependencies={},
-        ir=sample_ir,
-        output=output_path,
-    )
-
-    # Verify the event returned empty string and the file was written.
-    assert result == ''
-    with open(output_path, 'r') as f:
-        content = f.read()
-    assert 'EventGroup(test_module' in content
-
-
-# ** test: emit_ir_result_missing_ir
-def test_emit_ir_result_missing_ir() -> None:
-    '''
-    Test that EmitIRResult raises TiferetError when ir is not provided.
-    '''
-
-    with pytest.raises(TiferetError):
-        DomainEvent.handle(
-            EmitIRResult,
-            dependencies={},
-            # ir intentionally omitted
-        )

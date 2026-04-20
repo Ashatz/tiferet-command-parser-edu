@@ -3,7 +3,6 @@
 # *** imports
 
 # ** core
-import os
 from unittest import mock
 
 # ** infra
@@ -13,7 +12,7 @@ from tiferet.events import TiferetError, DomainEvent
 # ** app
 from ...interfaces import LexerService
 from ...mappers import TokenAggregate
-from ..lexer import PerformLexicalAnalysis, EmitScanResult
+from ..lexer import PerformLexicalAnalysis
 
 # *** fixtures
 
@@ -132,92 +131,3 @@ def test_perform_lexical_analysis_missing_source_file(
         )
 
 
-# ** test: emit_scan_result_default
-def test_emit_scan_result_default() -> None:
-    '''
-    Test default EmitScanResult behavior (always includes tokens).
-    '''
-
-    tokens = [
-        TokenAggregate.new(type='CLASS', value='class', lineno=1, lexpos=0),
-    ]
-
-    result = DomainEvent.handle(
-        EmitScanResult,
-        source_file='test.py',
-        tokens=tokens,
-    )
-
-    assert result['event_type'] == 'TokensScanned'
-    assert result['source_file'] == 'test.py'
-    assert result['token_count'] == 1
-    assert 'tokens' in result
-    assert len(result['tokens']) == 1
-    assert 'timestamp' in result
-
-
-# ** test: emit_scan_result_no_tokens
-def test_emit_scan_result_no_tokens() -> None:
-    '''
-    Test emit with no tokens uses empty defaults.
-    '''
-
-    result = DomainEvent.handle(
-        EmitScanResult,
-        source_file='test.py',
-        tokens=None,
-    )
-
-    assert result['token_count'] == 0
-    assert result['tokens'] == []
-
-
-# ** test: emit_scan_result_write_yaml
-def test_emit_scan_result_write_yaml(tmp_path) -> None:
-    '''
-    Test writing result to a YAML file via ScanOutputWriter.
-
-    :param tmp_path: Pytest temporary directory fixture.
-    :type tmp_path: pathlib.Path
-    '''
-
-    output_path = str(tmp_path / 'result.yaml')
-    tokens = []
-
-    DomainEvent.handle(
-        EmitScanResult,
-        source_file='test.py',
-        tokens=tokens,
-        output=output_path,
-    )
-
-    assert os.path.isfile(output_path)
-    with open(output_path, encoding='utf-8') as f:
-        content = f.read()
-    assert 'TokensScanned' in content
-
-
-# ** test: emit_scan_result_write_json
-def test_emit_scan_result_write_json(tmp_path) -> None:
-    '''
-    Test writing result to a JSON file.
-
-    :param tmp_path: Pytest temporary directory fixture.
-    :type tmp_path: pathlib.Path
-    '''
-
-    output_path = str(tmp_path / 'result.json')
-    tokens = []
-
-    DomainEvent.handle(
-        EmitScanResult,
-        source_file='test.py',
-        tokens=tokens,
-        output=output_path,
-        output_format='json',
-    )
-
-    assert os.path.isfile(output_path)
-    with open(output_path, encoding='utf-8') as f:
-        content = f.read()
-    assert '"event_type"' in content

@@ -5,12 +5,6 @@ attrs:
   perform_syntactic_analysis_event:
     module_path: src.events.parser
     class_name: PerformSyntacticAnalysis
-  emit_scan_result_event:
-    module_path: src.events.lexer
-    class_name: EmitScanResult
-  emit_parse_result_event:
-    module_path: src.events.parser
-    class_name: EmitParseResult
   lexer_service:
     module_path: src.utils.lexer
     class_name: TiferetLexer
@@ -23,15 +17,9 @@ attrs:
   perform_type_check_event:
     module_path: src.events.typecheck
     class_name: PerformTypeCheck
-  emit_semantic_result_event:
-    module_path: src.events.semantic
-    class_name: EmitSemanticResult
   generate_ir_event:
     module_path: src.events.ir
     class_name: GenerateIR
-  emit_ir_result_event:
-    module_path: src.events.ir
-    class_name: EmitIRResult
   ir_service:
     module_path: src.utils.ir
     class_name: IRGenerator
@@ -41,9 +29,6 @@ attrs:
   generate_code_event:
     module_path: src.events.codegen
     class_name: GenerateCode
-  emit_codegen_result_event:
-    module_path: src.events.codegen
-    class_name: EmitCodegenResult
   optimizer_service:
     module_path: src.utils.optimizer
     class_name: YamlAnchorOptimizer
@@ -56,6 +41,9 @@ attrs:
   load_from_ast_event:
     module_path: src.events.codegen
     class_name: LoadFromAST
+  emit_result_event:
+    module_path: src.events.output
+    class_name: EmitResult
 
 features:
   scan:
@@ -66,8 +54,8 @@ features:
         - attribute_id: perform_lexical_analysis_event
           name: Tokenize and compute lexical metrics
           data_key: tokens
-        - attribute_id: emit_scan_result_event
-          name: Assemble and emit scan result
+        - attribute_id: emit_result_event
+          name: Assemble and emit result
   parse:
     event:
       name: 'Parse Event'
@@ -79,8 +67,8 @@ features:
         - attribute_id: perform_syntactic_analysis_event
           name: Parse token stream into AST
           data_key: ast
-        - attribute_id: emit_parse_result_event
-          name: Assemble and emit parse result
+        - attribute_id: emit_result_event
+          name: Assemble and emit result
   semantic:
     event:
       name: 'Semantic Event'
@@ -98,8 +86,8 @@ features:
         - attribute_id: perform_type_check_event
           name: Perform type checking against symbol table
           data_key: semantic_errors
-        - attribute_id: emit_semantic_result_event
-          name: Assemble and emit semantic analysis result
+        - attribute_id: emit_result_event
+          name: Assemble and emit result
   ir:
     event:
       name: 'IR Event'
@@ -122,8 +110,8 @@ features:
           params:
             ir_service: ir_service
           data_key: ir
-        - attribute_id: emit_ir_result_event
-          name: Serialize and emit keter IR
+        - attribute_id: emit_result_event
+          name: Serialize and emit result
   compile:
     event:
       name: 'Compile Event'
@@ -156,8 +144,8 @@ features:
           params:
             optimizer_service: optimizer_service
           data_key: codegen
-        - attribute_id: emit_codegen_result_event
-          name: Emit codegen result
+        - attribute_id: emit_result_event
+          name: Assemble and emit result
     keter:
       name: 'Compile from Keter'
       description: 'Compile a .keter IR file into structured YAML output'
@@ -175,8 +163,8 @@ features:
           params:
             optimizer_service: optimizer_service
           data_key: codegen
-        - attribute_id: emit_codegen_result_event
-          name: Emit codegen result
+        - attribute_id: emit_result_event
+          name: Assemble and emit result
     ast:
       name: 'Compile from AST'
       description: 'Compile a JSON AST file into structured YAML output'
@@ -205,8 +193,8 @@ features:
           params:
             optimizer_service: optimizer_service
           data_key: codegen
-        - attribute_id: emit_codegen_result_event
-          name: Emit codegen result
+        - attribute_id: emit_result_event
+          name: Assemble and emit result
 
 errors:
   TEXT_EXTRACTION_FAILED:

@@ -3,14 +3,12 @@
 # *** imports
 
 # ** core
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 # ** app
 from ..domain.ir import IREventGroup
 from ..interfaces.ir import IRService
 from ..mappers import Decl
-from ..utils import ScanOutputWriter
 from .settings import DomainEvent
 
 # *** events
@@ -62,48 +60,3 @@ class GenerateIR(DomainEvent):
 
         # Generate and return the IR event group.
         return self.ir_service.generate(ast, symbol_table)
-
-
-# ** event: emit_ir_result
-class EmitIRResult(DomainEvent):
-    '''
-    Final event in the ir.event pipeline.
-    Serializes the IREventGroup to keter DSL and delegates to the output writer.
-    '''
-
-    # * method: execute
-    @DomainEvent.parameters_required(['ir'])
-    def execute(self,
-            ir: IREventGroup,
-            source_file: str = None,
-            output_format: str = 'auto',
-            output: str = None,
-            **kwargs,
-        ) -> Any:
-        '''
-        Serialize the IREventGroup and emit the keter output.
-
-        :param ir: The root IREventGroup from GenerateIR.
-        :type ir: IREventGroup
-        :param source_file: Original source file path (for context).
-        :type source_file: str
-        :param output_format: Output format — use "keter" or "auto" to detect from extension.
-        :type output_format: str
-        :param output: File path to write the keter output to.
-        :type output: str
-        :param kwargs: Additional keyword arguments.
-        :type kwargs: dict
-        :return: The keter DSL string, or empty string if written to file.
-        :rtype: Any
-        '''
-
-        # Serialize the IR tree to keter DSL.
-        keter_str = ir.to_keter()
-
-        # Write to file if output path is specified.
-        if output:
-            ScanOutputWriter.write(keter_str, output, output_format)
-            return ''
-
-        # Otherwise return the keter string directly.
-        return keter_str

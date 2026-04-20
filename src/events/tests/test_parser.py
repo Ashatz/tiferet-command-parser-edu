@@ -12,7 +12,7 @@ from tiferet.events import TiferetError, DomainEvent
 # ** app
 from ...interfaces import ParserService
 from ...mappers import Tok, Decl
-from ..parser import PerformSyntacticAnalysis, EmitParseResult
+from ..parser import PerformSyntacticAnalysis
 
 # *** fixtures
 
@@ -188,50 +188,3 @@ def test_perform_syntactic_analysis_none_ast(
         )
 
 
-# *** tests — EmitParseResult
-
-# ** test: emit_parse_result_default
-def test_emit_parse_result_default(
-        sample_decl: Decl,
-        sample_ast: dict,
-        sample_tokens: list,
-    ) -> None:
-    '''
-    Test default EmitParseResult behavior (no tokens unless include_tokens=True).
-    '''
-
-    result = DomainEvent.handle(
-        EmitParseResult,
-        ast=sample_decl,
-        tokens=sample_tokens,
-        source_file='test.py',
-    )
-
-    assert result['event_type'] == 'ParseCompleted'
-    assert result['source_file'] == 'test.py'
-    assert result['ast'] == sample_ast
-    assert 'tokens' not in result
-    assert 'token_count' not in result
-    assert 'timestamp' in result
-
-
-# ** test: emit_parse_result_with_tokens
-def test_emit_parse_result_with_tokens(
-        sample_decl: Decl,
-        sample_ast: dict,
-        sample_tokens: list,
-    ) -> None:
-    '''
-    Test that include_tokens=True includes the full tokens list and count.
-    '''
-
-    result = DomainEvent.handle(
-        EmitParseResult,
-        ast=sample_decl,
-        tokens=sample_tokens,
-        source_file='test.py',
-        include_tokens=True,
-    )
-
-    assert 'tokens' in result
-    assert result['token_count'] == len(sample_tokens)

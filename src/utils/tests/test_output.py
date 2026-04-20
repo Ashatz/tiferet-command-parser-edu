@@ -1,4 +1,4 @@
-"""Scan Output Writer Utility Tests"""
+"""Output Utility Tests"""
 
 # *** imports
 
@@ -10,7 +10,7 @@ import json
 import yaml
 
 # ** app
-from ..output import ScanOutputWriter
+from ..output import OutputWriter, ResultPayloadBuilder, emit
 
 # *** tests — detect_format
 
@@ -21,7 +21,7 @@ def test_detect_format_auto_json() -> None:
     '''
 
     # Detect format for a .json file path.
-    result = ScanOutputWriter.detect_format('output.json', 'auto')
+    result = OutputWriter.detect_format('output.json', 'auto')
 
     # Assert json format detected.
     assert result == 'json'
@@ -34,7 +34,7 @@ def test_detect_format_auto_yaml() -> None:
     '''
 
     # Detect format for a .yaml file path.
-    result = ScanOutputWriter.detect_format('output.yaml', 'auto')
+    result = OutputWriter.detect_format('output.yaml', 'auto')
 
     # Assert yaml format detected.
     assert result == 'yaml'
@@ -47,10 +47,23 @@ def test_detect_format_auto_unknown_defaults_yaml() -> None:
     '''
 
     # Detect format for a .txt file path.
-    result = ScanOutputWriter.detect_format('output.txt', 'auto')
+    result = OutputWriter.detect_format('output.txt', 'auto')
 
     # Assert yaml format as default.
     assert result == 'yaml'
+
+
+# ** test: detect_format_auto_keter
+def test_detect_format_auto_keter() -> None:
+    '''
+    Test auto-detection resolves .keter extension to keter format.
+    '''
+
+    # Detect format for a .keter file path.
+    result = OutputWriter.detect_format('output.keter', 'auto')
+
+    # Assert keter format detected.
+    assert result == 'keter'
 
 
 # ** test: detect_format_explicit
@@ -60,11 +73,13 @@ def test_detect_format_explicit() -> None:
     '''
 
     # Detect format with explicit json, even for a .yaml path.
-    result = ScanOutputWriter.detect_format('output.yaml', 'json')
+    result = OutputWriter.detect_format('output.yaml', 'json')
 
     # Assert the explicit format is honored.
     assert result == 'json'
 
+
+# *** tests — write
 
 # ** test: write_yaml
 def test_write_yaml(tmp_path) -> None:
@@ -80,7 +95,7 @@ def test_write_yaml(tmp_path) -> None:
 
     # Write as YAML.
     output_path = str(tmp_path / 'result.yaml')
-    ScanOutputWriter.write(payload, output_path, 'yaml')
+    OutputWriter.write(payload, output_path, 'yaml')
 
     # Assert file was created and contains valid YAML.
     assert os.path.isfile(output_path)
@@ -104,7 +119,7 @@ def test_write_json(tmp_path) -> None:
 
     # Write as JSON.
     output_path = str(tmp_path / 'result.json')
-    ScanOutputWriter.write(payload, output_path, 'json')
+    OutputWriter.write(payload, output_path, 'json')
 
     # Assert file was created and contains valid JSON.
     assert os.path.isfile(output_path)
@@ -128,13 +143,33 @@ def test_write_auto_json(tmp_path) -> None:
 
     # Write with auto format to a .json path.
     output_path = str(tmp_path / 'result.json')
-    ScanOutputWriter.write(payload, output_path, 'auto')
+    OutputWriter.write(payload, output_path, 'auto')
 
     # Assert valid JSON was written.
     with open(output_path) as f:
         loaded = json.load(f)
     assert loaded['event_type'] == 'TokensScanned'
 
+
+# ** test: write_keter_string
+def test_write_keter_string(tmp_path) -> None:
+    '''
+    Test that writing a keter string writes plain text.
+
+    :param tmp_path: Pytest temporary directory fixture.
+    :type tmp_path: pathlib.Path
+    '''
+
+    # Write a plain keter string.
+    output_path = str(tmp_path / 'output.keter')
+    OutputWriter.write('EventGroup(name)\n', output_path, 'keter')
+
+    # Assert the file contains the exact string.
+    with open(output_path) as f:
+        assert f.read() == 'EventGroup(name)\n'
+
+
+# *** tests — parse_extract_names
 
 # ** test: parse_extract_names_none
 def test_parse_extract_names_none() -> None:
@@ -143,7 +178,7 @@ def test_parse_extract_names_none() -> None:
     '''
 
     # Parse None.
-    result = ScanOutputWriter.parse_extract_names(None)
+    result = OutputWriter.parse_extract_names(None)
 
     # Assert None is returned.
     assert result is None
@@ -156,7 +191,7 @@ def test_parse_extract_names_empty() -> None:
     '''
 
     # Parse empty string.
-    result = ScanOutputWriter.parse_extract_names('')
+    result = OutputWriter.parse_extract_names('')
 
     # Assert None is returned.
     assert result is None
@@ -169,7 +204,7 @@ def test_parse_extract_names_single() -> None:
     '''
 
     # Parse a single name.
-    result = ScanOutputWriter.parse_extract_names('add_item')
+    result = OutputWriter.parse_extract_names('add_item')
 
     # Assert list with one element.
     assert result == ['add_item']
@@ -182,7 +217,7 @@ def test_parse_extract_names_multiple() -> None:
     '''
 
     # Parse multiple names.
-    result = ScanOutputWriter.parse_extract_names('add_item, remove_item , get_item')
+    result = OutputWriter.parse_extract_names('add_item, remove_item , get_item')
 
     # Assert all names stripped and present in order.
     assert result == ['add_item', 'remove_item', 'get_item']
@@ -213,7 +248,7 @@ def test_anchored_yaml_output(tmp_path) -> None:
 
     # Write YAML.
     output_path = str(tmp_path / 'anchored.yaml')
-    ScanOutputWriter.write(payload, output_path, 'yaml')
+    OutputWriter.write(payload, output_path, 'yaml')
 
     # Read the raw YAML text.
     with open(output_path) as f:
@@ -226,3 +261,86 @@ def test_anchored_yaml_output(tmp_path) -> None:
     # Assert the YAML is still valid and round-trips correctly.
     loaded = yaml.safe_load(content)
     assert loaded['evt_grp']['evts']['add']['execute']['params'] == ['a:int:true::', 'b:int:true::']
+
+
+# *** tests — emit helper
+
+# ** test: emit_returns_payload_without_output
+def test_emit_returns_payload_without_output() -> None:
+    '''
+    Test that emit returns the payload unchanged when no output path is given.
+    '''
+
+    # Invoke with no output path.
+    payload = {'key': 'value'}
+    result = emit(payload)
+
+    # Assert the payload is returned unchanged.
+    assert result is payload
+
+
+# ** test: emit_writes_and_returns_payload
+def test_emit_writes_and_returns_payload(tmp_path) -> None:
+    '''
+    Test that emit writes the payload to file and returns it unchanged.
+
+    :param tmp_path: Pytest temporary directory fixture.
+    :type tmp_path: pathlib.Path
+    '''
+
+    # Invoke with an output path.
+    payload = {'event_type': 'TokensScanned'}
+    output_path = str(tmp_path / 'result.json')
+    result = emit(payload, output=output_path)
+
+    # Assert the payload is returned and the file was written.
+    assert result is payload
+    with open(output_path) as f:
+        loaded = json.load(f)
+    assert loaded['event_type'] == 'TokensScanned'
+
+
+# *** tests — ResultPayloadBuilder
+
+# ** test: build_envelope
+def test_build_envelope() -> None:
+    '''
+    Test that build_envelope returns a dict with the expected shape.
+    '''
+
+    # Build the envelope.
+    result = ResultPayloadBuilder.build_envelope('TokensScanned', 'test.py')
+
+    # Assert the shape.
+    assert result['event_type'] == 'TokensScanned'
+    assert result['source_file'] == 'test.py'
+    assert 'timestamp' in result
+
+
+# ** test: build_scan_payload
+def test_build_scan_payload() -> None:
+    '''
+    Test that build_scan_payload produces a TokensScanned envelope.
+    '''
+
+    # Build a scan payload with no tokens.
+    result = ResultPayloadBuilder.build_scan_payload('test.py', None)
+
+    # Assert the shape.
+    assert result['event_type'] == 'TokensScanned'
+    assert result['tokens'] == []
+    assert result['token_count'] == 0
+
+
+# ** test: build_codegen_payload_passthrough
+def test_build_codegen_payload_passthrough() -> None:
+    '''
+    Test that build_codegen_payload returns the codegen dict unchanged.
+    '''
+
+    # Build with a sample dict.
+    codegen = {'evt_grp': {'name': 'test'}}
+    result = ResultPayloadBuilder.build_codegen_payload(codegen)
+
+    # Assert the same dict is returned.
+    assert result is codegen

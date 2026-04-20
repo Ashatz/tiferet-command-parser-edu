@@ -3,7 +3,7 @@
 # *** imports
 
 # ** core
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 # ** infra
 from tiferet import File, Json
@@ -14,7 +14,6 @@ from ..interfaces.codegen import CodegenService
 from ..interfaces.optimizer import OptimizerService
 from ..mappers import Decl
 from ..mappers.ir import KeterIREventGroup
-from ..utils import ScanOutputWriter
 from .settings import DomainEvent, a
 
 # *** events
@@ -117,58 +116,6 @@ class OptimizeCode(DomainEvent):
             codegen = self.optimizer_service.optimize(codegen)
 
         # Return the optimized dict.
-        return codegen
-
-
-# ** event: emit_codegen_result
-class EmitCodegenResult(DomainEvent):
-    '''
-    Final event in the codegen.event pipeline.
-    Writes the codegen output dict to a YAML or JSON file.
-    '''
-
-    # * method: execute
-    @DomainEvent.parameters_required(['codegen'])
-    def execute(self,
-            codegen: Dict[str, Any],
-            semantic_errors: List[Dict[str, Any]] = None,
-            output_format: str = 'auto',
-            output: str = None,
-            **kwargs,
-        ) -> Any:
-        '''
-        Emit the codegen result, writing to file or returning the dict.
-
-        :param codegen: The codegen output dict from GenerateCode.
-        :type codegen: Dict[str, Any]
-        :param source_file: Original source file path (for context).
-        :type source_file: str
-        :param output_format: Output format — yaml, json, or auto.
-        :type output_format: str
-        :param output: File path to write the output to.
-        :type output: str
-        :param kwargs: Additional keyword arguments.
-        :type kwargs: dict
-        :return: The codegen dict, or empty string if written to file.
-        :rtype: Any
-        '''
-    
-        # Print type check errors to console and omit symbol table when errors exist.
-        if semantic_errors:
-            for error in semantic_errors:
-                loc = ''
-                if error.get('lineno') is not None:
-                    loc = f" (line {error['lineno']}, col {error.get('col', '?')})"
-                print(f"Type Error [{error.get('error_code', 'UNKNOWN')}] "
-                      f"in {error.get('scope_path', '?')}{loc}: "
-                      f"{error.get('message', '')}")
-
-        # Write to file if output path is specified.
-        if output:
-            ScanOutputWriter.write(codegen, output, output_format)
-            return ''
-
-        # Otherwise return the codegen dict directly.
         return codegen
 
 
