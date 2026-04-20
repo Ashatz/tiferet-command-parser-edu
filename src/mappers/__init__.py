@@ -17,4 +17,5 @@ from .ast import (
     ParamListAggregate as ParamList,
     )
 from .semantic import ScopeAggregate, ScopeAggregate as SymbolScope
+from .settings import KeterTransferObject
 from .ir import IREventGroupAggregate, KeterIREventGroup
