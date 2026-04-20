@@ -105,8 +105,9 @@ The IR generator is wired into the `ir.event` pipeline in `config.yml`:
 1. **PerformLexicalAnalysis** — tokenizes source file
 2. **PerformSyntacticAnalysis** — parses tokens into AST
 3. **PerformSemanticAnalysis** — builds symbol table and resolves names
-4. **GenerateIR** — calls `ir_service.generate(ast, symbol_table)` → `IREventGroup`
-5. **EmitIRResult** — serializes to keter DSL and writes to file
+4. **PerformTypeCheck** — validates artifact structure and types against the symbol table
+5. **GenerateIR** — calls `ir_service.generate(ast, symbol_table)` → `IREventGroup`
+6. **EmitResult** — auto-detects the `ir` stage, calls `ir.to_keter()` via `ResultPayloadBuilder.build_ir_payload`, and emits the keter DSL
 
 ```yaml
 # config.yml (attrs section)
@@ -119,7 +120,7 @@ ir_service:
 ## Testing
 
 IR utility tests: `src/utils/tests/test_ir.py` (19 tests)
-IR event tests: `src/events/tests/test_ir.py` (6 tests)
+IR event tests: `src/events/tests/test_ir.py` (3 tests)
 IR domain tests: `src/domain/tests/test_ir.py` (12 tests)
 IR mapper tests: `src/mappers/tests/test_ir.py` (4 tests)
 

@@ -122,8 +122,8 @@ ast_dict = ast.model_dump(exclude_none=True, exclude_unset=True)
 In the Tiferet application, the parser is wired as part of the `parse.event` pipeline in `config.yml`:
 
 1. **PerformLexicalAnalysis** — reads source file, tokenizes via `LexerService` (with `BlockTracker`)
-2. **PerformSyntacticAnalysis** — parses token stream via `ParserService`, returns serialized AST dict
-3. **EmitParseResult** — assembles output payload with AST
+2. **PerformSyntacticAnalysis** — parses token stream via `ParserService`, returns the `DeclarationAggregate` AST
+3. **EmitResult** — auto-detects the `parse` stage and assembles a `ParseCompleted` envelope via `ResultPayloadBuilder.build_parse_payload`
 
 The parser service is injected via the Tiferet DI container:
 
@@ -145,13 +145,13 @@ parser_service:
 - **`TiferetLexer`** — produces the token stream consumed by `TiferetParser`
 - **`BlockTracker`** — injects synthetic `INDENT`/`DEDENT` tokens that the parser uses as block delimiters (integrated into `TiferetLexer.tokenize()`)
 - **`ArtifactBlockParser`** — extracts artifact blocks from source files for preprocessing
-- **`ScanOutputWriter`** — used by `EmitParseResult` to write the final payload (including AST) to file
+- **`OutputWriter`** — used by `EmitResult` (via the `emit()` helper) to write the final parse payload (including AST) to file
 
 
 ## Testing
 
 Parser utility tests: `src/utils/tests/test_parser.py` (51 tests)
-Parser event tests: `src/events/tests/test_parser.py` (6 tests)
+Parser event tests: `src/events/tests/test_parser.py` (4 tests)
 
 ```bash
 python -m pytest src/utils/tests/test_parser.py -v

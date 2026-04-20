@@ -10,7 +10,8 @@
 **Files:**
 - `src/utils/codegen.py` — `TiferetGenerator`
 - `src/interfaces/codegen.py` — `CodegenService` abstract interface
-- `src/events/codegen.py` — `GenerateCode` and `EmitCodegenResult` domain events
+- `src/events/codegen.py` — `GenerateCode` and `OptimizeCode` domain events
+- `src/events/output.py` — `EmitResult` (terminal pipeline event)
 
 
 ## CodegenService Interface
@@ -97,7 +98,8 @@ The codegen stage is wired as the `codegen.event` pipeline in `config.yml`:
 3. **PerformSemanticAnalysis** — builds symbol table and resolves names
 4. **GenerateIR** — produces `IREventGroup`
 5. **GenerateCode** — calls `codegen_service.generate(ir)` → structured dict
-6. **EmitCodegenResult** — writes to YAML/JSON file
+6. **OptimizeCode** — at `-O O1` applies YAML anchor/alias deduplication
+7. **EmitResult** — auto-detects the `codegen` stage and writes the codegen dict to YAML/JSON via `emit()`
 
 ```yaml
 # config.yml (attrs section)
@@ -110,7 +112,7 @@ codegen_service:
 ## Testing
 
 Codegen utility tests: `src/utils/tests/test_codegen.py` (10 tests)
-Codegen event tests: `src/events/tests/test_codegen.py` (6 tests)
+Codegen event tests: `src/events/tests/test_codegen.py` (4 tests)
 
 ```bash
 python -m pytest src/utils/tests/test_codegen.py -v
@@ -121,5 +123,5 @@ python -m pytest src/events/tests/test_codegen.py -v
 ## Related reading
 
 - [ir.md](ir.md) — DocstringParser and IRGenerator (upstream, produces the IR consumed by codegen)
-- [output.md](output.md) — ScanOutputWriter (used by EmitCodegenResult)
+- [output.md](output.md) — Unified output utilities (used by `EmitResult` to emit the codegen dict)
 - [AGENTS.md](../../../AGENTS.md) — AI agent codebase index

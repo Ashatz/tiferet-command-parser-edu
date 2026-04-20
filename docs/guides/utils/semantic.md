@@ -164,8 +164,9 @@ The semantic utilities are wired into the `semantic.event` pipeline in `config.y
 
 1. **PerformLexicalAnalysis** — tokenizes source file
 2. **PerformSyntacticAnalysis** — parses tokens into AST
-3. **PerformSemanticAnalysis** — builds symbol table via `SymbolTableBuilder`, resolves names via `NameResolver`, then type-checks via `TypeChecker`
-4. **EmitSemanticResult** — assembles output payload
+3. **PerformSemanticAnalysis** — builds the symbol table via `SymbolTableBuilder` and resolves names via `NameResolver`
+4. **PerformTypeCheck** — runs `TypeChecker` against the AST and symbol table; returns a list of type error descriptors
+5. **EmitResult** — auto-detects the `semantic` stage, prints `semantic_errors` via `OutputPrinter`, and assembles a `SemanticAnalysisCompleted` envelope via `ResultPayloadBuilder.build_semantic_payload`
 
 
 ## Testing

@@ -17,27 +17,36 @@ This project has two layers:
 ### Bounded Contexts
 
 - **Lexical scanning** (`src/events/lexer.py`) — Source file reading, tokenization via PLY, INDENT/DEDENT injection via `BlockTracker`.
-- **Syntactic parsing** (`src/events/parser.py`) — Token stream parsing into a Pydantic AST via PLY yacc with PEMDAS-correct arithmetic precedence, AST validation, result emission.
+- **Syntactic parsing** (`src/events/parser.py`) — Token stream parsing into a Pydantic AST via PLY yacc with PEMDAS-correct arithmetic precedence.
 - **Semantic analysis** (`src/events/semantic.py`, `src/utils/semantic.py`) — Symbol table construction and name resolution from the parsed AST. Standalone domain/mapper copies in `SemanticRoutines/`.
 - **Type checking** (`src/events/typecheck.py`, `src/utils/typecheck.py`) — Structural artifact validation and type checking against the symbol table. Validates import groups, section-class name concordance, artifact member types, method signatures, and assignment/operation type compatibility.
 - **IR generation** (`src/events/ir.py`) — Walks the parsed AST to produce a keter IR conforming to the schema in `IntermediateRepresentation/schema.txt`.
 - **Code generation** (`src/events/codegen.py`, `src/utils/codegen.py`) — Transforms the IR into a structured YAML-conforming output dict via `TiferetGenerator`, conforming to `CodeGen/schema.yml`.
 - **Optimization** (`src/events/codegen.py`, `src/utils/optimizer.py`) — `YamlAnchorOptimizer` deduplicates repeated params/returns structures for YAML anchor/alias emission at `-O O1`.
+- **Output** (`src/events/output.py`, `src/utils/output.py`) — Terminal pipeline stage. The single `EmitResult` domain event dispatches per-stage payload assembly via `ResultPayloadBuilder`, handles console diagnostics via `OutputPrinter`, and writes files via `OutputWriter` / `emit()`.
+
+### Unified Output Event
+
+Every feature terminates in `EmitResult` (`src/events/output.py`). The event resolves a pipeline stage from an explicit `stage` hint or auto-detects from the supplied inputs in priority order **codegen > ir > semantic > parse > scan**. It then:
+1. Prints `semantic_errors` via `OutputPrinter.print_semantic_errors` (semantic / codegen stages).
+2. Builds the stage-specific payload via `ResultPayloadBuilder.build_<stage>_payload`.
+3. For the semantic stage, optionally prints the AST (`include_ast`) and symbol table via `OutputPrinter`.
+4. Writes the payload to `output` (when set) via the `emit()` helper and always returns the payload.
 
 ### Pipeline (Feature: `scan.event`)
 
 Defined in `config.yml`. Two chained commands:
 
 1. **PerformLexicalAnalysis** — Reads the source file via `tiferet.File`, tokenizes the full text via `LexerService` (which internally uses `BlockTracker` for INDENT/DEDENT injection). Returns `List[TokenAggregate]`.
-2. **EmitScanResult** — Assembles the scan result payload (tokens, count, timestamp) and optionally writes to YAML/JSON file.
+2. **EmitResult** — Auto-detects the `scan` stage from `tokens` and assembles a `TokensScanned` envelope.
 
 ### Pipeline (Feature: `parse.event`)
 
 Defined in `config.yml`. Three chained commands:
 
 1. **PerformLexicalAnalysis** — Same as `scan.event`.
-2. **PerformSyntacticAnalysis** — Parses token stream via `ParserService` (PLY yacc). Produces a `DeclarationAggregate` AST root, serialized to dict via `model_dump()`.
-3. **EmitParseResult** — Assembles parse result payload with AST, optional token list, and delegates file output to `ScanOutputWriter`.
+2. **PerformSyntacticAnalysis** — Parses token stream via `ParserService` (PLY yacc). Produces a `DeclarationAggregate` AST root.
+3. **EmitResult** — Auto-detects the `parse` stage from `ast` and assembles a `ParseCompleted` envelope; honors `include_tokens` and `extract`.
 
 ### Pipeline (Feature: `semantic.event`)
 
@@ -47,7 +56,7 @@ Defined in `config.yml`. Five chained commands:
 2. **PerformSyntacticAnalysis** — Same as `parse.event`.
 3. **PerformSemanticAnalysis** — Builds symbol table and resolves names from the AST.
 4. **PerformTypeCheck** — Runs `TypeChecker` against the AST and symbol table; returns a list of type error descriptors.
-5. **EmitSemanticResult** — Assembles semantic result payload and delegates to output writer.
+5. **EmitResult** — Auto-detects the `semantic` stage; prints `semantic_errors`, omits symbol table/resolution from the payload when errors exist, optionally includes the AST, and invokes `OutputPrinter` for console output.
 
 ### Pipeline (Feature: `ir.event`)
 
@@ -58,7 +67,7 @@ Defined in `config.yml`. Six chained commands:
 3. **PerformSemanticAnalysis** — Same as `semantic.event`.
 4. **PerformTypeCheck** — Same as `semantic.event`.
 5. **GenerateIR** — Walks the AST via `IRGenerator` (injected as `IRService`) and produces an `IREventGroup`.
-6. **EmitIRResult** — Calls `ir.to_keter()` and writes the keter DSL to file via `ScanOutputWriter`.
+6. **EmitResult** — Auto-detects the `ir` stage; calls `ir.to_keter()` to produce the keter DSL string.
 
 ### Pipeline (Feature: `compile.event`)
 
@@ -71,7 +80,7 @@ Defined in `config.yml`. Eight chained commands (full source-to-YAML pipeline):
 5. **GenerateIR** — Same as `ir.event`.
 6. **GenerateCode** — Walks the IR via `TiferetGenerator` (injected as `CodegenService`) and produces a schema-conforming output dict.
 7. **OptimizeCode** — At `-O O1`, applies `YamlAnchorOptimizer` (injected as `OptimizerService`) to deduplicate repeated structures. `-O O0` passes through unchanged.
-8. **EmitCodegenResult** — Writes the codegen dict to YAML/JSON file via `ScanOutputWriter`.
+8. **EmitResult** — Auto-detects the `codegen` stage; prints `semantic_errors` and passes the codegen dict through to `emit()`.
 
 ### Pipeline (Feature: `compile.keter`)
 
@@ -80,7 +89,7 @@ Defined in `config.yml`. Four chained commands (keter IR to YAML):
 1. **LoadFromKeter** — Reads a `.keter` file and parses it into an `IREventGroup` via `KeterIREventGroup.from_data()`.
 2. **GenerateCode** — Same as `compile.event`.
 3. **OptimizeCode** — Same as `compile.event`.
-4. **EmitCodegenResult** — Same as `compile.event`.
+4. **EmitResult** — Same as `compile.event`.
 
 ### Pipeline (Feature: `compile.ast`)
 
@@ -92,7 +101,7 @@ Defined in `config.yml`. Seven chained commands (JSON AST to YAML):
 4. **GenerateIR** — Same as `ir.event`.
 5. **GenerateCode** — Same as `compile.event`.
 6. **OptimizeCode** — Same as `compile.event`.
-7. **EmitCodegenResult** — Same as `compile.event`.
+7. **EmitResult** — Same as `compile.event`.
 
 ## Project Structure
 
@@ -113,10 +122,9 @@ docs/
       codegen.md         — Code generation utility guide (TiferetGenerator, schema)
       ir.md              — IR generator utility guide (DocstringParser, IRGenerator)
       lexer.md           — Lexer utility guide
-      output.md          — Output writer utility guide (ScanOutputWriter)
+      output.md          — Output utilities guide (OutputWriter, OutputPrinter, ResultPayloadBuilder, emit)
       parser.md          — Parser utility guide (TiferetParser, AST structure)
       semantic.md        — Semantic analysis utility guide (SymbolTableBuilder, NameResolver)
-      printer.md         — AST printer utility guide (ASTPrinter)
 
 samples/                 — End-to-end sample Tiferet source files for all pipeline stages (22 files)
   pass_imports_only.py               — Imports-only module (success case)
@@ -200,17 +208,19 @@ src/
   events/
     __init__.py          — Exports: DomainEvent, TiferetError, a (assets)
     settings.py          — Re-exports DomainEvent, TiferetError from tiferet; imports local assets as `a`
-    lexer.py             — Lexer domain events: PerformLexicalAnalysis, EmitScanResult
-    parser.py            — Parser domain events: PerformSyntacticAnalysis, EmitParseResult
-    semantic.py          — Semantic domain events: PerformSemanticAnalysis, EmitSemanticResult
+    lexer.py             — Lexer domain event: PerformLexicalAnalysis
+    parser.py            — Parser domain event: PerformSyntacticAnalysis
+    semantic.py          — Semantic domain event: PerformSemanticAnalysis
     typecheck.py         — Type checking domain event: PerformTypeCheck
-    ir.py                — IR domain events: GenerateIR (injects IRService, produces IREventGroup), EmitIRResult (serializes to keter DSL)
-    codegen.py           — Codegen domain events: GenerateCode, OptimizeCode, EmitCodegenResult, LoadFromKeter, LoadFromAST
+    ir.py                — IR domain event: GenerateIR (injects IRService, produces IREventGroup)
+    codegen.py           — Codegen domain events: GenerateCode, OptimizeCode, LoadFromKeter, LoadFromAST
+    output.py            — Unified output domain event: EmitResult (stage auto-detection, payload dispatch, console + file emission)
     tests/
-      test_lexer.py      — 6 tests for lexer events (DomainEvent.handle pattern)
-      test_parser.py     — 6 tests for parser events
-      test_ir.py         — 6 tests for GenerateIR and EmitIRResult
-      test_codegen.py    — 8 tests for codegen events (GenerateCode, OptimizeCode, EmitCodegenResult)
+      test_lexer.py      — 2 tests for PerformLexicalAnalysis
+      test_parser.py     — 4 tests for PerformSyntacticAnalysis
+      test_ir.py         — 3 tests for GenerateIR
+      test_codegen.py    — 4 tests for GenerateCode + OptimizeCode
+      test_output.py     — 14 tests for EmitResult (stage detection, per-stage dispatch, overrides, file writes)
   interfaces/
     __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService
     lexer.py             — LexerService(Service): abstract `tokenize(text) -> List[TokenAggregate]`
@@ -229,22 +239,21 @@ src/
       test_lexer.py      — 9 tests for TokenAggregate mapper
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ASTPrinter
+    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer
     artifact.py          — ArtifactBlockParser: static methods for block extraction and filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST via public build_* methods)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
-    output.py            — ScanOutputWriter: YAML/JSON/keter file output with format auto-detection
+    output.py            — OutputWriter (file I/O with format auto-detection), OutputPrinter (AST/symbol-table/error console output), ResultPayloadBuilder (per-stage payload assembly), and emit() helper
     parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
     semantic.py          — SymbolTableBuilder (single-pass AST walker for scope/symbol construction) + NameResolver (second-pass name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
     optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; deduplicates repeated params/returns for YAML anchor/alias emission)
-    printer.py           — ASTPrinter: static post-order traversal printer for AST trees and symbol tables
     tests/
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
-      test_output.py     — 12 tests for ScanOutputWriter
+      test_output.py     — 19 tests for OutputWriter, ResultPayloadBuilder, and emit()
       test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
       test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
       test_codegen.py    — 10 tests for TiferetGenerator
@@ -288,14 +297,16 @@ The `BlockTracker` class in `src/utils/lexer.py` handles indentation tracking. U
 ## Key Files
 
 ### `src/events/lexer.py`
-Two domain events:
+One domain event:
 - **PerformLexicalAnalysis** — Injects `LexerService`, reads source file via `tiferet.File`, tokenizes full text. Returns `List[TokenAggregate]`.
-- **EmitScanResult** — Assembles result payload with tokens and metadata. Delegates file writing to `ScanOutputWriter`.
 
 ### `src/events/parser.py`
-Two domain events:
-- **PerformSyntacticAnalysis** — Injects `ParserService`, parses tokens into AST, validates root is a `Decl`, returns serialized dict.
-- **EmitParseResult** — Assembles parse result with AST, optional tokens, and delegates file output.
+One domain event:
+- **PerformSyntacticAnalysis** — Injects `ParserService`, parses tokens into AST. Returns the `DeclarationAggregate` root.
+
+### `src/events/output.py`
+One domain event:
+- **EmitResult** — Terminal pipeline event. Resolves a stage (explicit `stage` param or auto-detection over `codegen > ir > semantic > parse > scan`), delegates payload assembly to `ResultPayloadBuilder`, prints `semantic_errors` / AST / symbol table via `OutputPrinter`, and writes via `emit()`. Always returns the assembled payload.
 
 ### `src/utils/lexer.py`
 Two classes:
@@ -322,10 +333,11 @@ Two classes:
 - **IRGenerator** — Implements `IRService`. Public `build_*` methods walk the `DeclarationAggregate` AST to produce an `IREventGroup`. `encode_expr()` encodes expression nodes to string.
 
 ### `src/utils/output.py`
-Scan output writer (`ScanOutputWriter`) with static methods:
-- **`detect_format`** — Resolves output format from extension (`yaml`, `json`, `keter`) or explicit value.
-- **`write`** — Writes a result payload to file as YAML, JSON, or plain-text keter DSL.
-- **`parse_extract_names`** — Converts comma-separated extract string to a list for payload inclusion.
+Consolidated output utilities:
+- **OutputWriter** (static methods: `detect_format`, `write`, `parse_extract_names`) — File I/O with format auto-detection (`yaml`, `json`, `keter`).
+- **OutputPrinter** (static methods) — Console diagnostics: `print_semantic_errors`, `print_ast`, `print_symbol_table`, plus public traversal helpers (`print_declaration`, `print_statement`, `print_expression`, `print_type`, `print_param_list`).
+- **ResultPayloadBuilder** (static methods: `build_envelope`, `build_scan_payload`, `build_parse_payload`, `build_semantic_payload`, `build_ir_payload`, `build_codegen_payload`) — Per-stage payload assembly consumed by `EmitResult`.
+- **emit(payload, output=None, output_format='auto')** — Module-level helper that writes the payload when `output` is set and always returns the payload.
 
 ### `src/utils/typecheck.py`
 One class:
@@ -340,24 +352,21 @@ One class:
 - **YamlAnchorOptimizer** — Implements `OptimizerService`. Deduplicates repeated `params` and `returns` lists across events by sharing Python object references, enabling PyYAML to emit YAML anchors and aliases automatically. Adds a top-level `vars` section when shared structures exist.
 
 ### `src/events/semantic.py`
-Two domain events:
+One domain event:
 - **PerformSemanticAnalysis** — Validates the AST, builds a symbol table via `SymbolTableBuilder`, resolves names via `NameResolver`. Returns dict with `symbol_table` and `resolution`.
-- **EmitSemanticResult** — Assembles semantic result payload with optional AST and tokens. Delegates file writing to `ScanOutputWriter`.
 
 ### `src/events/typecheck.py`
 One domain event:
 - **PerformTypeCheck** — Takes the AST and semantic analysis result, runs `TypeChecker` against the symbol table, returns a list of type error descriptors.
 
 ### `src/events/ir.py`
-Two domain events:
+One domain event:
 - **GenerateIR** — Injects `IRService`; receives `ast` and optional `semantic` from pipeline; calls `ir_service.generate(ast, symbol_table)`; returns `IREventGroup`.
-- **EmitIRResult** — Receives `IREventGroup`; calls `ir.to_keter()`; writes to `.keter` file or returns string.
 
 ### `src/events/codegen.py`
-Five domain events:
+Four domain events:
 - **GenerateCode** — Injects `CodegenService`; walks the IR to produce a schema-conforming output dict.
 - **OptimizeCode** — Injects `OptimizerService`; at `-O O1` applies anchor/alias deduplication; at `-O O0` passes through unchanged.
-- **EmitCodegenResult** — Writes the codegen dict to YAML/JSON file via `ScanOutputWriter`, or returns it directly.
 - **LoadFromKeter** — Reads a `.keter` file and parses it into an `IREventGroup` via `KeterIREventGroup.from_data()`.
 - **LoadFromAST** — Reads a JSON AST file and reconstructs the `DeclarationAggregate` via Pydantic `model_validate()`.
 
@@ -373,13 +382,9 @@ Two classes:
 - **SymbolTableBuilder** — Single-pass AST walker that constructs scopes (module, class, method) and populates symbol entries (imports, attributes, parameters, variables).
 - **NameResolver** — Second-pass walker that resolves name references in expressions against the built scope registry, producing `ResolutionResult` with resolved and unresolved lists.
 
-### `src/utils/printer.py`
-One class:
-- **ASTPrinter** — Diagnostic utility with all-static methods for post-order AST traversal printing (`print_ast`, `print_statement`, `print_expression`, `print_type`, `print_param_list`) and formatted symbol table printing (`print_symbol_table`). Intended for debugging and educational demonstration.
-
 ### `config.yml`
 Tiferet YAML configuration defining:
-- **attrs** — Container attributes for all pipeline events and services including `ir_service`, `codegen_service`, `optimizer_service`, `generate_ir_event`, `emit_ir_result_event`, `generate_code_event`, `optimize_code_event`, `emit_codegen_result_event`, `load_from_keter_event`, `load_from_ast_event`, `perform_type_check_event`
+- **attrs** — Container attributes for all pipeline events and services including `ir_service`, `codegen_service`, `optimizer_service`, `generate_ir_event`, `generate_code_event`, `optimize_code_event`, `load_from_keter_event`, `load_from_ast_event`, `perform_type_check_event`, and the terminal `emit_result_event`
 - **features** — `scan.event`, `parse.event`, `semantic.event`, `ir.event`, `compile.event`, `compile.keter`, and `compile.ast`
 - **errors** — `TEXT_EXTRACTION_FAILED`, `LEXICAL_ERROR_DETECTED`, `PARSER_NOT_INITIALIZED`, `INVALID_AST_STRUCTURE`, `MISSING_AST`, `TYPE_MISMATCH_ASSIGNMENT`, `TYPE_MISMATCH_OPERATION`, `INVALID_KETER_SYNTAX`, `INVALID_CODEGEN_SCHEMA`, `INVALID_IMPORT_GROUP`, `INVALID_IMPORT_CONTENT`, `ARTIFACT_CLASS_NAME_MISMATCH`, `INVALID_ATTRIBUTE_MEMBER_TYPE`, `ATTRIBUTE_MEMBER_NAME_MISMATCH`, `INVALID_METHOD_MEMBER_TYPE`, `METHOD_MEMBER_NAME_MISMATCH`, `METHOD_MISSING_SELF`, `INVALID_METHOD_RETURN_TYPE`, `EVENT_MISSING_EXECUTE`
 - **cli** — `scan event`, `parse event`, `semantic event`, `ir event`, `compile event`, `compile keter`, and `compile ast` commands
@@ -413,7 +418,7 @@ python compiler.py compile ast <ast_file> -o output.yaml
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 237 tests total
+python -m pytest src/ -v    # 245 tests total
 ```
 
 Test breakdown:
@@ -427,15 +432,16 @@ Test breakdown:
 - `src/utils/tests/test_artifact.py` — 13 tests (ArtifactBlockParser)
 - `src/utils/tests/test_ir.py` — 19 tests (DocstringParser + IRGenerator)
 - `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
-- `src/utils/tests/test_output.py` — 12 tests (ScanOutputWriter)
+- `src/utils/tests/test_output.py` — 19 tests (OutputWriter, ResultPayloadBuilder, emit)
 - `src/utils/tests/test_parser.py` — 51 tests (TiferetParser grammar rules)
 - `src/utils/tests/test_semantic.py` — 26 tests (SymbolTableBuilder + NameResolver)
 - `src/utils/tests/test_codegen.py` — 10 tests (TiferetGenerator)
 - `src/utils/tests/test_optimizer.py` — 5 tests (YamlAnchorOptimizer)
-- `src/events/tests/test_ir.py` — 6 tests (GenerateIR + EmitIRResult)
-- `src/events/tests/test_lexer.py` — 6 tests (lexer domain events)
-- `src/events/tests/test_parser.py` — 6 tests (parser domain events)
-- `src/events/tests/test_codegen.py` — 8 tests (codegen domain events)
+- `src/events/tests/test_lexer.py` — 2 tests (PerformLexicalAnalysis)
+- `src/events/tests/test_parser.py` — 4 tests (PerformSyntacticAnalysis)
+- `src/events/tests/test_ir.py` — 3 tests (GenerateIR)
+- `src/events/tests/test_codegen.py` — 4 tests (GenerateCode + OptimizeCode)
+- `src/events/tests/test_output.py` — 14 tests (EmitResult stage detection + dispatch + overrides + file writes)
 
 Tests use `DomainEvent.handle` for event invocation and mock `LexerService`/`ParserService`/`CodegenService`/`OptimizerService` for isolation. Utility tests validate lexing, parsing, output, codegen, and optimization logic independently.
 

@@ -154,7 +154,7 @@ The `samples/` directory contains 22 Tiferet Domain Event source files used for 
 The test suite validates domain objects, mappers, utilities, and domain events across all pipeline stages.
 
 ```bash
-# Run all tests (237 total)
+# Run all tests (245 total)
 python -m pytest src/ -v
 
 # Domain object tests
@@ -164,13 +164,13 @@ python -m pytest src/domain/tests/ -v        # 40 tests (AST, Token, IR, Semanti
 python -m pytest src/mappers/tests/ -v        # 22 tests (Token, AST, Semantic, IR)
 
 # Utility tests
-python -m pytest src/utils/tests/ -v          # 149 tests (Lexer, Parser, Artifact, Output, Semantic, IR, Codegen, Optimizer)
+python -m pytest src/utils/tests/ -v          # 156 tests (Lexer, Parser, Artifact, Output, Semantic, IR, Codegen, Optimizer)
 
 # Domain event tests
-python -m pytest src/events/tests/ -v         # 26 tests (Lexer, Parser, IR, Codegen)
+python -m pytest src/events/tests/ -v         # 27 tests (Lexer, Parser, IR, Codegen, Output)
 ```
 
-**Total: 237 tests** across 19 test files
+**Total: 245 tests** across 20 test files
 
 ### Project Structure
 
@@ -188,10 +188,9 @@ docs/
       codegen.md         — Code generation utility guide (TiferetGenerator, schema)
       ir.md              — IR generator utility guide (DocstringParser, IRGenerator)
       lexer.md           — Lexer utility guide (dynamic PLY pattern, BlockTracker)
-      output.md          — Output writer utility guide (ScanOutputWriter)
+      output.md          — Output utilities guide (OutputWriter, OutputPrinter, ResultPayloadBuilder, emit)
       parser.md          — Parser utility guide (TiferetParser, AST structure)
       semantic.md        — Semantic analysis utility guide (SymbolTableBuilder, NameResolver)
-      printer.md         — AST printer utility guide (ASTPrinter)
 
 samples/                 — End-to-end sample files for all pipeline stages (22 files)
   pass_imports_only.py               — Imports-only module (success case)
@@ -237,17 +236,19 @@ src/
   events/
     __init__.py          — Exports: DomainEvent, TiferetError, a (assets)
     settings.py          — Re-exports DomainEvent, TiferetError from tiferet; imports local assets as `a`
-    lexer.py             — Lexer domain events: PerformLexicalAnalysis, EmitScanResult
-    parser.py            — Parser domain events: PerformSyntacticAnalysis, EmitParseResult
-    semantic.py          — Semantic domain events: PerformSemanticAnalysis, EmitSemanticResult
+    lexer.py             — Lexer domain event: PerformLexicalAnalysis
+    parser.py            — Parser domain event: PerformSyntacticAnalysis
+    semantic.py          — Semantic domain event: PerformSemanticAnalysis
     typecheck.py         — Type checking domain event: PerformTypeCheck
-    ir.py                — IR domain events: GenerateIR, EmitIRResult
-    codegen.py           — Codegen domain events: GenerateCode, OptimizeCode, EmitCodegenResult, LoadFromKeter, LoadFromAST
+    ir.py                — IR domain event: GenerateIR
+    codegen.py           — Codegen domain events: GenerateCode, OptimizeCode, LoadFromKeter, LoadFromAST
+    output.py            — Unified output domain event: EmitResult (stage auto-detection, payload dispatch, console + file emission)
     tests/
-      test_lexer.py      — 6 tests for lexer events (DomainEvent.handle pattern)
-      test_parser.py     — 6 tests for parser events
-      test_ir.py         — 6 tests for GenerateIR and EmitIRResult
-      test_codegen.py    — 8 tests for codegen events (GenerateCode, OptimizeCode, EmitCodegenResult)
+      test_lexer.py      — 2 tests for PerformLexicalAnalysis
+      test_parser.py     — 4 tests for PerformSyntacticAnalysis
+      test_ir.py         — 3 tests for GenerateIR
+      test_codegen.py    — 4 tests for GenerateCode + OptimizeCode
+      test_output.py     — 14 tests for EmitResult (stage detection, per-stage dispatch, overrides, file writes)
   interfaces/
     __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService
     lexer.py             — LexerService abstract interface (extends tiferet Service)
@@ -266,22 +267,21 @@ src/
       test_lexer.py      — 9 tests for TokenAggregate mapper
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, ScanOutputWriter, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ASTPrinter
+    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer
     artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST to produce IREventGroup)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
-    output.py            — ScanOutputWriter: YAML/JSON/keter file output with format auto-detection
+    output.py            — OutputWriter (YAML/JSON/keter file output with format auto-detection), OutputPrinter (AST/symbol-table/error console output), ResultPayloadBuilder (per-stage payload assembly), emit() helper
     parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
     semantic.py          — SymbolTableBuilder (single-pass scope/symbol construction) + NameResolver (name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
     optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; deduplicates repeated params/returns for YAML anchor/alias emission)
-    printer.py           — ASTPrinter: static post-order traversal printer for AST trees and symbol tables
     tests/
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
-      test_output.py     — 12 tests for ScanOutputWriter
+      test_output.py     — 19 tests for OutputWriter, ResultPayloadBuilder, and emit()
       test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
       test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
       test_codegen.py    — 10 tests for TiferetGenerator
@@ -300,10 +300,9 @@ src/
 - **[Code Generator](./docs/guides/utils/codegen.md)** — Code generation utility (TiferetGenerator, output schema)
 - **[IR Generator](./docs/guides/utils/ir.md)** — IR generation utility (DocstringParser, IRGenerator)
 - **[Dynamic PLY Lexer](./docs/guides/utils/lexer.md)** — Architecture guide for the dynamic lexer pattern (assets, import chain, rule composition)
-- **[Output Writer](./docs/guides/utils/output.md)** — Output writer utility (ScanOutputWriter, format detection)
+- **[Output Utilities](./docs/guides/utils/output.md)** — Unified output utilities (OutputWriter, OutputPrinter, ResultPayloadBuilder, emit)
 - **[Parser Utility](./docs/guides/utils/parser.md)** — Parser utility guide (TiferetParser, AST structure)
 - **[Semantic Analysis](./docs/guides/utils/semantic.md)** — Semantic analysis utility (SymbolTableBuilder, NameResolver)
-- **[AST Printer](./docs/guides/utils/printer.md)** — AST and symbol table visualization utility (ASTPrinter)
 
 ### Development Status
 
