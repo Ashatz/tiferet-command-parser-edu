@@ -1,0 +1,108 @@
+{
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-20T23:24:45.154365+00:00",
+  "source_file": "samples/pass_constant_folding_event.py",
+  "symbol_table": {
+    "module_name": "pass_constant_folding_event",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": "tiferet.events"
+          },
+          "ComputeAdjustedScore": {
+            "name": "ComputeAdjustedScore",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "ComputeAdjustedScore": "module.ComputeAdjustedScore"
+        }
+      },
+      "module.ComputeAdjustedScore": {
+        "name": "ComputeAdjustedScore",
+        "kind": "class_def",
+        "path": "module.ComputeAdjustedScore",
+        "symbols": {
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.ComputeAdjustedScore"
+          }
+        },
+        "children": {
+          "execute": "module.ComputeAdjustedScore.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.ComputeAdjustedScore.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.ComputeAdjustedScore.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.ComputeAdjustedScore.execute"
+          },
+          "base_score": {
+            "name": "base_score",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.ComputeAdjustedScore.execute"
+          },
+          "penalty": {
+            "name": "penalty",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.ComputeAdjustedScore.execute"
+          },
+          "kwargs": {
+            "name": "kwargs",
+            "kind": "parameter",
+            "type_annotation": "dict",
+            "scope_path": "module.ComputeAdjustedScore.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.ComputeAdjustedScore"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "base_score",
+        "scope_path": "module.ComputeAdjustedScore.execute",
+        "resolved_to": "module.ComputeAdjustedScore.execute"
+      },
+      {
+        "name": "penalty",
+        "scope_path": "module.ComputeAdjustedScore.execute",
+        "resolved_to": "module.ComputeAdjustedScore.execute"
+      }
+    ],
+    "unresolved": [
+      {
+        "name": "adjusted",
+        "scope_path": "module.ComputeAdjustedScore.execute"
+      }
+    ]
+  }
+}

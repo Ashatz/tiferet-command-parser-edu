@@ -10,7 +10,7 @@
 **Files:**
 - `src/utils/codegen.py` — `TiferetGenerator`
 - `src/interfaces/codegen.py` — `CodegenService` abstract interface
-- `src/events/codegen.py` — `GenerateCode` and `OptimizeCode` domain events
+- `src/events/codegen.py` — `GenerateCode`, `LoadFromKeter`, `LoadFromAST` domain events
 - `src/events/output.py` — `EmitResult` (terminal pipeline event)
 
 
@@ -91,15 +91,17 @@ evt_grp:
 
 ## Pipeline Integration
 
-The codegen stage is wired as the `codegen.event` pipeline in `config.yml`:
+The `GenerateCode` event is wired into the `compile.event` pipeline in `config.yml`. The full compile pipeline is:
 
 1. **PerformLexicalAnalysis** — tokenizes source file
 2. **PerformSyntacticAnalysis** — parses tokens into AST
 3. **PerformSemanticAnalysis** — builds symbol table and resolves names
-4. **GenerateIR** — produces `IREventGroup`
-5. **GenerateCode** — calls `codegen_service.generate(ir)` → structured dict
-6. **OptimizeCode** — at `-O O1` applies YAML anchor/alias deduplication
-7. **EmitResult** — auto-detects the `codegen` stage and writes the codegen dict to YAML/JSON via `emit()`
+4. **PerformTypeCheck** — validates types against symbol table
+5. **FoldConstants** — folds constant numeric sub-expressions in the AST (see `src/events/optimizer.py`)
+6. **GenerateIR** — produces `IREventGroup` from the folded AST
+7. **GenerateCode** — calls `codegen_service.generate(ir)` → structured dict
+8. **OptimizeCode** — at `-O O1` applies YAML anchor/alias deduplication (see `src/events/optimizer.py`)
+9. **EmitResult** — auto-detects the `codegen` stage and writes the codegen dict to YAML/JSON via `emit()`
 
 ```yaml
 # config.yml (attrs section)

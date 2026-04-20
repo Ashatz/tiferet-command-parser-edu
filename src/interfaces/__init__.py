@@ -7,4 +7,4 @@ from .lexer import LexerService
 from .parser import ParserService
 from .ir import IRService
 from .codegen import CodegenService
-from .optimizer import OptimizerService
+from .optimizer import OptimizerService, ASTOptimizerService

@@ -33,7 +33,7 @@ attrs:
     module_path: src.utils.optimizer
     class_name: YamlAnchorOptimizer
   optimize_code_event:
-    module_path: src.events.codegen
+    module_path: src.events.optimizer
     class_name: OptimizeCode
   load_from_keter_event:
     module_path: src.events.codegen
@@ -44,6 +44,12 @@ attrs:
   emit_result_event:
     module_path: src.events.output
     class_name: EmitResult
+  ast_optimizer_service:
+    module_path: src.utils.optimizer
+    class_name: ConstantFolder
+  fold_constants_event:
+    module_path: src.events.optimizer
+    class_name: FoldConstants
 
 features:
   scan:
@@ -105,6 +111,9 @@ features:
         - attribute_id: perform_type_check_event
           name: Perform type checking against symbol table
           data_key: semantic_errors
+        - attribute_id: fold_constants_event
+          name: Fold constant arithmetic sub-expressions in AST
+          data_key: ast
         - attribute_id: generate_ir_event
           name: Generate keter IR from AST and symbol table
           params:
@@ -129,6 +138,9 @@ features:
         - attribute_id: perform_type_check_event
           name: Perform type checking against symbol table
           data_key: semantic_errors
+        - attribute_id: fold_constants_event
+          name: Fold constant arithmetic sub-expressions in AST
+          data_key: ast
         - attribute_id: generate_ir_event
           name: Generate keter IR from AST and symbol table
           params:
@@ -178,6 +190,9 @@ features:
         - attribute_id: perform_type_check_event
           name: Perform type checking against symbol table
           data_key: semantic_errors
+        - attribute_id: fold_constants_event
+          name: Fold constant arithmetic sub-expressions in AST
+          data_key: ast
         - attribute_id: generate_ir_event
           name: Generate keter IR from AST and symbol table
           params:
@@ -405,7 +420,7 @@ cli:
           - name_or_flags:
               - -O
             default: O0
-            description: "Optimization level: O0 (none, default), O1 (YAML anchor/alias deduplication)."
+            description: "Optimization level: O0 (none, default), O1 (AST constant folding), O2 (constant folding + YAML anchor/alias deduplication)."
       keter:
         group_key: compile
         key: keter
@@ -426,7 +441,7 @@ cli:
           - name_or_flags:
               - -O
             default: O0
-            description: "Optimization level: O0 (none, default), O1 (YAML anchor/alias deduplication)."
+            description: "Optimization level: O0 (none, default), O2 (YAML anchor/alias deduplication)."
       ast:
         group_key: compile
         key: ast
@@ -447,7 +462,7 @@ cli:
           - name_or_flags:
               - -O
             default: O0
-            description: "Optimization level: O0 (none, default), O1 (YAML anchor/alias deduplication)."
+            description: "Optimization level: O0 (none, default), O1 (AST constant folding), O2 (constant folding + YAML anchor/alias deduplication)."
 
 interfaces:
   compiler:

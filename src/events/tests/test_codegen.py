@@ -13,7 +13,8 @@ from tiferet.events import TiferetError, DomainEvent
 from ...domain.ir import IREventGroup, IRImportGroups, IREvents
 from ...interfaces.codegen import CodegenService
 from ...interfaces.optimizer import OptimizerService
-from ..codegen import GenerateCode, OptimizeCode
+from ..codegen import GenerateCode
+from ..optimizer import OptimizeCode
 
 # *** fixtures
 
@@ -149,12 +150,12 @@ def test_optimize_code_success(
     # Arrange the service to return the same dict.
     mock_optimizer_service.optimize.return_value = sample_codegen_output
 
-    # Execute via DomainEvent.handle with O1 optimization level.
+    # Execute via DomainEvent.handle with O2 optimization level.
     result = DomainEvent.handle(
         OptimizeCode,
         dependencies={'optimizer_service': mock_optimizer_service},
         codegen=sample_codegen_output,
-        O='O1',
+        O='O2',
     )
 
     # Assert the result is the optimized dict and the service was called.

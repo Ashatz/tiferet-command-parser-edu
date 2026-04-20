@@ -11,7 +11,6 @@ from tiferet import File, Json
 # ** app
 from ..domain.ir import IREventGroup
 from ..interfaces.codegen import CodegenService
-from ..interfaces.optimizer import OptimizerService
 from ..mappers import Decl
 from ..mappers.ir import KeterIREventGroup
 from .settings import DomainEvent, a
@@ -59,64 +58,6 @@ class GenerateCode(DomainEvent):
 
         # Generate and return the codegen output.
         return self.codegen_service.generate(ir)
-
-
-# ** event: optimize_code
-class OptimizeCode(DomainEvent):
-    '''
-    Optimization event that deduplicates repeated structures in the codegen
-    output dict, enabling YAML anchor/alias emission.
-    '''
-
-    # * attribute: optimizer_service
-    optimizer_service: OptimizerService
-
-    # * init
-    def __init__(self, optimizer_service: OptimizerService):
-        '''
-        Initialize with injected optimizer service.
-
-        :param optimizer_service: The optimizer service.
-        :type optimizer_service: OptimizerService
-        '''
-
-        # Set the optimizer service dependency.
-        self.optimizer_service = optimizer_service
-
-    # * method: execute
-    @DomainEvent.parameters_required(['codegen'])
-    def execute(self,
-            codegen: Dict[str, Any],
-            O: str = 'O0',
-            **kwargs,
-        ) -> Dict[str, Any]:
-        '''
-        Optimize the codegen dict based on the requested optimization level.
-        O0 passes through unchanged; O1 applies YAML anchor/alias deduplication.
-
-        :param codegen: The codegen output dict from GenerateCode.
-        :type codegen: Dict[str, Any]
-        :param O: Optimization level (O0, O1, etc.).
-        :type O: str
-        :param kwargs: Additional keyword arguments.
-        :type kwargs: dict
-        :return: The optimized or original codegen dict.
-        :rtype: Dict[str, Any]
-        '''
-
-        # Normalize the optimization level.
-        level = O.strip().upper() if O else 'O0'
-
-        # Pass through unchanged at O0.
-        if level == 'O0':
-            return codegen
-
-        # O1: YAML anchor/alias deduplication.
-        if level >= 'O1':
-            codegen = self.optimizer_service.optimize(codegen)
-
-        # Return the optimized dict.
-        return codegen
 
 
 # ** event: load_from_keter

@@ -10,7 +10,7 @@ In DDD, a Domain Event represents a discrete, well-defined operation within the 
 
 This project focuses exclusively on Domain Events, which reside at the heart of every working Tiferet application. The Domain Event dialect is defined by a precise syntactic language: artifact comments serve as domain documentation, `DomainEvent` inheritance establishes the service boundary, `execute` methods orchestrate transactional use cases, injected service contracts provide infrastructure abstraction, model factories act as aggregate roots, and error codes form part of the shared domain vocabulary.
 
-The compiler applies lexical analysis via PLY to recognize Tiferet idioms (artifact sections, import groups, validation decorators), syntactic analysis via PLY yacc to parse Domain Event classes into a structured Pydantic AST with PEMDAS-correct arithmetic precedence, semantic analysis to build symbol tables and resolve name references, type checking to validate assignments and operations against the symbol table, intermediate representation generation to produce a keter DSL capturing parameter contracts, ordered execution flow, and aggregated domain dependencies, and code generation to emit structured YAML output with optional anchor/alias optimization — serving as a semantically rich context store optimized for AI-assisted workflows.
+The compiler applies lexical analysis via PLY to recognize Tiferet idioms (artifact sections, import groups, validation decorators), syntactic analysis via PLY yacc to parse Domain Event classes into a structured Pydantic AST with PEMDAS-correct arithmetic precedence, semantic analysis to build symbol tables and resolve name references, type checking to validate assignments and operations against the symbol table, AST-level constant folding to evaluate numeric sub-expressions at compile time, intermediate representation generation to produce a keter DSL capturing parameter contracts, ordered execution flow, and aggregated domain dependencies, and code generation to emit structured YAML output with optional anchor/alias optimization — serving as a semantically rich context store optimized for AI-assisted workflows.
 
 ### Project Overview
 
@@ -35,7 +35,7 @@ pip install -e ".[dev]"
 
 ### Usage
 
-The compiler performs lexical scanning, syntactic parsing, semantic analysis, type checking, intermediate representation generation, code generation, and optimization on Python source files written in the Tiferet Domain Event pattern. It recognizes domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords, builds a structured Pydantic AST reflecting the three-tier artifact hierarchy, constructs symbol tables with name resolution, performs structural and type validation, generates a keter IR, and emits structured YAML output with optional YAML anchor/alias optimization.
+The compiler performs lexical scanning, syntactic parsing, semantic analysis, type checking, AST-level constant folding, intermediate representation generation, code generation, and output optimization on Python source files written in the Tiferet Domain Event pattern. It recognizes domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords, builds a structured Pydantic AST reflecting the three-tier artifact hierarchy, constructs symbol tables with name resolution, performs structural and type validation, folds constant numeric sub-expressions before IR generation, generates a keter IR, and emits structured YAML output with optional YAML anchor/alias optimization.
 
 #### CLI Commands
 
@@ -71,7 +71,7 @@ python compiler.py compile ast <ast_file> -o output.yaml
 | `--summary-only` | (scan) Output only metrics/summary (omit the full token list) |
 | `--include-tokens` | (parse/semantic) Include tokens in the output |
 | `--include-ast` | (semantic) Include the AST in the output |
-| `-O` | (compile) Optimization level: `O0` (none, default), `O1` (YAML anchor/alias deduplication) |
+| `-O` | (compile) Optimization level: `O0` (none, default), `O1` (AST constant folding), `O2` (constant folding + YAML anchor/alias deduplication) |
 
 **Examples:**
 
@@ -88,8 +88,11 @@ python compiler.py semantic event samples/pass_multiple_operator_events.py -o re
 # Generate keter IR
 python compiler.py ir event samples/pass_helper_method_event.py -o output.keter
 
-# Compile to YAML with optimization
-python compiler.py compile event samples/pass_minimal_event.py -o output.yaml -O O1
+# Compile with AST constant folding
+python compiler.py compile event samples/pass_constant_folding_event.py -o output.yaml -O O1
+
+# Compile with constant folding + YAML anchor/alias deduplication
+python compiler.py compile event samples/pass_minimal_event.py -o output.yaml -O O2
 
 # Compile from keter IR
 python compiler.py compile keter CodeGenerator/samples/pass_minimal_event.keter -o output.yaml
@@ -115,7 +118,7 @@ Unrecognized characters are emitted as `UNKNOWN` tokens for error reporting.
 
 ### Sample Files
 
-The `samples/` directory contains 22 Tiferet Domain Event source files used for end-to-end testing across all pipeline stages. Five are well-formed success cases; seventeen are intentional failure cases exercising parser, semantic, type checking, and structural error detection.
+The `samples/` directory contains 23 Tiferet Domain Event source files used for end-to-end testing across all pipeline stages. Six are well-formed success cases; seventeen are intentional failure cases exercising parser, semantic, type checking, and structural error detection.
 
 **Success cases:**
 
@@ -126,6 +129,7 @@ The `samples/` directory contains 22 Tiferet Domain Event source files used for 
 | `pass_minimal_injection_event.py` | Event with constructor injection and service dependency |
 | `pass_multiple_operator_events.py` | Multi-event module with arithmetic operators |
 | `pass_helper_method_event.py` | Event with helper method and chained arithmetic expression |
+| `pass_constant_folding_event.py` | Event with constant numeric sub-expressions demonstrating constant folding |
 
 **Failure cases:**
 
@@ -154,7 +158,7 @@ The `samples/` directory contains 22 Tiferet Domain Event source files used for 
 The test suite validates domain objects, mappers, utilities, and domain events across all pipeline stages.
 
 ```bash
-# Run all tests (245 total)
+# Run all tests (280 total)
 python -m pytest src/ -v
 
 # Domain object tests
@@ -164,13 +168,13 @@ python -m pytest src/domain/tests/ -v        # 40 tests (AST, Token, IR, Semanti
 python -m pytest src/mappers/tests/ -v        # 35 tests (Token, AST, Semantic, IR, KeterTransferObject settings)
 
 # Utility tests
-python -m pytest src/utils/tests/ -v          # 164 tests (Lexer, KeterLexer, Parser, Artifact, Output, Semantic, IR, Codegen, Optimizer)
+python -m pytest src/utils/tests/ -v          # 172 tests (Lexer, KeterLexer, Parser, Artifact, Output, Semantic, IR, Codegen, Optimizer)
 
 # Domain event tests
-python -m pytest src/events/tests/ -v         # 27 tests (Lexer, Parser, IR, Codegen, Output)
+python -m pytest src/events/tests/ -v         # 33 tests (Lexer, Parser, IR, Codegen, Optimizer, Output)
 ```
 
-**Total: 266 tests** across 22 test files
+**Total: 280 tests** across 23 test files
 
 ### Project Structure
 
@@ -241,21 +245,23 @@ src/
     semantic.py          — Semantic domain event: PerformSemanticAnalysis
     typecheck.py         — Type checking domain event: PerformTypeCheck
     ir.py                — IR domain event: GenerateIR
-    codegen.py           — Codegen domain events: GenerateCode, OptimizeCode, LoadFromKeter, LoadFromAST
+    codegen.py           — Codegen domain events: GenerateCode, LoadFromKeter, LoadFromAST
+    optimizer.py         — Optimizer domain events: FoldConstants, OptimizeCode
     output.py            — Unified output domain event: EmitResult (stage auto-detection, payload dispatch, console + file emission)
     tests/
       test_lexer.py      — 2 tests for PerformLexicalAnalysis
       test_parser.py     — 4 tests for PerformSyntacticAnalysis
       test_ir.py         — 3 tests for GenerateIR
-      test_codegen.py    — 4 tests for GenerateCode + OptimizeCode
+      test_codegen.py    — 4 tests for GenerateCode + LoadFromKeter/AST
+      test_optimizer.py  — 6 tests for FoldConstants + OptimizeCode
       test_output.py     — 14 tests for EmitResult (stage detection, per-stage dispatch, overrides, file writes)
   interfaces/
-    __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService
+    __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService, ASTOptimizerService
     lexer.py             — LexerService abstract interface (extends tiferet Service)
     parser.py            — ParserService abstract interface (extends tiferet Service)
     ir.py                — IRService abstract interface (extends tiferet Service)
     codegen.py           — CodegenService abstract interface (extends tiferet Service)
-    optimizer.py         — OptimizerService abstract interface (extends tiferet Service)
+    optimizer.py         — OptimizerService: abstract optimize(codegen); ASTOptimizerService: abstract fold(ast)
   mappers/
     __init__.py          — Exports: KeterTransferObject, TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate, KeterIREventGroup
     settings.py          — KeterTransferObject base class for keter transfer objects + KT_* token-type constants (KT_KEYWORD, KT_STRING, KT_IDENT, KT_LPAREN, KT_RPAREN, KT_COMMA)
@@ -279,7 +285,7 @@ src/
     semantic.py          — SymbolTableBuilder (single-pass scope/symbol construction) + NameResolver (name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
-    optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; deduplicates repeated params/returns for YAML anchor/alias emission)
+    optimizer.py         — YamlAnchorOptimizer (YAML anchor/alias deduplication); ConstantFolder (post-order AST constant folding)
     tests/
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
@@ -289,7 +295,7 @@ src/
       test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
       test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
       test_codegen.py    — 10 tests for TiferetGenerator
-      test_optimizer.py  — 5 tests for YamlAnchorOptimizer
+      test_optimizer.py  — 13 tests for YamlAnchorOptimizer + ConstantFolder
 ```
 
 ### Project Documentation
@@ -312,7 +318,7 @@ src/
 
 - **Current branch**: `ece-506-submission`
 - **Version**: 0.3.2
-- **Focus**: Full compiler pipeline (lexer, parser, semantic analysis, type checking, IR generation, code generation, optimization) for the Tiferet Domain Event pattern
+- **Focus**: Full compiler pipeline (lexer, parser, semantic analysis, type checking, AST constant folding, IR generation, code generation, output optimization) for the Tiferet Domain Event pattern
 - **License**: MIT (educational reuse encouraged)
 
 ### Acknowledgments

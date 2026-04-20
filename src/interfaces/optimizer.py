@@ -1,4 +1,4 @@
-"""Optimizer Service Interface"""
+"""Optimizer Service Interfaces"""
 
 # *** imports
 
@@ -8,6 +8,9 @@ from typing import Any, Dict
 
 # ** infra
 from tiferet.interfaces.settings import Service
+
+# ** app
+from ..domain.ast import Declaration
 
 # *** interfaces
 
@@ -28,6 +31,30 @@ class OptimizerService(Service):
         :type codegen: Dict[str, Any]
         :return: The optimized dict with shared object references.
         :rtype: Dict[str, Any]
+        '''
+
+        raise NotImplementedError()
+
+
+# ** interface: ast_optimizer_service
+class ASTOptimizerService(Service):
+    '''
+    Abstract interface for AST-level optimization passes.
+    Implementations walk the parsed AST and return a (potentially
+    mutated) AST root that has been optimized before IR generation.
+    '''
+
+    # * method: fold
+    @abstractmethod
+    def fold(self, ast: Declaration) -> Declaration:
+        '''
+        Walk the AST rooted at *ast* and apply optimizations in place,
+        returning the (possibly replaced) root node.
+
+        :param ast: The root DeclarationAggregate produced by the parser.
+        :type ast: Declaration
+        :return: The optimized AST root.
+        :rtype: Declaration
         '''
 
         raise NotImplementedError()

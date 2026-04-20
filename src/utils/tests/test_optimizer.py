@@ -1,4 +1,4 @@
-"""Utils – YamlAnchorOptimizer Tests"""
+"""Utils – YamlAnchorOptimizer and ConstantFolder Tests"""
 
 # *** imports
 
@@ -6,7 +6,9 @@
 import pytest
 
 # ** app
-from ..optimizer import YamlAnchorOptimizer
+from ...domain.ast import ExprKind, StatementKind
+from ...mappers.ast import ExpressionAggregate, StatementAggregate, DeclarationAggregate
+from ..optimizer import YamlAnchorOptimizer, ConstantFolder
 
 # *** fixtures
 
@@ -212,3 +214,256 @@ def test_vars_not_present_without_duplicates(optimizer: YamlAnchorOptimizer, sin
 
     # No vars section should be present.
     assert 'vars' not in result
+
+
+# *** fixtures — ConstantFolder
+
+# ** fixture: folder
+@pytest.fixture
+def folder() -> ConstantFolder:
+    '''
+    Returns a fresh ConstantFolder instance.
+
+    :return: A ConstantFolder.
+    :rtype: ConstantFolder
+    '''
+
+    return ConstantFolder()
+
+
+# ** fixture: int_lit
+def int_lit(value: str, lineno: int = 1, col: int = 0) -> ExpressionAggregate:
+    '''
+    Helper: create an INT_VAL literal expression.
+
+    :param value: The integer string value.
+    :type value: str
+    :return: An ExpressionAggregate of kind INT_VAL.
+    :rtype: ExpressionAggregate
+    '''
+
+    return ExpressionAggregate(kind=ExprKind.INT_VAL, value=value, lineno=lineno, col=col)
+
+
+# ** fixture: num_lit
+def num_lit(value: str) -> ExpressionAggregate:
+    '''
+    Helper: create a NUM_VAL literal expression.
+
+    :param value: The float string value.
+    :type value: str
+    :return: An ExpressionAggregate of kind NUM_VAL.
+    :rtype: ExpressionAggregate
+    '''
+
+    return ExpressionAggregate(kind=ExprKind.NUM_VAL, value=value)
+
+
+# ** fixture: name_expr
+def name_expr(name: str) -> ExpressionAggregate:
+    '''
+    Helper: create a NAME expression (variable reference).
+
+    :param name: The variable name.
+    :type name: str
+    :return: An ExpressionAggregate of kind NAME.
+    :rtype: ExpressionAggregate
+    '''
+
+    return ExpressionAggregate(kind=ExprKind.NAME, name=name)
+
+
+# *** tests — ConstantFolder
+
+# ** test: fold_simple_integer_add
+def test_fold_simple_integer_add(folder: ConstantFolder) -> None:
+    '''
+    Test that two INT_VAL operands connected by ADD are folded to a single INT_VAL.
+
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build: 3 + 5
+    expr = ExpressionAggregate(
+        kind=ExprKind.ADD,
+        left=int_lit('3'),
+        right=int_lit('5'),
+        lineno=1,
+        col=0,
+    )
+
+    # Fold the expression.
+    result = folder.fold_expression(expr)
+
+    # Assert the result is a single INT_VAL with value 8.
+    assert result.kind == ExprKind.INT_VAL
+    assert result.value == '8'
+
+
+# ** test: fold_integer_multiply
+def test_fold_integer_multiply(folder: ConstantFolder) -> None:
+    '''
+    Test that 3 * 5 is folded to INT_VAL 15.
+
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build: 3 * 5
+    expr = ExpressionAggregate(
+        kind=ExprKind.MUL,
+        left=int_lit('3'),
+        right=int_lit('5'),
+    )
+
+    # Fold the expression.
+    result = folder.fold_expression(expr)
+
+    # Assert the result is INT_VAL 15.
+    assert result.kind == ExprKind.INT_VAL
+    assert result.value == '15'
+
+
+# ** test: fold_division_yields_num_val
+def test_fold_division_yields_num_val(folder: ConstantFolder) -> None:
+    '''
+    Test that division always produces a NUM_VAL, even for whole-number results.
+
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build: 10 / 4
+    expr = ExpressionAggregate(
+        kind=ExprKind.DIV,
+        left=int_lit('10'),
+        right=int_lit('4'),
+    )
+
+    # Fold the expression.
+    result = folder.fold_expression(expr)
+
+    # Division always yields NUM_VAL.
+    assert result.kind == ExprKind.NUM_VAL
+    assert result.value == '2.5'
+
+
+# ** test: fold_nested_constants
+def test_fold_nested_constants(folder: ConstantFolder) -> None:
+    '''
+    Test that nested constant sub-expressions fold bottom-up.
+    (3 * 5) * 2 should collapse first to 15 * 2, then to 30.
+
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build: (3 * 5) * 2
+    inner = ExpressionAggregate(kind=ExprKind.MUL, left=int_lit('3'), right=int_lit('5'))
+    outer = ExpressionAggregate(kind=ExprKind.MUL, left=inner, right=int_lit('2'))
+
+    # Fold the expression.
+    result = folder.fold_expression(outer)
+
+    # Both levels collapsed to a single INT_VAL 30.
+    assert result.kind == ExprKind.INT_VAL
+    assert result.value == '30'
+
+
+# ** test: fold_str_val_numerics
+def test_fold_str_val_numerics(folder: ConstantFolder) -> None:
+    '''
+    Test that STR_VAL nodes whose content is a numeric string are foldable.
+    This matches the parser\'s convention of storing token values as STR_VAL.
+
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build: STR_VAL('3') * STR_VAL('5')  — the common parser output for 3 * 5
+    lhs = ExpressionAggregate(kind=ExprKind.STR_VAL, value='3')
+    rhs = ExpressionAggregate(kind=ExprKind.STR_VAL, value='5')
+    expr = ExpressionAggregate(kind=ExprKind.MUL, left=lhs, right=rhs)
+
+    # Fold the expression.
+    result = folder.fold_expression(expr)
+
+    # The result should be a STR_VAL with value 15.
+    assert result.kind == ExprKind.STR_VAL
+    assert result.value == '15'
+
+
+# ** test: fold_preserves_variable_operand
+def test_fold_preserves_variable_operand(folder: ConstantFolder) -> None:
+    '''
+    Test that a constant sub-expression is folded while its variable sibling
+    is preserved, matching the sample pattern: x + (4 * 5) -> x + 20.
+
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build: x + (4 * 5)  using STR_VAL operands as the parser would produce
+    const_sub = ExpressionAggregate(
+        kind=ExprKind.MUL,
+        left=ExpressionAggregate(kind=ExprKind.STR_VAL, value='4'),
+        right=ExpressionAggregate(kind=ExprKind.STR_VAL, value='5'),
+    )
+    expr = ExpressionAggregate(kind=ExprKind.ADD, left=name_expr('x'), right=const_sub)
+
+    # Fold the expression.
+    result = folder.fold_expression(expr)
+
+    # Outer ADD is preserved; right child has been folded to STR_VAL 20
+    # (STR_VAL operands produce STR_VAL results, matching parser convention).
+    assert result.kind == ExprKind.ADD
+    assert result.left.kind == ExprKind.NAME
+    assert result.right.kind == ExprKind.STR_VAL
+    assert result.right.value == '20'
+
+
+# ** test: fold_preserves_name_expression
+def test_fold_preserves_name_expression(folder: ConstantFolder) -> None:
+    '''
+    Test that a plain NAME expression is returned unchanged.
+
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build: a plain name expression.
+    expr = name_expr('penalty')
+
+    # Fold the expression.
+    result = folder.fold_expression(expr)
+
+    # The expression is unchanged.
+    assert result is expr
+    assert result.kind == ExprKind.NAME
+
+
+# ** test: fold_ast_return_statement
+def test_fold_ast_return_statement(folder: ConstantFolder) -> None:
+    '''
+    Test that fold() traverses a return statement inside a module declaration
+    and folds the constant return expression.
+
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build return statement: return 4 * 5
+    const_expr = ExpressionAggregate(kind=ExprKind.MUL, left=int_lit('4'), right=int_lit('5'))
+    return_stmt = StatementAggregate(kind=StatementKind.RETURN, expr=const_expr)
+
+    # Wrap in a minimal module declaration.
+    module_decl = DeclarationAggregate(name='test_module', code=return_stmt)
+
+    # Apply the full fold pass.
+    result = folder.fold(module_decl)
+
+    # The return expression should now be INT_VAL 20.
+    folded_expr = result.code.expr
+    assert folded_expr.kind == ExprKind.INT_VAL
+    assert folded_expr.value == '20'
