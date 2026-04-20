@@ -116,14 +116,14 @@ Both events satisfy the deliverable requirement that the IR file be read from **
 
 ## 7. Deliverable 3 — Reconstructing the AST / IR from the File
 
-Reconstruction is performed by dedicated **transfer objects** in `src/mappers/ir.py`. The keter DSL is tokenized by a minimal custom lexer (`KeterLexer`) and a recursive-descent parser built from composable `KeterIR*` transfer objects.
+Reconstruction is performed by dedicated **transfer objects** in `src/mappers/ir.py`, built on a shared base class in `src/mappers/settings.py`. The keter DSL is tokenized by a minimal custom lexer (`KeterLexer`) living in `src/utils/lexer_keter.py`, and parsed by a recursive-descent pass built from composable `KeterIR*` transfer objects.
 
-Key classes in `src/mappers/ir.py`:
+Key classes and modules:
 
-- `KeterLexer` — tokenizes the keter DSL string into `(type, value)` tuples (keywords, identifiers, quoted strings, delimiters).
-- `KeterTransferObject` — base class providing `consume`, `peek`, `skip_comma`, `collect_balanced`, `decode_param_spec`, `decode_return_spec`.
-- `KeterIREventGroup.from_data(text)` — root entry point. Tokenizes the input and dispatches to child transfer objects (`KeterIRImportGroups`, `KeterIREvents`, etc.) to rebuild the full `IREventGroup` tree.
-- Inner transfer objects: `KeterIRImport`, `KeterIRImportGroup`, `KeterIRImportGroups`, `KeterIREvent`, `KeterIREvents`, `KeterIRAttribute`, `KeterIRAttributes`, `KeterIRAssign`, `KeterIRInjection`, `KeterIRInjections`, `KeterIRExecute`, `KeterIRMethod`, `KeterIRMethods`, `KeterIRParam`, `KeterIRParams`, `KeterIRReturn`, `KeterIRReturns`, `KeterIRSnippet`, `KeterIRSnippets`, `KeterIRComment`, `KeterIRComments`, `KeterIRStatement`, `KeterIRStatements`.
+- `KeterLexer` (in `src/utils/lexer_keter.py`) — tokenizes the keter DSL string into `(type, value)` tuples (keywords, identifiers, quoted strings, delimiters). It is a standalone module that is NOT re-exported from `src/utils/__init__.py`; `KeterIREventGroup.from_data` lazy-imports it to avoid circular package init.
+- `KeterTransferObject` (in `src/mappers/settings.py`) — base class providing `consume`, `peek`, `skip_comma`, `collect_balanced`, `decode_param_spec`, `decode_return_spec`. The same module also defines the `KT_KEYWORD` / `KT_STRING` / `KT_IDENT` / `KT_LPAREN` / `KT_RPAREN` / `KT_COMMA` module-level token-type constants consumed by every keter transfer object.
+- `KeterIREventGroup.from_data(text)` (in `src/mappers/ir.py`) — root entry point. Tokenizes the input via `KeterLexer` and dispatches to child transfer objects (`KeterIRImportGroups`, `KeterIREvents`, etc.) to rebuild the full `IREventGroup` tree.
+- Inner transfer objects (all in `src/mappers/ir.py` under a single `# *** mappers` section): `KeterIRImport`, `KeterIRImportGroup`, `KeterIRImportGroups`, `KeterIREvent`, `KeterIREvents`, `KeterIRAttribute`, `KeterIRAttributes`, `KeterIRAssign`, `KeterIRInjection`, `KeterIRInjections`, `KeterIRExecute`, `KeterIRMethod`, `KeterIRMethods`, `KeterIRParam`, `KeterIRParams`, `KeterIRReturn`, `KeterIRReturns`, `KeterIRSnippet`, `KeterIRSnippets`, `KeterIRComment`, `KeterIRComments`, `KeterIRStatement`, `KeterIRStatements`.
 
 For the JSON AST case, reconstruction is a one-liner: `Decl.model_validate(ast_dict)` in `LoadFromAST` (Pydantic handles the entire recursive rebuild because every AST node is a `BaseModel`).
 

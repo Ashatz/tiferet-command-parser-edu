@@ -229,20 +229,23 @@ src/
     codegen.py           — CodegenService(Service): abstract `generate(ir) -> Dict[str, Any]`
     optimizer.py         — OptimizerService(Service): abstract `optimize(codegen) -> Dict[str, Any]`
   mappers/
-    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate, KeterIREventGroup
+    __init__.py          — Exports: KeterTransferObject, TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate, KeterIREventGroup
+    settings.py          — KeterTransferObject base class + KT_* token-type constants (KT_KEYWORD, KT_STRING, KT_IDENT, KT_LPAREN, KT_RPAREN, KT_COMMA) shared by all keter transfer objects
     ast.py               — AST mappers: TypeAggregate, ParamListAggregate, ExpressionAggregate, DeclarationAggregate, StatementAggregate — all with mutation methods and static factories
-    ir.py                — IREventGroupAggregate (mutation helpers) + KeterIREventGroup (keter DSL parser with KeterLexer/KeterTransferObject)
+    ir.py                — IREventGroupAggregate (mutation helpers) + all keter transfer objects (KeterIREventGroup, KeterIREvent, KeterIRMethod, KeterIRAttribute, etc.) consolidated under a single # *** mappers section; references the KT_* constants and KeterTransferObject from .settings; KeterIREventGroup.from_data lazy-imports KeterLexer from ..utils.lexer_keter to avoid a circular package import
     lexer.py             — TokenAggregate: extends Token with factory methods (new, new_indent, new_dedent)
     semantic.py          — ScopeAggregate: extends Scope with static factories (new_module_scope, new_class_scope, new_method_scope) and mutation methods (add_symbol, add_child, remove_child, has_symbol, get_symbol)
     tests/
       test_ir.py         — 4 tests for IREventGroupAggregate mutation helpers
       test_lexer.py      — 9 tests for TokenAggregate mapper
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
+      test_settings.py   — 13 tests for KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer
+    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer (KeterLexer is intentionally NOT re-exported here; import it directly via `from src.utils.lexer_keter import KeterLexer`)
     artifact.py          — ArtifactBlockParser: static methods for block extraction and filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST via public build_* methods)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
+    lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant; consumed by KeterIREventGroup via a lazy import
     output.py            — OutputWriter (file I/O with format auto-detection), OutputPrinter (AST/symbol-table/error console output), ResultPayloadBuilder (per-stage payload assembly), and emit() helper
     parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
     semantic.py          — SymbolTableBuilder (single-pass AST walker for scope/symbol construction) + NameResolver (second-pass name resolution against scope registry)
@@ -253,6 +256,7 @@ src/
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
+      test_lexer_keter.py — 8 tests for KeterLexer tokenization and KETER_KEYWORDS
       test_output.py     — 19 tests for OutputWriter, ResultPayloadBuilder, and emit()
       test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
       test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
@@ -370,12 +374,18 @@ Four domain events:
 - **LoadFromKeter** — Reads a `.keter` file and parses it into an `IREventGroup` via `KeterIREventGroup.from_data()`.
 - **LoadFromAST** — Reads a JSON AST file and reconstructs the `DeclarationAggregate` via Pydantic `model_validate()`.
 
+### `src/mappers/settings.py`
+Hosts the mapper base class and shared keter token-type constants:
+- **KeterTransferObject** — Base class providing shared token-stream traversal helpers (`consume`, `peek`, `skip_comma`, `collect_balanced`, `decode_param_spec`, `decode_return_spec`) for keter parsing.
+- **KT_KEYWORD / KT_STRING / KT_IDENT / KT_LPAREN / KT_RPAREN / KT_COMMA** — module-level token-type string constants that mirror the tags emitted by `KeterLexer`. Hosted here so `KeterTransferObject` and the keter transfer objects do not need to import `KeterLexer` at module load time.
 ### `src/mappers/ir.py`
-Four classes:
+Two categories of mapper classes, all under a single `# *** mappers` section:
 - **IREventGroupAggregate** — Mutable aggregate extending `IREventGroup` with `add_event()` and `add_import_group()` mutation helpers.
-- **KeterLexer** — Minimal lexer that tokenizes a keter DSL string into `(type, value)` tuples. Recognizes keywords, strings, identifiers, and delimiters.
-- **KeterTransferObject** — Base class providing shared token-stream traversal helpers (`consume`, `peek`) for keter parsing.
-- **KeterIREventGroup** — Transfer object that parses a keter DSL string into a full `IREventGroup` via `from_data()`. Uses `KeterLexer` for tokenization and recursive-descent parsing.
+- **KeterIR*** — All keter transfer objects (`KeterIRComment`, `KeterIRStatement`, `KeterIRSnippet`, `KeterIRParam`, `KeterIRReturn`, `KeterIRExecute`, `KeterIRMethod`, `KeterIRAttribute`, `KeterIRAssign`, `KeterIRInjection`, `KeterIRImport`, `KeterIRImportGroup`, `KeterIREvent`, `KeterIREventGroup`, plus collection variants). They reference the `KT_*` constants and `KeterTransferObject` from `.settings`. The root entry point `KeterIREventGroup.from_data(text)` lazy-imports `KeterLexer` from `..utils.lexer_keter` inside the method body to avoid triggering the utils package init at mapper module load time.
+### `src/utils/lexer_keter.py`
+Standalone module (intentionally NOT re-exported from `utils/__init__.py`):
+- **KeterLexer** — Minimal lexer that tokenizes a keter DSL string into `(type, value)` tuples. Recognizes keywords, strings, identifiers, and delimiters via class-level token-type attributes whose string values match the `KT_*` constants in `mappers/settings.py`.
+- **KETER_KEYWORDS** — Module-level set of DSL constructor names (`EventGroup`, `Events`, `Event`, `Params`, `Return`, etc.) distinguishing keywords from plain identifiers during tokenization.
 
 ### `src/utils/semantic.py`
 Two classes:
@@ -418,7 +428,7 @@ python compiler.py compile ast <ast_file> -o output.yaml
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 245 tests total
+python -m pytest src/ -v    # 266 tests total
 ```
 
 Test breakdown:
@@ -429,9 +439,11 @@ Test breakdown:
 - `src/mappers/tests/test_ir.py` — 4 tests (IREventGroupAggregate mutation)
 - `src/mappers/tests/test_lexer.py` — 9 tests (TokenAggregate mapper)
 - `src/mappers/tests/test_semantic.py` — 9 tests (ScopeAggregate factories and mutation)
+- `src/mappers/tests/test_settings.py` — 13 tests (KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers)
 - `src/utils/tests/test_artifact.py` — 13 tests (ArtifactBlockParser)
 - `src/utils/tests/test_ir.py` — 19 tests (DocstringParser + IRGenerator)
 - `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
+- `src/utils/tests/test_lexer_keter.py` — 8 tests (KeterLexer tokenization + KETER_KEYWORDS)
 - `src/utils/tests/test_output.py` — 19 tests (OutputWriter, ResultPayloadBuilder, emit)
 - `src/utils/tests/test_parser.py` — 51 tests (TiferetParser grammar rules)
 - `src/utils/tests/test_semantic.py` — 26 tests (SymbolTableBuilder + NameResolver)

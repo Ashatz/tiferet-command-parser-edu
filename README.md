@@ -161,16 +161,16 @@ python -m pytest src/ -v
 python -m pytest src/domain/tests/ -v        # 40 tests (AST, Token, IR, Semantic)
 
 # Mapper tests
-python -m pytest src/mappers/tests/ -v        # 22 tests (Token, AST, Semantic, IR)
+python -m pytest src/mappers/tests/ -v        # 35 tests (Token, AST, Semantic, IR, KeterTransferObject settings)
 
 # Utility tests
-python -m pytest src/utils/tests/ -v          # 156 tests (Lexer, Parser, Artifact, Output, Semantic, IR, Codegen, Optimizer)
+python -m pytest src/utils/tests/ -v          # 164 tests (Lexer, KeterLexer, Parser, Artifact, Output, Semantic, IR, Codegen, Optimizer)
 
 # Domain event tests
 python -m pytest src/events/tests/ -v         # 27 tests (Lexer, Parser, IR, Codegen, Output)
 ```
 
-**Total: 245 tests** across 20 test files
+**Total: 266 tests** across 22 test files
 
 ### Project Structure
 
@@ -257,20 +257,23 @@ src/
     codegen.py           — CodegenService abstract interface (extends tiferet Service)
     optimizer.py         — OptimizerService abstract interface (extends tiferet Service)
   mappers/
-    __init__.py          — Exports: TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate, KeterIREventGroup
+    __init__.py          — Exports: KeterTransferObject, TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate, KeterIREventGroup
+    settings.py          — KeterTransferObject base class for keter transfer objects + KT_* token-type constants (KT_KEYWORD, KT_STRING, KT_IDENT, KT_LPAREN, KT_RPAREN, KT_COMMA)
     ast.py               — AST mappers with mutation methods and static factories
-    ir.py                — IREventGroupAggregate with mutation helpers + KeterIREventGroup (keter DSL parser with KeterLexer)
+    ir.py                — IREventGroupAggregate (mutation helpers) + all keter transfer objects (KeterIREventGroup, KeterIREvent, KeterIRMethod, etc.); uses KT_* constants from .settings and lazy-imports KeterLexer inside KeterIREventGroup.from_data
     lexer.py             — TokenAggregate with factory methods (new, new_indent, new_dedent)
     semantic.py          — ScopeAggregate with scope factories and mutation methods
     tests/
       test_ir.py         — 4 tests for IREventGroupAggregate mutation helpers
       test_lexer.py      — 9 tests for TokenAggregate mapper
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
+      test_settings.py   — 13 tests for KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer
+    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer (KeterLexer is NOT exported here; import it directly via `from src.utils.lexer_keter import KeterLexer` to avoid triggering the utils package import chain)
     artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST to produce IREventGroup)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
+    lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant (intentionally NOT re-exported from utils/__init__.py)
     output.py            — OutputWriter (YAML/JSON/keter file output with format auto-detection), OutputPrinter (AST/symbol-table/error console output), ResultPayloadBuilder (per-stage payload assembly), emit() helper
     parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
     semantic.py          — SymbolTableBuilder (single-pass scope/symbol construction) + NameResolver (name resolution against scope registry)
@@ -281,6 +284,7 @@ src/
       test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
+      test_lexer_keter.py — 8 tests for KeterLexer tokenization and KETER_KEYWORDS
       test_output.py     — 19 tests for OutputWriter, ResultPayloadBuilder, and emit()
       test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
       test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
