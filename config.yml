@@ -418,12 +418,6 @@ cli:
               - -O
             default: O0
             description: "Optimization level: O0 (none, default), O1 (YAML anchor/alias deduplication)."
-          - name_or_flags:
-              - --ast
-            description: "Use 'compile ast' subcommand to compile from a JSON AST file."
-          - name_or_flags:
-              - --keter
-            description: "Use 'compile keter' subcommand to compile from a .keter IR file."
       keter:
         group_key: compile
         key: keter
