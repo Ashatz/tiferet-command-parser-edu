@@ -92,7 +92,7 @@ python compiler.py ir event samples/pass_helper_method_event.py -o output.keter
 python compiler.py compile event samples/pass_minimal_event.py -o output.yaml -O O1
 
 # Compile from keter IR
-python compiler.py compile keter IntermediateRepresentation/samples/pass_minimal_event.keter -o output.yaml
+python compiler.py compile keter CodeGenerator/samples/pass_minimal_event.keter -o output.yaml
 
 # Compile from JSON AST
 python compiler.py compile ast Parser/samples/pass_minimal_event.json -o output.yaml

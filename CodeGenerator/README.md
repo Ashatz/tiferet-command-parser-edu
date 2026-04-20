@@ -95,7 +95,7 @@ The pipeline produces three persistable artifacts, each of which is written to d
 - **Writer:** `OutputWriter.write` via `emit()` (auto-detects `.yaml` / `.json`).
 - **CLI:** `python compiler.py compile event <source> -o output.yaml`
 
-Pre-generated examples of all three artifact types live in `Parser/samples/` (AST), `IntermediateRepresentation/samples/` (IR), and `CodeGenerator/samples/` (codegen) respectively.
+Pre-generated examples of all three artifact types live in `Parser/samples/` (AST), `CodeGenerator/samples/` (IR `.keter` files and codegen YAML outputs) respectively.
 
 ## 6. Deliverable 2 — Reading the IR File in a Different Script
 
@@ -230,7 +230,7 @@ for name in pass_imports_only pass_minimal_event pass_minimal_injection_event \
 done
 
 # Keter IR round-trip (produces pass_minimal_event_2.yaml).
-python compiler.py compile keter IntermediateRepresentation/samples/pass_minimal_event.keter \
+python compiler.py compile keter CodeGenerator/samples/pass_minimal_event.keter \
     -o /tmp/pass_minimal_event_2.yaml
 diff -u CodeGenerator/samples/pass_minimal_event_2.yaml /tmp/pass_minimal_event_2.yaml
 
@@ -299,7 +299,7 @@ Three CLI entry points drive the code generator:
 python compiler.py compile event samples/pass_helper_method_event.py -o out.yaml
 
 # From pre-generated keter IR
-python compiler.py compile keter IntermediateRepresentation/samples/pass_helper_method_event.keter -o out.yaml
+python compiler.py compile keter CodeGenerator/samples/pass_helper_method_event.keter -o out.yaml
 
 # From pre-generated JSON AST
 python compiler.py compile ast Parser/samples/pass_helper_method_event.json -o out.yaml
