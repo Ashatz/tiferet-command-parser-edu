@@ -83,16 +83,18 @@ Key AST builder functions (in `ast_mapper.py`):
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `../src/utils/printer.py` | `ASTPrinter` | Static methods for post-order traversal printing of AST nodes and symbol tables |
+| `../src/utils/output.py` | `OutputPrinter` | Static methods for console printing of AST post-order traversal, symbol tables, and semantic errors |
 
 Functions:
 
-- `ASTPrinter.print_ast(decl)` — Print a Declaration tree (post-order)
-- `ASTPrinter.print_statement(stmt)` — Print a Statement chain (post-order)
-- `ASTPrinter.print_expression(expr)` — Print an Expression tree (post-order)
-- `ASTPrinter.print_type(type_node)` — Print a Type tree (post-order)
-- `ASTPrinter.print_param_list(param)` — Print a ParamList linked list (post-order)
-- `ASTPrinter.print_symbol_table(symbol_table)` — Print the symbol table in readable format
+- `OutputPrinter.print_ast(ast)` — Print the AST with a section header then post-order traversal
+- `OutputPrinter.print_declaration(decl)` — Print a Declaration tree (post-order)
+- `OutputPrinter.print_statement(stmt)` — Print a Statement chain (post-order)
+- `OutputPrinter.print_expression(expr)` — Print an Expression tree (post-order)
+- `OutputPrinter.print_type(type_node)` — Print a Type tree (post-order)
+- `OutputPrinter.print_param_list(param)` — Print a ParamList linked list (post-order)
+- `OutputPrinter.print_symbol_table(symbol_table)` — Print the symbol table in readable format
+- `OutputPrinter.print_semantic_errors(errors)` — Print type/semantic error descriptors to the console
 
 ### Symbol Table
 
@@ -183,7 +185,7 @@ python compiler.py semantic event <source_file> -o output.json --include-ast tru
 python compiler.py semantic event <source_file> --include-ast true
 ```
 
-When no `-o` flag is provided, `EmitSemanticResult` prints the AST (post-order traversal via `ASTPrinter.print_ast`) and the symbol table (via `ASTPrinter.print_symbol_table`) directly to the console.
+When no `-o` flag is provided, `EmitResult` (`src/events/output.py`) prints the AST (post-order traversal via `OutputPrinter.print_ast`) and the symbol table (via `OutputPrinter.print_symbol_table`) directly to the console.
 
 Pre-computed outputs for all sample files are in `samples/`.
 

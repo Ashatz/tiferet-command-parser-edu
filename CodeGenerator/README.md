@@ -23,7 +23,7 @@ The ECE 506 Code Generator deliverable requires the following artifacts. Each is
 | 1 | Print the AST (or IR) into a file | `src/events/parser.py`, `src/events/ir.py`, `src/utils/output.py`, `src/domain/ir.py` |
 | 2 | Read the IR file in a different script | `src/events/codegen.py` (`LoadFromKeter`, `LoadFromAST`) |
 | 3 | Reconstruct the AST from the file | `src/mappers/ir.py` (`KeterIREventGroup.from_data`), `src/events/codegen.py` (`LoadFromAST`) |
-| 4 | Call the function to print the AST (testing) | `src/utils/printer.py` (`ASTPrinter`); wired in `src/events/semantic.py` (`EmitSemanticResult`) |
+| 4 | Call the function to print the AST (testing) | `src/utils/output.py` (`OutputPrinter`); invoked by `src/events/output.py` (`EmitResult`) for the `semantic` stage |
 | 5 | Generate code for an expression | `src/utils/codegen.py` (`TiferetGenerator.build_snippets` / `.build_snippet`) consumes the IR expression strings produced by `src/utils/ir.py` (`IRGenerator.encode_expr`) |
 | 6 | Test your code | Reference outputs in `CodeGenerator/samples/*.yaml` round-trip from the paired `samples/*.py` sources (see §10) |
 | 7 | Update the main method to call the code generator after parsing | `compiler.py` + `config.yml` — the `compile event` feature chains parsing → semantic → IR → codegen → optimize → emit |
@@ -50,7 +50,7 @@ Source File (.py)
 │ OptimizeCode             │  YamlAnchorOptimizer.optimize(codegen)
 └──────────────────────────┘
 ┌──────────────────────────┐
-│ EmitCodegenResult        │  ScanOutputWriter.write(codegen, path, format)
+│ EmitResult               │  emit(codegen, output, format)
 └──────────────────────────┘  → output.yaml / output.json
 ```
 
@@ -77,22 +77,22 @@ The pipeline produces three persistable artifacts, each of which is written to d
 
 ### 5.1 AST → JSON file
 
-- **Event:** `EmitParseResult` in `src/events/parser.py`
-- **Writer:** `ScanOutputWriter.write` in `src/utils/output.py`
+- **Event:** `EmitResult` in `src/events/output.py` (auto-detects the `parse` stage)
+- **Writer:** `OutputWriter.write` via the `emit()` helper in `src/utils/output.py`
 - **Serialization:** the parser returns a `DeclarationAggregate` (Pydantic model) which is serialized with `model_dump(exclude_none=True, exclude_unset=True)` and written as JSON or YAML.
 - **CLI:** `python compiler.py parse event <source> -o output.json`
 
 ### 5.2 IR → keter file
 
-- **Event:** `EmitIRResult` in `src/events/ir.py`
+- **Event:** `EmitResult` in `src/events/output.py` (auto-detects the `ir` stage)
 - **Serializer:** `IREventGroup.to_keter()` in `src/domain/ir.py` (every IR node class — `IRImport`, `IRImportGroup`, `IREvent`, `IRExecute`, `IRMethod`, `IRParam`, `IRReturn`, `IRSnippet`, `IRStatement`, `IRComment`, etc. — implements its own `to_keter(indent)` method; the root calls them recursively).
-- **Writer:** `ScanOutputWriter.write` (auto-detects `.keter` extension and writes as plain text).
+- **Writer:** `OutputWriter.write` via `emit()` (auto-detects `.keter` extension and writes as plain text).
 - **CLI:** `python compiler.py ir event <source> -o output.keter`
 
 ### 5.3 Codegen dict → YAML file
 
-- **Event:** `EmitCodegenResult` in `src/events/codegen.py`
-- **Writer:** `ScanOutputWriter.write` (auto-detects `.yaml` / `.json`).
+- **Event:** `EmitResult` in `src/events/output.py` (auto-detects the `codegen` stage)
+- **Writer:** `OutputWriter.write` via `emit()` (auto-detects `.yaml` / `.json`).
 - **CLI:** `python compiler.py compile event <source> -o output.yaml`
 
 Pre-generated examples of all three artifact types live in `Parser/samples/` (AST), `IntermediateRepresentation/samples/` (IR), and `CodeGenerator/samples/` (codegen) respectively.
@@ -129,18 +129,20 @@ For the JSON AST case, reconstruction is a one-liner: `Decl.model_validate(ast_d
 
 ## 8. Deliverable 4 — Calling the Function to Print the AST (Testing)
 
-The `ASTPrinter` utility in `src/utils/printer.py` provides post-order, human-readable printing for AST trees, statement chains, expression trees, type trees, parameter lists, and symbol tables.
+The `OutputPrinter` utility in `src/utils/output.py` provides post-order, human-readable printing for AST trees, statement chains, expression trees, type trees, parameter lists, symbol tables, and semantic errors.
 
 Public static methods:
 
-- `ASTPrinter.print_ast(decl)` — print a `Declaration` tree.
-- `ASTPrinter.print_statement(stmt)` — print a `Statement` chain.
-- `ASTPrinter.print_expression(expr)` — print an `Expression` tree.
-- `ASTPrinter.print_type(type_node)` — print a `Type` tree.
-- `ASTPrinter.print_param_list(param)` — print a `ParamList` linked list.
-- `ASTPrinter.print_symbol_table(symbol_table)` — print the symbol table in readable form.
+- `OutputPrinter.print_ast(ast)` — print the AST with a section header then post-order traversal.
+- `OutputPrinter.print_declaration(decl)` — print a `Declaration` tree.
+- `OutputPrinter.print_statement(stmt)` — print a `Statement` chain.
+- `OutputPrinter.print_expression(expr)` — print an `Expression` tree.
+- `OutputPrinter.print_type(type_node)` — print a `Type` tree.
+- `OutputPrinter.print_param_list(param)` — print a `ParamList` linked list.
+- `OutputPrinter.print_symbol_table(symbol_table)` — print the symbol table in readable form.
+- `OutputPrinter.print_semantic_errors(errors)` — print type/semantic error descriptors.
 
-The semantic emit stage (`EmitSemanticResult` in `src/events/semantic.py`) invokes these printers whenever no `-o` flag is supplied, so testing the printed tree is as simple as:
+`EmitResult` (`src/events/output.py`) invokes these printers for the `semantic` stage whenever no `-o` flag is supplied, so testing the printed tree is as simple as:
 
 ```bash
 python compiler.py semantic event samples/pass_minimal_event.py --include-ast true

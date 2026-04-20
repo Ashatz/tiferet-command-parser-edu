@@ -41,11 +41,11 @@ Source File
     │  into a Pydantic DeclarationAggregate AST root
     ▼
 ┌──────────────────┐  final payload (stdout / file)
-│ EmitParseResult  │─────────────────────────────────►
+│ EmitResult       │─────────────────────────────────►
 └──────────────────┘
 ```
 
-The lexer stage tokenizes the source file into a list of `TokenAggregate` objects, including synthetic `INDENT`/`DEDENT` tokens injected by `BlockTracker` at class-body and method-body boundaries. The parser then constructs a full Pydantic AST from this token stream, and the emit stage writes the serialized AST to JSON or YAML.
+The lexer stage tokenizes the source file into a list of `TokenAggregate` objects, including synthetic `INDENT`/`DEDENT` tokens injected by `BlockTracker` at class-body and method-body boundaries. The parser then constructs a full Pydantic AST from this token stream, and `EmitResult` (`src/events/output.py`) assembles the payload and writes the serialized AST to JSON or YAML.
 
 ## 3. Grammar
 
@@ -231,7 +231,8 @@ Pre-computed AST output: → **[Parser/samples/pass_minimal_event.json](./sample
 | File | Description |
 |------|-------------|
 | `src/assets/parser.py` | Precedence rules and AST builder helper functions |
-| `src/events/parser.py` | Parser domain events: `PerformSyntacticAnalysis`, `EmitParseResult` |
+| `src/events/parser.py` | Parser domain event: `PerformSyntacticAnalysis` |
+| `src/events/output.py` | Consolidated terminal emit event: `EmitResult` (handles all pipeline stages) |
 | `src/interfaces/parser.py` | Abstract `ParserService(Service)` interface |
 | `src/domain/ast.py` | Pydantic AST domain objects (TypeKind, ExprKind, StatementKind, Type, ParamList, Expression, Declaration, Statement) |
 | `src/mappers/ast.py` | AST mapper aggregates with mutation methods and static factories |
