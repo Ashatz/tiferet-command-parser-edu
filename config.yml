@@ -50,6 +50,12 @@ attrs:
   fold_constants_event:
     module_path: src.events.optimizer
     class_name: FoldConstants
+  ast_strength_reducer_service:
+    module_path: src.utils.optimizer
+    class_name: StrengthReducer
+  reduce_strength_event:
+    module_path: src.events.optimizer
+    class_name: ReduceStrength
 
 features:
   scan:
@@ -114,6 +120,9 @@ features:
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
           data_key: ast
+        - attribute_id: reduce_strength_event
+          name: Apply strength reduction to AST arithmetic
+          data_key: ast
         - attribute_id: generate_ir_event
           name: Generate keter IR from AST and symbol table
           params:
@@ -140,6 +149,9 @@ features:
           data_key: semantic_errors
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
+          data_key: ast
+        - attribute_id: reduce_strength_event
+          name: Apply strength reduction to AST arithmetic
           data_key: ast
         - attribute_id: generate_ir_event
           name: Generate keter IR from AST and symbol table
@@ -192,6 +204,9 @@ features:
           data_key: semantic_errors
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
+          data_key: ast
+        - attribute_id: reduce_strength_event
+          name: Apply strength reduction to AST arithmetic
           data_key: ast
         - attribute_id: generate_ir_event
           name: Generate keter IR from AST and symbol table
@@ -420,7 +435,7 @@ cli:
           - name_or_flags:
               - -O
             default: O0
-            description: "Optimization level: O0 (none, default), O1 (AST constant folding), O2 (constant folding + YAML anchor/alias deduplication)."
+            description: "Optimization level: O0 (none, default), O1 (AST constant folding + strength reduction), O2 (constant folding + strength reduction + YAML anchor/alias deduplication)."
       keter:
         group_key: compile
         key: keter
@@ -462,7 +477,7 @@ cli:
           - name_or_flags:
               - -O
             default: O0
-            description: "Optimization level: O0 (none, default), O1 (AST constant folding), O2 (constant folding + YAML anchor/alias deduplication)."
+            description: "Optimization level: O0 (none, default), O1 (AST constant folding + strength reduction), O2 (constant folding + strength reduction + YAML anchor/alias deduplication)."
 
 interfaces:
   compiler:

@@ -1039,10 +1039,10 @@ class TiferetParser(ParserBase):
 
     # * method: p_comparison_expr (rule)
     def p_comparison_expr(self, p):
-        '''comparison_expr : additive_expr comparison_op additive_expr
-                           | additive_expr'''
+        '''comparison_expr : shift_expr comparison_op shift_expr
+                           | shift_expr'''
 
-        # Build a comparison expression or pass through the additive expression.
+        # Build a comparison expression or pass through the shift expression.
         if len(p) == 4:
             ln, col = getattr(self, '_last_op_pos', (0, 0))
             p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
@@ -1063,6 +1063,19 @@ class TiferetParser(ParserBase):
         # Pass through the comparison operator and capture its position.
         p[0] = p[1]
         self._last_op_pos = self.pos(p, 1)
+
+    # * method: p_shift_expr (rule)
+    def p_shift_expr(self, p):
+        '''shift_expr : shift_expr LSHIFT additive_expr
+                      | shift_expr RSHIFT additive_expr
+                      | additive_expr'''
+
+        # Build a shift expression (left-associative) or pass through the additive expression.
+        if len(p) == 4:
+            ln, col = self.pos(p, 2)
+            p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
+        else:
+            p[0] = p[1]
 
     # * method: p_additive_expr (rule)
     def p_additive_expr(self, p):

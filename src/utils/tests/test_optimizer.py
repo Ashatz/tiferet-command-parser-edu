@@ -1,4 +1,4 @@
-"""Utils – YamlAnchorOptimizer and ConstantFolder Tests"""
+"""Utils – YamlAnchorOptimizer, ConstantFolder, and StrengthReducer Tests"""
 
 # *** imports
 
@@ -8,7 +8,7 @@ import pytest
 # ** app
 from ...domain.ast import ExprKind, StatementKind
 from ...mappers.ast import ExpressionAggregate, StatementAggregate, DeclarationAggregate
-from ..optimizer import YamlAnchorOptimizer, ConstantFolder
+from ..optimizer import YamlAnchorOptimizer, ConstantFolder, StrengthReducer
 
 # *** fixtures
 
@@ -467,3 +467,382 @@ def test_fold_ast_return_statement(folder: ConstantFolder) -> None:
     folded_expr = result.code.expr
     assert folded_expr.kind == ExprKind.INT_VAL
     assert folded_expr.value == '20'
+
+
+# ** fixture: reducer
+@pytest.fixture
+def reducer() -> StrengthReducer:
+    '''
+    Returns a fresh StrengthReducer instance.
+
+    :return: A StrengthReducer.
+    :rtype: StrengthReducer
+    '''
+
+    return StrengthReducer()
+
+
+# ** test: is_power_of_two_literal_positive
+def test_is_power_of_two_literal_positive(reducer: StrengthReducer) -> None:
+    '''
+    Test that positive integer power-of-two literals produce their exponent.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # 1 (2**0), 2 (2**1), 4 (2**2), 8 (2**3), 1024 (2**10).
+    assert reducer.is_power_of_two_literal(int_lit('1')) == 0
+    assert reducer.is_power_of_two_literal(int_lit('2')) == 1
+    assert reducer.is_power_of_two_literal(int_lit('4')) == 2
+    assert reducer.is_power_of_two_literal(int_lit('8')) == 3
+    assert reducer.is_power_of_two_literal(int_lit('1024')) == 10
+
+
+# ** test: is_power_of_two_literal_negative
+def test_is_power_of_two_literal_negative(reducer: StrengthReducer) -> None:
+    '''
+    Test that non-power-of-two, zero, negative, non-integer, and non-literal
+    inputs all return None.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Non-power-of-two integers.
+    assert reducer.is_power_of_two_literal(int_lit('3')) is None
+    assert reducer.is_power_of_two_literal(int_lit('6')) is None
+    assert reducer.is_power_of_two_literal(int_lit('1000')) is None
+
+    # Zero and negative.
+    assert reducer.is_power_of_two_literal(int_lit('0')) is None
+    assert reducer.is_power_of_two_literal(int_lit('-2')) is None
+
+    # Fractional float.
+    assert reducer.is_power_of_two_literal(num_lit('2.5')) is None
+
+    # Variable reference.
+    assert reducer.is_power_of_two_literal(name_expr('x')) is None
+
+    # None / empty value.
+    assert reducer.is_power_of_two_literal(None) is None
+
+
+# ** test: reduce_mul_right_literal
+def test_reduce_mul_right_literal(reducer: StrengthReducer) -> None:
+    '''
+    Test that x * 8 is reduced to x << 3.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: x * 8.
+    expr = ExpressionAggregate(
+        kind=ExprKind.MUL,
+        left=name_expr('x'),
+        right=int_lit('8'),
+        lineno=2,
+        col=4,
+    )
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # Assert shape: x << 3.
+    assert result.kind == ExprKind.SHL
+    assert result.value == '<<'
+    assert result.left.kind == ExprKind.NAME
+    assert result.left.name == 'x'
+    assert result.right.kind == ExprKind.INT_VAL
+    assert result.right.value == '3'
+    # Outer position preserved from the original MUL.
+    assert result.lineno == 2
+    assert result.col == 4
+
+
+# ** test: reduce_mul_left_literal
+def test_reduce_mul_left_literal(reducer: StrengthReducer) -> None:
+    '''
+    Test that 4 * y is reduced to y << 2 (multiplication is commutative).
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: 4 * y.
+    expr = ExpressionAggregate(
+        kind=ExprKind.MUL,
+        left=int_lit('4'),
+        right=name_expr('y'),
+    )
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # Assert shape: y << 2.
+    assert result.kind == ExprKind.SHL
+    assert result.left.kind == ExprKind.NAME
+    assert result.left.name == 'y'
+    assert result.right.kind == ExprKind.INT_VAL
+    assert result.right.value == '2'
+
+
+# ** test: reduce_div_power_of_two
+def test_reduce_div_power_of_two(reducer: StrengthReducer) -> None:
+    '''
+    Test that x / 4 is reduced to x >> 2.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: x / 4.
+    expr = ExpressionAggregate(
+        kind=ExprKind.DIV,
+        left=name_expr('x'),
+        right=int_lit('4'),
+    )
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # Assert shape: x >> 2.
+    assert result.kind == ExprKind.SHR
+    assert result.value == '>>'
+    assert result.left.kind == ExprKind.NAME
+    assert result.left.name == 'x'
+    assert result.right.kind == ExprKind.INT_VAL
+    assert result.right.value == '2'
+
+
+# ** test: reduce_div_numerator_literal_untouched
+def test_reduce_div_numerator_literal_untouched(reducer: StrengthReducer) -> None:
+    '''
+    Test that 8 / x is NOT rewritten (division is not commutative).
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: 8 / x.
+    expr = ExpressionAggregate(
+        kind=ExprKind.DIV,
+        left=int_lit('8'),
+        right=name_expr('x'),
+    )
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # The DIV node must remain intact.
+    assert result is expr
+    assert result.kind == ExprKind.DIV
+
+
+# ** test: reduce_exp_by_two
+def test_reduce_exp_by_two(reducer: StrengthReducer) -> None:
+    '''
+    Test that x ** 2 is reduced to x * x with two distinct operand nodes.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: x ** 2.
+    expr = ExpressionAggregate(
+        kind=ExprKind.EXP,
+        left=name_expr('x'),
+        right=int_lit('2'),
+    )
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # Assert shape: x * x.
+    assert result.kind == ExprKind.MUL
+    assert result.value == '*'
+    assert result.left.kind == ExprKind.NAME
+    assert result.right.kind == ExprKind.NAME
+    assert result.left.name == 'x'
+    assert result.right.name == 'x'
+    # The two children must be distinct objects.
+    assert result.left is not result.right
+
+
+# ** test: reduce_exp_by_three_untouched
+def test_reduce_exp_by_three_untouched(reducer: StrengthReducer) -> None:
+    '''
+    Test that x ** 3 is left alone (only the exact literal 2 triggers the rewrite).
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: x ** 3.
+    expr = ExpressionAggregate(
+        kind=ExprKind.EXP,
+        left=name_expr('x'),
+        right=int_lit('3'),
+    )
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # The EXP node must remain intact.
+    assert result is expr
+    assert result.kind == ExprKind.EXP
+
+
+# ** test: reduce_non_power_of_two_untouched
+def test_reduce_non_power_of_two_untouched(reducer: StrengthReducer) -> None:
+    '''
+    Test that x * 3 is NOT rewritten because 3 is not a power of two.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: x * 3.
+    expr = ExpressionAggregate(
+        kind=ExprKind.MUL,
+        left=name_expr('x'),
+        right=int_lit('3'),
+    )
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # The MUL node must remain intact.
+    assert result is expr
+    assert result.kind == ExprKind.MUL
+
+
+# ** test: reduce_mul_by_one_untouched
+def test_reduce_mul_by_one_untouched(reducer: StrengthReducer) -> None:
+    '''
+    Test that x * 1 is NOT rewritten (2**0 shift is a no-op; leave the
+    original MUL in place so other passes can handle identity folding).
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: x * 1.
+    expr = ExpressionAggregate(
+        kind=ExprKind.MUL,
+        left=name_expr('x'),
+        right=int_lit('1'),
+    )
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # The MUL node must remain intact (k < 1 not rewritten).
+    assert result is expr
+    assert result.kind == ExprKind.MUL
+
+
+# ** test: reduce_plain_name_untouched
+def test_reduce_plain_name_untouched(reducer: StrengthReducer) -> None:
+    '''
+    Test that a plain NAME expression is returned unchanged.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: plain name.
+    expr = name_expr('penalty')
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # Returned unchanged.
+    assert result is expr
+    assert result.kind == ExprKind.NAME
+
+
+# ** test: reduce_nested_inside_add
+def test_reduce_nested_inside_add(reducer: StrengthReducer) -> None:
+    '''
+    Test that nested strength-reducible sub-expressions are rewritten while
+    the outer ADD is preserved. (a * 8) + (b / 4) -> (a << 3) + (b >> 2).
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build: (a * 8) + (b / 4).
+    left = ExpressionAggregate(kind=ExprKind.MUL, left=name_expr('a'), right=int_lit('8'))
+    right = ExpressionAggregate(kind=ExprKind.DIV, left=name_expr('b'), right=int_lit('4'))
+    expr = ExpressionAggregate(kind=ExprKind.ADD, left=left, right=right)
+
+    # Reduce.
+    result = reducer.reduce_expression(expr)
+
+    # Outer ADD preserved; children rewritten.
+    assert result.kind == ExprKind.ADD
+    assert result.left.kind == ExprKind.SHL
+    assert result.left.right.value == '3'
+    assert result.right.kind == ExprKind.SHR
+    assert result.right.right.value == '2'
+
+
+# ** test: reduce_fold_combined
+def test_reduce_fold_combined(reducer: StrengthReducer, folder: ConstantFolder) -> None:
+    '''
+    Test the constant-folder + strength-reducer pipeline: (2 * 4) * x
+    first folds to 8 * x, then reduces to x << 3.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    :param folder: The ConstantFolder instance.
+    :type folder: ConstantFolder
+    '''
+
+    # Build: (2 * 4) * x.
+    inner = ExpressionAggregate(kind=ExprKind.MUL, left=int_lit('2'), right=int_lit('4'))
+    expr = ExpressionAggregate(kind=ExprKind.MUL, left=inner, right=name_expr('x'))
+
+    # Fold first, then reduce.
+    folded = folder.fold_expression(expr)
+    result = reducer.reduce_expression(folded)
+
+    # Final shape: x << 3.
+    assert result.kind == ExprKind.SHL
+    assert result.left.kind == ExprKind.NAME
+    assert result.left.name == 'x'
+    assert result.right.kind == ExprKind.INT_VAL
+    assert result.right.value == '3'
+
+
+# ** test: reduce_ast_return_statement
+def test_reduce_ast_return_statement(reducer: StrengthReducer) -> None:
+    '''
+    Test that reduce() traverses a return statement inside a module
+    declaration and rewrites the inner MUL into a SHL.
+
+    :param reducer: The StrengthReducer instance.
+    :type reducer: StrengthReducer
+    '''
+
+    # Build return statement: return x * 8.
+    mul_expr = ExpressionAggregate(
+        kind=ExprKind.MUL,
+        left=name_expr('x'),
+        right=int_lit('8'),
+    )
+    return_stmt = StatementAggregate(kind=StatementKind.RETURN, expr=mul_expr)
+
+    # Wrap in a minimal module declaration.
+    module_decl = DeclarationAggregate(name='test_module', code=return_stmt)
+
+    # Apply the full reduce pass.
+    result = reducer.reduce(module_decl)
+
+    # The return expression should now be a SHL.
+    reduced_expr = result.code.expr
+    assert reduced_expr.kind == ExprKind.SHL
+    assert reduced_expr.left.name == 'x'
+    assert reduced_expr.right.value == '3'

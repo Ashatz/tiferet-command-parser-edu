@@ -504,6 +504,10 @@ class ExpressionAggregate(Expression):
             kind = ExprKind.GTE
         elif operator == '**':
             kind = ExprKind.EXP
+        elif operator == '<<':
+            kind = ExprKind.SHL
+        elif operator == '>>':
+            kind = ExprKind.SHR
         else:
             kind = ExprKind.NAME
 

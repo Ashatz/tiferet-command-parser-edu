@@ -487,3 +487,41 @@ def test_ir_generator_encode_stmt_assign_call(ir_generator: IRGenerator) -> None
     stmt = Stmt(kind=StatementKind.EXPR, expr=assign)
     result = ir_generator.encode_stmt(stmt)
     assert result == 'Assign(x, Call(int, value))'
+
+
+# ** test: ir_generator_encode_expr_shl
+def test_ir_generator_encode_expr_shl(ir_generator: IRGenerator) -> None:
+    '''
+    Test encode_expr for a left-shift expression.
+
+    :param ir_generator: The generator under test.
+    :type ir_generator: IRGenerator
+    '''
+
+    # Build: x << 3 -> Shl(x, 3)
+    expr = Expr(
+        kind=ExprKind.SHL,
+        left=Expr(kind=ExprKind.NAME, name='x'),
+        right=Expr(kind=ExprKind.INT_VAL, value='3'),
+    )
+    result = ir_generator.encode_expr(expr)
+    assert result == 'Shl(x, 3)'
+
+
+# ** test: ir_generator_encode_expr_shr
+def test_ir_generator_encode_expr_shr(ir_generator: IRGenerator) -> None:
+    '''
+    Test encode_expr for a right-shift expression.
+
+    :param ir_generator: The generator under test.
+    :type ir_generator: IRGenerator
+    '''
+
+    # Build: y >> 2 -> Shr(y, 2)
+    expr = Expr(
+        kind=ExprKind.SHR,
+        left=Expr(kind=ExprKind.NAME, name='y'),
+        right=Expr(kind=ExprKind.INT_VAL, value='2'),
+    )
+    result = ir_generator.encode_expr(expr)
+    assert result == 'Shr(y, 2)'

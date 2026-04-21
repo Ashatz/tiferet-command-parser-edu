@@ -748,6 +748,10 @@ class IRGenerator(IRService):
             return f'Mod({self.encode_expr(expr.left)}, {self.encode_expr(expr.right)})'
         if kind == ExprKind.EXP:
             return f'Exp({self.encode_expr(expr.left)}, {self.encode_expr(expr.right)})'
+        if kind == ExprKind.SHL:
+            return f'Shl({self.encode_expr(expr.left)}, {self.encode_expr(expr.right)})'
+        if kind == ExprKind.SHR:
+            return f'Shr({self.encode_expr(expr.left)}, {self.encode_expr(expr.right)})'
 
         # Call expression — callee(args).
         if kind == ExprKind.CALL:

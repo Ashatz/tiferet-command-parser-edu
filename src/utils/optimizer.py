@@ -7,7 +7,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 # ** app
 from ..domain.ast import Declaration, Expression, Statement, ExprKind
-from ..interfaces.optimizer import OptimizerService, ASTOptimizerService
+from ..interfaces.optimizer import (
+    OptimizerService,
+    ASTOptimizerService,
+    ASTStrengthReducerService,
+)
 from ..mappers.ast import ExpressionAggregate
 
 # *** utils
@@ -358,6 +362,373 @@ class ConstantFolder(ASTOptimizerService):
         return ExpressionAggregate(
             kind=ExprKind.NUM_VAL,
             value=str(result),
+            lineno=expr.lineno,
+            col=expr.col,
+        )
+
+
+# ** util: strength_reducer
+class StrengthReducer(ASTStrengthReducerService):
+    '''
+    Concrete AST optimizer that rewrites a small set of expensive
+    arithmetic operations into cheaper equivalents.
+
+    Supported strength-reduction patterns:
+      1. Multiplication by a positive integer power of two:
+         ``x * 2**k``  -->  ``x << k`` (either operand may be the literal).
+      2. Division by a positive integer power of two:
+         ``x / 2**k``  -->  ``x >> k`` (only the right operand may be
+         the literal; ``literal / x`` is left alone).
+      3. Exponentiation by two:
+         ``x ** 2``    -->  ``x * x`` (left operand is deep-copied so
+         the two MUL children are distinct nodes).
+
+    Anything that does not match one of the above patterns is left
+    untouched. The pass is intended to run *after* constant folding
+    so that simple literal arithmetic (e.g. ``2 * 4``) has already
+    been reduced to a single literal operand.
+    '''
+
+    # -- class-level constant sets -----------------------------------------
+
+    # Numeric literal kinds that may carry a power-of-two value.
+    NUMERIC_KINDS = frozenset({
+        ExprKind.INT_VAL,
+        ExprKind.NUM_VAL,
+    })
+
+    # * method: is_power_of_two_literal
+    def is_power_of_two_literal(self, expr: Optional[Expression]) -> Optional[int]:
+        '''
+        Return the base-2 logarithm of *expr* when it is a positive
+        integer power-of-two literal, otherwise None.
+
+        Accepts INT_VAL and NUM_VAL nodes directly, plus STR_VAL nodes
+        whose value parses as a whole number (matching the parser
+        convention that stores raw token values as STR_VAL).
+
+        :param expr: The expression node to test.
+        :type expr: Expression | None
+        :return: The exponent k such that ``expr == 2**k``, or None.
+        :rtype: int | None
+        '''
+
+        # Reject non-literal / non-numeric-string nodes outright.
+        if expr is None:
+            return None
+        if expr.kind not in self.NUMERIC_KINDS and expr.kind != ExprKind.STR_VAL:
+            return None
+        if expr.value is None:
+            return None
+
+        # Convert to float first so we accept "8.0" as well as "8".
+        try:
+            as_float = float(expr.value)
+        except (ValueError, TypeError):
+            return None
+
+        # Reject non-positive values and non-whole numbers.
+        if as_float <= 0 or not as_float.is_integer():
+            return None
+        as_int = int(as_float)
+
+        # Check for power-of-two via the classic bit trick.
+        if as_int & (as_int - 1) != 0:
+            return None
+
+        # Return the exponent.
+        return as_int.bit_length() - 1
+
+    # * method: is_literal_two
+    def is_literal_two(self, expr: Optional[Expression]) -> bool:
+        '''
+        Return True when *expr* is a numeric literal with value exactly 2.
+
+        :param expr: The expression node to test.
+        :type expr: Expression | None
+        :return: True if the node represents the integer 2.
+        :rtype: bool
+        '''
+
+        exponent = self.is_power_of_two_literal(expr)
+        return exponent == 1
+
+    # * method: deep_copy_expr
+    def deep_copy_expr(self, expr: Expression) -> ExpressionAggregate:
+        '''
+        Produce a structural deep copy of *expr* as an
+        ExpressionAggregate so the synthesized self-multiplication
+        (``x * x``) has two distinct operand nodes.
+
+        :param expr: The expression to clone.
+        :type expr: Expression
+        :return: A deep-copied ExpressionAggregate.
+        :rtype: ExpressionAggregate
+        '''
+
+        # Recurse into each child; None children stay None.
+        left_copy = self.deep_copy_expr(expr.left) if expr.left is not None else None
+        right_copy = self.deep_copy_expr(expr.right) if expr.right is not None else None
+
+        # Build a new aggregate mirroring the original node.
+        return ExpressionAggregate(
+            kind=expr.kind,
+            value=expr.value,
+            name=expr.name,
+            left=left_copy,
+            right=right_copy,
+            lineno=expr.lineno,
+            col=expr.col,
+        )
+
+    # * method: make_int_literal
+    def make_int_literal(self,
+            value: int,
+            lineno: Optional[int],
+            col: Optional[int],
+        ) -> ExpressionAggregate:
+        '''
+        Build an INT_VAL literal node carrying *value* with the same
+        source position as its enclosing expression.
+
+        :param value: The integer value to store.
+        :type value: int
+        :param lineno: Source line number for the new node.
+        :type lineno: int | None
+        :param col: Source column for the new node.
+        :type col: int | None
+        :return: A new INT_VAL ExpressionAggregate.
+        :rtype: ExpressionAggregate
+        '''
+
+        return ExpressionAggregate(
+            kind=ExprKind.INT_VAL,
+            value=str(value),
+            lineno=lineno,
+            col=col,
+        )
+
+    # * method: reduce
+    def reduce(self, ast: Declaration) -> Declaration:
+        '''
+        Entry point: walk the full AST and rewrite matching
+        arithmetic sub-expressions in place.
+
+        :param ast: The root DeclarationAggregate produced by the parser.
+        :type ast: Declaration
+        :return: The same root with strength-reduced sub-expressions.
+        :rtype: Declaration
+        '''
+
+        # Walk the declaration chain starting at the root.
+        self.reduce_declaration(ast)
+
+        # Return the (mutated) root.
+        return ast
+
+    # * method: reduce_declaration
+    def reduce_declaration(self, decl: Optional[Declaration]) -> None:
+        '''
+        Recursively strength-reduce expressions within a declaration chain.
+
+        :param decl: A Declaration node, or None to stop recursion.
+        :type decl: Declaration | None
+        '''
+
+        # Base case: nothing to reduce.
+        if decl is None:
+            return
+
+        # Reduce the declaration value field, if any.
+        if decl.value is not None:
+            decl.value = self.reduce_expression(decl.value)
+
+        # Recurse into the declaration's code block.
+        if decl.code is not None:
+            self.reduce_statement(decl.code)
+
+        # Continue to the next declaration in the chain.
+        if decl.next is not None:
+            self.reduce_declaration(decl.next)
+
+    # * method: reduce_statement
+    def reduce_statement(self, stmt: Optional[Statement]) -> None:
+        '''
+        Recursively strength-reduce expressions within a statement chain.
+
+        :param stmt: A Statement node, or None to stop recursion.
+        :type stmt: Statement | None
+        '''
+
+        # Base case: nothing to reduce.
+        if stmt is None:
+            return
+
+        # Recurse into inline declarations.
+        if stmt.decl is not None:
+            self.reduce_declaration(stmt.decl)
+
+        # Reduce the primary expression of the statement.
+        if stmt.expr is not None:
+            stmt.expr = self.reduce_expression(stmt.expr)
+
+        # Reduce the initialisation expression (e.g. for-loop range).
+        if stmt.init_expr is not None:
+            stmt.init_expr = self.reduce_expression(stmt.init_expr)
+
+        # Recurse into statement bodies (if-else, for, while, snippet).
+        if stmt.body is not None:
+            self.reduce_statement(stmt.body)
+
+        # Recurse into the else branch.
+        if stmt.else_body is not None:
+            self.reduce_statement(stmt.else_body)
+
+        # Continue to the next statement in the chain.
+        if stmt.next is not None:
+            self.reduce_statement(stmt.next)
+
+    # * method: reduce_expression
+    def reduce_expression(self, expr: Optional[Expression]) -> Optional[Expression]:
+        '''
+        Post-order strength reduction of a single expression node.
+        Recurses into children first, then attempts to rewrite the
+        parent node.
+
+        :param expr: The expression to reduce, or None.
+        :type expr: Expression | None
+        :return: The original node (possibly with mutated children)
+                 or a new node when the sub-expression was rewritten.
+        :rtype: Expression | None
+        '''
+
+        # Base case: nothing to reduce.
+        if expr is None:
+            return None
+
+        # Post-order: reduce children first.
+        if expr.left is not None:
+            expr.left = self.reduce_expression(expr.left)
+
+        if expr.right is not None:
+            expr.right = self.reduce_expression(expr.right)
+
+        # Pattern 1: multiplication by a power of two -> left shift.
+        if expr.kind == ExprKind.MUL:
+            return self.try_reduce_mul(expr)
+
+        # Pattern 2: division by a power of two -> right shift.
+        if expr.kind == ExprKind.DIV:
+            return self.try_reduce_div(expr)
+
+        # Pattern 3: exponentiation by two -> self-multiplication.
+        if expr.kind == ExprKind.EXP:
+            return self.try_reduce_exp(expr)
+
+        # No applicable pattern; return unchanged.
+        return expr
+
+    # * method: try_reduce_mul
+    def try_reduce_mul(self, expr: Expression) -> Expression:
+        '''
+        Reduce ``x * 2**k`` or ``2**k * x`` to ``x << k``.
+
+        :param expr: A MUL expression node with both children present.
+        :type expr: Expression
+        :return: A new SHL node when the pattern applies, otherwise *expr*.
+        :rtype: Expression
+        '''
+
+        # Bail out if the tree is malformed.
+        if expr.left is None or expr.right is None:
+            return expr
+
+        # Prefer the right operand as the literal (common canonical form).
+        right_k = self.is_power_of_two_literal(expr.right)
+        if right_k is not None and right_k >= 1:
+            shift_amount = self.make_int_literal(right_k, expr.right.lineno, expr.right.col)
+            return ExpressionAggregate(
+                kind=ExprKind.SHL,
+                value='<<',
+                left=expr.left,
+                right=shift_amount,
+                lineno=expr.lineno,
+                col=expr.col,
+            )
+
+        # Otherwise accept the literal on the left (multiplication is commutative).
+        left_k = self.is_power_of_two_literal(expr.left)
+        if left_k is not None and left_k >= 1:
+            shift_amount = self.make_int_literal(left_k, expr.left.lineno, expr.left.col)
+            return ExpressionAggregate(
+                kind=ExprKind.SHL,
+                value='<<',
+                left=expr.right,
+                right=shift_amount,
+                lineno=expr.lineno,
+                col=expr.col,
+            )
+
+        # No applicable literal; leave the MUL in place.
+        return expr
+
+    # * method: try_reduce_div
+    def try_reduce_div(self, expr: Expression) -> Expression:
+        '''
+        Reduce ``x / 2**k`` to ``x >> k``. Division is not commutative,
+        so only the divisor (right operand) is examined.
+
+        :param expr: A DIV expression node with both children present.
+        :type expr: Expression
+        :return: A new SHR node when the pattern applies, otherwise *expr*.
+        :rtype: Expression
+        '''
+
+        # Bail out if the tree is malformed.
+        if expr.left is None or expr.right is None:
+            return expr
+
+        # Only the divisor can be replaced.
+        k = self.is_power_of_two_literal(expr.right)
+        if k is None or k < 1:
+            return expr
+
+        shift_amount = self.make_int_literal(k, expr.right.lineno, expr.right.col)
+        return ExpressionAggregate(
+            kind=ExprKind.SHR,
+            value='>>',
+            left=expr.left,
+            right=shift_amount,
+            lineno=expr.lineno,
+            col=expr.col,
+        )
+
+    # * method: try_reduce_exp
+    def try_reduce_exp(self, expr: Expression) -> Expression:
+        '''
+        Reduce ``x ** 2`` to ``x * x``. The left operand is deep-copied
+        so the two MUL children are distinct nodes.
+
+        :param expr: An EXP expression node with both children present.
+        :type expr: Expression
+        :return: A new MUL node when the pattern applies, otherwise *expr*.
+        :rtype: Expression
+        '''
+
+        # Bail out if the tree is malformed.
+        if expr.left is None or expr.right is None:
+            return expr
+
+        # Only the exact literal 2 triggers this rewrite.
+        if not self.is_literal_two(expr.right):
+            return expr
+
+        left_copy = self.deep_copy_expr(expr.left)
+        return ExpressionAggregate(
+            kind=ExprKind.MUL,
+            value='*',
+            left=expr.left,
+            right=left_copy,
             lineno=expr.lineno,
             col=expr.col,
         )

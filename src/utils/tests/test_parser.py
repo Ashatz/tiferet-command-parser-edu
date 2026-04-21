@@ -1156,3 +1156,126 @@ def test_parse_call_operation_arg(parser: TiferetParser) -> None:
     inner_args = call_stmt.expr.right
     assert inner_args.kind == ExprKind.ARGS_LIST
     assert inner_args.left.kind == ExprKind.ADD
+
+
+# ** test: parse_shift_left
+def test_parse_shift_left(parser: TiferetParser) -> None:
+    '''Parse `result = x << 2` — left shift expression as assignment RHS.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# Shift left.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'result'),
+        tok('EQUALS', '='),
+        tok('IDENTIFIER', 'x'),
+        tok('LSHIFT', '<<'),
+        tok('NUMBER_LITERAL', '2'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmts = collect(snippets[0].body)
+    assign_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    assert assign_stmt.expr.kind == ExprKind.ASSIGN
+    shift = assign_stmt.expr.right
+    assert shift.kind == ExprKind.SHL
+    assert shift.value == '<<'
+    assert shift.left.name == 'x'
+    assert shift.right.value == '2'
+
+
+# ** test: parse_shift_right
+def test_parse_shift_right(parser: TiferetParser) -> None:
+    '''Parse `result = y >> 3` — right shift expression as assignment RHS.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# Shift right.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'result'),
+        tok('EQUALS', '='),
+        tok('IDENTIFIER', 'y'),
+        tok('RSHIFT', '>>'),
+        tok('NUMBER_LITERAL', '3'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmts = collect(snippets[0].body)
+    assign_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    shift = assign_stmt.expr.right
+    assert shift.kind == ExprKind.SHR
+    assert shift.value == '>>'
+    assert shift.left.name == 'y'
+    assert shift.right.value == '3'
+
+
+# ** test: parse_shift_left_associativity
+def test_parse_shift_left_associativity(parser: TiferetParser) -> None:
+    '''Parse `result = a << b << c` — shifts are left-associative, so it
+    parses as `(a << b) << c`.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# Left-assoc shift.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'result'),
+        tok('EQUALS', '='),
+        tok('IDENTIFIER', 'a'),
+        tok('LSHIFT', '<<'),
+        tok('IDENTIFIER', 'b'),
+        tok('LSHIFT', '<<'),
+        tok('IDENTIFIER', 'c'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmts = collect(snippets[0].body)
+    assign_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    outer = assign_stmt.expr.right
+    assert outer.kind == ExprKind.SHL
+    assert outer.right.name == 'c'
+    # Inner (a << b) is the left child.
+    assert outer.left.kind == ExprKind.SHL
+    assert outer.left.left.name == 'a'
+    assert outer.left.right.name == 'b'
+
+
+# ** test: parse_shift_precedence_below_additive
+def test_parse_shift_precedence_below_additive(parser: TiferetParser) -> None:
+    '''Parse `result = a + b << c` — `+` binds tighter than `<<`, so it
+    parses as `(a + b) << c`.'''
+
+    body_tokens = [
+        tok('LINE_COMMENT', '# Precedence.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'result'),
+        tok('EQUALS', '='),
+        tok('IDENTIFIER', 'a'),
+        tok('PLUS', '+'),
+        tok('IDENTIFIER', 'b'),
+        tok('LSHIFT', '<<'),
+        tok('IDENTIFIER', 'c'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    func = get_func_decl(module)
+    snippets = collect(func.code)
+    stmts = collect(snippets[0].body)
+    assign_stmt = [s for s in stmts if s.kind == StatementKind.EXPR][0]
+    outer = assign_stmt.expr.right
+    assert outer.kind == ExprKind.SHL
+    assert outer.right.name == 'c'
+    # The left child is the ADD sub-expression.
+    assert outer.left.kind == ExprKind.ADD
+    assert outer.left.left.name == 'a'
+    assert outer.left.right.name == 'b'

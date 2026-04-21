@@ -58,3 +58,30 @@ class ASTOptimizerService(Service):
         '''
 
         raise NotImplementedError()
+
+
+# ** interface: ast_strength_reducer_service
+class ASTStrengthReducerService(Service):
+    '''
+    Abstract interface for AST-level strength reduction passes.
+    Implementations walk the parsed AST and rewrite expensive
+    arithmetic operations (multiplication/division by a power of two,
+    exponentiation by two) into cheaper equivalents (shifts,
+    self-multiplication).
+    '''
+
+    # * method: reduce
+    @abstractmethod
+    def reduce(self, ast: Declaration) -> Declaration:
+        '''
+        Walk the AST rooted at *ast* and rewrite arithmetic
+        sub-expressions where strength reduction applies, returning
+        the (possibly replaced) root node.
+
+        :param ast: The root DeclarationAggregate produced by the parser.
+        :type ast: Declaration
+        :return: The strength-reduced AST root.
+        :rtype: Declaration
+        '''
+
+        raise NotImplementedError()

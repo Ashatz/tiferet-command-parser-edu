@@ -12,10 +12,14 @@ from tiferet.events import TiferetError, DomainEvent
 
 # ** app
 from ...domain.ast import ExprKind, StatementKind
-from ...interfaces.optimizer import ASTOptimizerService, OptimizerService
+from ...interfaces.optimizer import (
+    ASTOptimizerService,
+    ASTStrengthReducerService,
+    OptimizerService,
+)
 from ...mappers.ast import ExpressionAggregate, StatementAggregate, DeclarationAggregate
-from ...utils.optimizer import ConstantFolder
-from ..optimizer import FoldConstants, OptimizeCode
+from ...utils.optimizer import ConstantFolder, StrengthReducer
+from ..optimizer import FoldConstants, OptimizeCode, ReduceStrength
 
 # *** fixtures
 
@@ -30,6 +34,19 @@ def mock_ast_optimizer_service() -> ASTOptimizerService:
     '''
 
     return mock.Mock(spec=ASTOptimizerService)
+
+
+# ** fixture: mock_ast_strength_reducer_service
+@pytest.fixture
+def mock_ast_strength_reducer_service() -> ASTStrengthReducerService:
+    '''
+    Returns a mock ASTStrengthReducerService for testing.
+
+    :return: A mock ASTStrengthReducerService.
+    :rtype: ASTStrengthReducerService
+    '''
+
+    return mock.Mock(spec=ASTStrengthReducerService)
 
 
 # ** fixture: mock_optimizer_service
@@ -282,3 +299,113 @@ def test_optimize_code_missing_codegen(
             dependencies={'optimizer_service': mock_optimizer_service},
             # codegen intentionally omitted
         )
+
+
+# ** test: reduce_strength_delegates_to_service
+def test_reduce_strength_delegates_to_service(
+        mock_ast_strength_reducer_service: ASTStrengthReducerService,
+        sample_ast: DeclarationAggregate,
+    ) -> None:
+    '''
+    Test that ReduceStrength calls ast_strength_reducer_service.reduce and
+    returns the result.
+
+    :param mock_ast_strength_reducer_service: The mock strength reducer service.
+    :type mock_ast_strength_reducer_service: ASTStrengthReducerService
+    :param sample_ast: The sample AST root.
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Arrange the service to return the same AST root.
+    mock_ast_strength_reducer_service.reduce.return_value = sample_ast
+
+    # Execute via DomainEvent.handle.
+    result = DomainEvent.handle(
+        ReduceStrength,
+        dependencies={'ast_strength_reducer_service': mock_ast_strength_reducer_service},
+        ast=sample_ast,
+    )
+
+    # Assert the result is the returned AST and the service was called once.
+    assert result is sample_ast
+    mock_ast_strength_reducer_service.reduce.assert_called_once_with(sample_ast)
+
+
+# ** test: reduce_strength_o0_passthrough
+def test_reduce_strength_o0_passthrough(
+        mock_ast_strength_reducer_service: ASTStrengthReducerService,
+        sample_ast: DeclarationAggregate,
+    ) -> None:
+    '''
+    Test that ReduceStrength at O0 returns the AST unchanged without calling
+    the service.
+
+    :param mock_ast_strength_reducer_service: The mock strength reducer service.
+    :type mock_ast_strength_reducer_service: ASTStrengthReducerService
+    :param sample_ast: The sample AST root.
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Execute at O0.
+    result = DomainEvent.handle(
+        ReduceStrength,
+        dependencies={'ast_strength_reducer_service': mock_ast_strength_reducer_service},
+        ast=sample_ast,
+        O='O0',
+    )
+
+    # The original AST must be returned and the service must not be called.
+    assert result is sample_ast
+    mock_ast_strength_reducer_service.reduce.assert_not_called()
+
+
+# ** test: reduce_strength_missing_ast
+def test_reduce_strength_missing_ast(
+        mock_ast_strength_reducer_service: ASTStrengthReducerService,
+    ) -> None:
+    '''
+    Test that ReduceStrength raises TiferetError when ast is not provided.
+
+    :param mock_ast_strength_reducer_service: The mock strength reducer service.
+    :type mock_ast_strength_reducer_service: ASTStrengthReducerService
+    '''
+
+    with pytest.raises(TiferetError):
+        DomainEvent.handle(
+            ReduceStrength,
+            dependencies={'ast_strength_reducer_service': mock_ast_strength_reducer_service},
+            # ast intentionally omitted
+        )
+
+
+# ** test: reduce_strength_with_real_reducer
+def test_reduce_strength_with_real_reducer(sample_ast: DeclarationAggregate) -> None:
+    '''
+    Integration test: ReduceStrength using the real StrengthReducer service
+    rewrites a constant-power-of-two multiplication embedded in a return.
+
+    :param sample_ast: The sample AST root (will have a return statement added).
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Embed: return x * 8.
+    mul_expr = ExpressionAggregate(
+        kind=ExprKind.MUL,
+        left=ExpressionAggregate(kind=ExprKind.NAME, name='x'),
+        right=ExpressionAggregate(kind=ExprKind.INT_VAL, value='8'),
+    )
+    sample_ast.code = StatementAggregate(kind=StatementKind.RETURN, expr=mul_expr)
+
+    # Execute with the real StrengthReducer.
+    result = DomainEvent.handle(
+        ReduceStrength,
+        dependencies={'ast_strength_reducer_service': StrengthReducer()},
+        ast=sample_ast,
+    )
+
+    # The return expression should now be a SHL node: x << 3.
+    reduced = result.code.expr
+    assert reduced.kind == ExprKind.SHL
+    assert reduced.left.name == 'x'
+    assert reduced.right.kind == ExprKind.INT_VAL
+    assert reduced.right.value == '3'
