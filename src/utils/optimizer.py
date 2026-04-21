@@ -1,4 +1,4 @@
-"""Optimizer Utilities: YAML Anchor/Alias and Constant Folding"""
+"""Optimizer Utilities: YAML Anchor/Alias, Constant Folding, Strength Reduction, and Return Analysis"""
 
 # *** imports
 
@@ -6,13 +6,29 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 # ** app
-from ..domain.ast import Declaration, Expression, Statement, ExprKind
+from ..domain.ast import (
+    Declaration,
+    Expression,
+    Statement,
+    ExprKind,
+    StatementKind,
+    TypeKind,
+)
 from ..interfaces.optimizer import (
     OptimizerService,
     ASTOptimizerService,
     ASTStrengthReducerService,
+    ReturnAnalyzerService,
 )
 from ..mappers.ast import ExpressionAggregate
+
+# *** constants
+
+# ** constant: unreachable_after_return_code
+UNREACHABLE_AFTER_RETURN_CODE = 'UNREACHABLE_AFTER_RETURN'
+
+# ** constant: unreachable_after_return_message
+UNREACHABLE_AFTER_RETURN_MESSAGE = 'Statement is unreachable (follows a return statement)'
 
 # *** utils
 
@@ -732,3 +748,284 @@ class StrengthReducer(ASTStrengthReducerService):
             lineno=expr.lineno,
             col=expr.col,
         )
+
+
+# ** util: return_analyzer
+class ReturnAnalyzer(ReturnAnalyzerService):
+    '''
+    Concrete AST analyzer that detects statements following a ``return``
+    within the same scope and reports them as unreachable-code warnings.
+
+    The analyzer performs a non-mutating walk of the declaration tree,
+    maintaining a scope stack so warnings carry a qualified
+    ``scope_path``. Every ``return`` statement terminates the remainder
+    of its enclosing statement chain; any statements on that chain after
+    the return are flagged as ``UNREACHABLE_AFTER_RETURN``.
+
+    In addition to direct returns, an ``if_else`` statement whose
+    ``body`` and ``else_body`` chains both provably end in a ``return``
+    is also treated as a terminator so that siblings following such a
+    construct are flagged as unreachable. ``for``, ``while``, and
+    ``snippet`` chains are not treated as terminators.
+    '''
+
+    # * attribute: warnings
+    warnings: List[Dict]
+
+    # * attribute: scope_stack
+    scope_stack: List[str]
+
+    # * init
+    def __init__(self):
+        '''
+        Initialize the return analyzer with empty state.
+        '''
+
+        # Prepare the warning accumulator and scope stack.
+        self.warnings = []
+        self.scope_stack = []
+
+    # * method: analyze
+    def analyze(self, ast: Declaration) -> List[Dict]:
+        '''
+        Entry point: walk the full AST and collect dead-code warnings.
+
+        :param ast: The root DeclarationAggregate produced by the parser.
+        :type ast: Declaration
+        :return: List of warning dicts (empty when no dead code is found).
+        :rtype: List[Dict]
+        '''
+
+        # Reset state so repeated calls are idempotent.
+        self.warnings = []
+        self.scope_stack = ['module']
+
+        # Walk the module declaration chain.
+        self.walk_declaration(ast)
+
+        # Return the collected warnings.
+        return list(self.warnings)
+
+    # * method: current_scope_path
+    @property
+    def current_scope_path(self) -> str:
+        '''
+        Return the dotted path of the currently-enclosing scope.
+
+        :return: The scope path (e.g. ``module.EventClass.execute``).
+        :rtype: str
+        '''
+
+        return '.'.join(self.scope_stack) if self.scope_stack else 'module'
+
+    # * method: walk_declaration
+    def walk_declaration(self, decl: Optional[Declaration]) -> None:
+        '''
+        Recursively analyze a declaration chain, pushing a scope for each
+        class or function declaration encountered.
+
+        :param decl: A Declaration node, or None to stop recursion.
+        :type decl: Declaration | None
+        '''
+
+        # Base case: nothing to analyze.
+        if decl is None:
+            return
+
+        # Determine whether this declaration introduces a new scope.
+        kind = decl.type.kind if decl.type else None
+        pushes_scope = kind in (TypeKind.CLASS, TypeKind.FUNC)
+
+        # Enter the new scope if applicable.
+        if pushes_scope and decl.name:
+            self.scope_stack.append(decl.name)
+
+        # Recurse into the body of this declaration.
+        if decl.code is not None:
+            self.scan_block(decl.code)
+
+        # Leave the scope if one was entered.
+        if pushes_scope and decl.name:
+            self.scope_stack.pop()
+
+        # Continue to the next declaration in the chain.
+        if decl.next is not None:
+            self.walk_declaration(decl.next)
+
+    # * method: scan_block
+    def scan_block(self, stmt: Optional[Statement]) -> None:
+        '''
+        Walk a statement chain, flagging statements that follow a
+        terminator (return, or if/else whose branches both return) as
+        unreachable. ``SNIPPET`` and ``BLOCK`` containers are flattened
+        transparently so a return inside one snippet correctly terminates
+        statements grouped into a sibling snippet by the parser.
+
+        :param stmt: The first Statement in the chain, or None.
+        :type stmt: Statement | None
+        '''
+
+        # Base case: empty chain.
+        if stmt is None:
+            return
+
+        # Track the terminating statement (return or provably-returning
+        # if/else) so following statements can be flagged against it.
+        terminator: Optional[Statement] = None
+        for current in self.iter_effective_statements(stmt):
+
+            # Comments never contribute to control flow and must not be
+            # reported as unreachable code either.
+            if current.kind == StatementKind.COMMENT:
+                continue
+
+            # Recurse into inner scopes on every statement regardless of
+            # terminator state, so unreachable code inside earlier
+            # branches is still analyzed.
+            self.descend(current)
+
+            # When a terminator was already seen earlier in this chain,
+            # everything from here on is unreachable within this scope.
+            if terminator is not None:
+                self.flag_unreachable(current, terminator)
+                continue
+
+            # A direct return terminates the remainder of this chain.
+            if current.kind == StatementKind.RETURN:
+                terminator = current
+                continue
+
+            # An if/else whose both branches always return also terminates.
+            if (
+                current.kind == StatementKind.IF_ELSE
+                and self.block_always_returns(current.body)
+                and self.block_always_returns(current.else_body)
+            ):
+                terminator = current
+                continue
+
+    # * method: iter_effective_statements
+    def iter_effective_statements(self, stmt: Optional[Statement]):
+        '''
+        Yield the effective statements of a chain, transparently
+        flattening ``SNIPPET`` and ``BLOCK`` container statements so the
+        parser's grouping of consecutive lines does not hide terminators
+        from sibling statements at the logical enclosing scope.
+
+        :param stmt: The first Statement in the chain, or None.
+        :type stmt: Statement | None
+        '''
+
+        # Walk the .next chain, flattening containers inline.
+        current = stmt
+        while current is not None:
+            if current.kind in (StatementKind.SNIPPET, StatementKind.BLOCK):
+                yield from self.iter_effective_statements(current.body)
+            else:
+                yield current
+            current = current.next
+
+    # * method: descend
+    def descend(self, stmt: Statement) -> None:
+        '''
+        Recurse into a statement's nested bodies and inline declarations
+        so nested blocks are analyzed independently from their enclosing
+        chain. Each nested chain has its own terminator semantics.
+
+        :param stmt: The statement whose children should be visited.
+        :type stmt: Statement
+        '''
+
+        # Inline declarations (decl statements) may open a new scope.
+        if stmt.decl is not None:
+            self.walk_declaration(stmt.decl)
+
+        # Recurse into statement bodies (if/else, for, while, artifact).
+        if stmt.body is not None:
+            self.scan_block(stmt.body)
+
+        # Recurse into else branches.
+        if stmt.else_body is not None:
+            self.scan_block(stmt.else_body)
+
+    # * method: flag_unreachable
+    def flag_unreachable(self, stmt: Statement, terminator: Statement) -> None:
+        '''
+        Record an ``UNREACHABLE_AFTER_RETURN`` warning for *stmt* whose
+        predecessor in the chain was *terminator*.
+
+        :param stmt: The unreachable statement.
+        :type stmt: Statement
+        :param terminator: The return (or terminating if/else) statement
+            that makes *stmt* unreachable.
+        :type terminator: Statement
+        '''
+
+        # Build the warning dict mirroring the TypeChecker shape.
+        warning = {
+            'warning_code': UNREACHABLE_AFTER_RETURN_CODE,
+            'message': UNREACHABLE_AFTER_RETURN_MESSAGE,
+            'scope_path': self.current_scope_path,
+        }
+
+        # Attach position info for the unreachable statement.
+        if stmt.lineno is not None:
+            warning['lineno'] = stmt.lineno
+        if stmt.col is not None:
+            warning['col'] = stmt.col
+
+        # Attach position info for the triggering terminator.
+        if terminator.lineno is not None:
+            warning['return_lineno'] = terminator.lineno
+        if terminator.col is not None:
+            warning['return_col'] = terminator.col
+
+        # Record the warning.
+        self.warnings.append(warning)
+
+    # * method: block_always_returns
+    def block_always_returns(self, stmt: Optional[Statement]) -> bool:
+        '''
+        Return True when the statement chain rooted at *stmt* is
+        guaranteed to terminate in a ``return`` along every path.
+
+        A chain terminates when its final effective statement (after
+        flattening ``SNIPPET`` / ``BLOCK`` containers and ignoring pure
+        comment statements) is a ``return`` or when it is an ``if_else``
+        whose both branches also always return.
+
+        :param stmt: The first statement of the chain, or None.
+        :type stmt: Statement | None
+        :return: True when the chain always reaches a return.
+        :rtype: bool
+        '''
+
+        # Empty chains cannot guarantee a return.
+        if stmt is None:
+            return False
+
+        # Walk the effective (flattened) chain and retain the last
+        # non-comment statement seen.
+        last: Optional[Statement] = None
+        for current in self.iter_effective_statements(stmt):
+            if current.kind == StatementKind.COMMENT:
+                continue
+            last = current
+
+        # Empty or comment-only chains cannot guarantee a return.
+        if last is None:
+            return False
+
+        # A trailing return terminates the chain.
+        if last.kind == StatementKind.RETURN:
+            return True
+
+        # A trailing if/else terminates only when both branches always return.
+        if last.kind == StatementKind.IF_ELSE:
+            return (
+                self.block_always_returns(last.body)
+                and self.block_always_returns(last.else_body)
+            )
+
+        # Any other trailing statement does not guarantee termination.
+        return False

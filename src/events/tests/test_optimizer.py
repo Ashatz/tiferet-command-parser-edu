@@ -11,15 +11,26 @@ import pytest
 from tiferet.events import TiferetError, DomainEvent
 
 # ** app
-from ...domain.ast import ExprKind, StatementKind
+from ...domain.ast import ExprKind, StatementKind, TypeKind
 from ...interfaces.optimizer import (
     ASTOptimizerService,
     ASTStrengthReducerService,
     OptimizerService,
+    ReturnAnalyzerService,
 )
-from ...mappers.ast import ExpressionAggregate, StatementAggregate, DeclarationAggregate
-from ...utils.optimizer import ConstantFolder, StrengthReducer
-from ..optimizer import FoldConstants, OptimizeCode, ReduceStrength
+from ...mappers.ast import (
+    ExpressionAggregate,
+    StatementAggregate,
+    DeclarationAggregate,
+    TypeAggregate,
+)
+from ...utils.optimizer import (
+    ConstantFolder,
+    StrengthReducer,
+    ReturnAnalyzer,
+    UNREACHABLE_AFTER_RETURN_CODE,
+)
+from ..optimizer import AnalyzeReturns, FoldConstants, OptimizeCode, ReduceStrength
 
 # *** fixtures
 
@@ -409,3 +420,146 @@ def test_reduce_strength_with_real_reducer(sample_ast: DeclarationAggregate) -> 
     assert reduced.left.name == 'x'
     assert reduced.right.kind == ExprKind.INT_VAL
     assert reduced.right.value == '3'
+
+
+# ** fixture: mock_return_analyzer_service
+@pytest.fixture
+def mock_return_analyzer_service() -> ReturnAnalyzerService:
+    '''
+    Returns a mock ReturnAnalyzerService for testing.
+
+    :return: A mock ReturnAnalyzerService.
+    :rtype: ReturnAnalyzerService
+    '''
+
+    return mock.Mock(spec=ReturnAnalyzerService)
+
+
+# ** test: analyze_returns_delegates_to_service
+def test_analyze_returns_delegates_to_service(
+        mock_return_analyzer_service: ReturnAnalyzerService,
+        sample_ast: DeclarationAggregate,
+    ) -> None:
+    '''
+    Test that AnalyzeReturns calls return_analyzer_service.analyze and
+    returns the produced warnings list.
+
+    :param mock_return_analyzer_service: The mock return analyzer service.
+    :type mock_return_analyzer_service: ReturnAnalyzerService
+    :param sample_ast: The sample AST root.
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Arrange the service to return a fixed warning list.
+    fake_warnings = [{'warning_code': UNREACHABLE_AFTER_RETURN_CODE}]
+    mock_return_analyzer_service.analyze.return_value = fake_warnings
+
+    # Execute via DomainEvent.handle.
+    result = DomainEvent.handle(
+        AnalyzeReturns,
+        dependencies={'return_analyzer_service': mock_return_analyzer_service},
+        ast=sample_ast,
+    )
+
+    # Assert the service was called and the produced warnings are returned.
+    assert result is fake_warnings
+    mock_return_analyzer_service.analyze.assert_called_once_with(sample_ast)
+
+
+# ** test: analyze_returns_o0_passthrough
+def test_analyze_returns_o0_passthrough(
+        mock_return_analyzer_service: ReturnAnalyzerService,
+        sample_ast: DeclarationAggregate,
+    ) -> None:
+    '''
+    Test that AnalyzeReturns at O0 returns an empty list without calling
+    the service.
+
+    :param mock_return_analyzer_service: The mock return analyzer service.
+    :type mock_return_analyzer_service: ReturnAnalyzerService
+    :param sample_ast: The sample AST root.
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Execute at O0.
+    result = DomainEvent.handle(
+        AnalyzeReturns,
+        dependencies={'return_analyzer_service': mock_return_analyzer_service},
+        ast=sample_ast,
+        O='O0',
+    )
+
+    # The service must not be called and the result must be an empty list.
+    assert result == []
+    mock_return_analyzer_service.analyze.assert_not_called()
+
+
+# ** test: analyze_returns_missing_ast
+def test_analyze_returns_missing_ast(
+        mock_return_analyzer_service: ReturnAnalyzerService,
+    ) -> None:
+    '''
+    Test that AnalyzeReturns raises TiferetError when ast is not provided.
+
+    :param mock_return_analyzer_service: The mock return analyzer service.
+    :type mock_return_analyzer_service: ReturnAnalyzerService
+    '''
+
+    with pytest.raises(TiferetError):
+        DomainEvent.handle(
+            AnalyzeReturns,
+            dependencies={'return_analyzer_service': mock_return_analyzer_service},
+            # ast intentionally omitted
+        )
+
+
+# ** test: analyze_returns_with_real_analyzer
+def test_analyze_returns_with_real_analyzer(sample_ast: DeclarationAggregate) -> None:
+    '''
+    Integration test: AnalyzeReturns using the real ReturnAnalyzer flags
+    a statement that follows a return within the same method scope.
+
+    :param sample_ast: The sample AST root (will have a method body added).
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Build: method body = return; expr (dead code).
+    ret = StatementAggregate(
+        kind=StatementKind.RETURN,
+        expr=ExpressionAggregate(kind=ExprKind.NAME, name='result'),
+        lineno=10,
+        col=8,
+    )
+    dead = StatementAggregate(
+        kind=StatementKind.EXPR,
+        expr=ExpressionAggregate(kind=ExprKind.NAME, name='noop'),
+        lineno=11,
+        col=8,
+    )
+    ret.next = dead
+
+    # Wrap the method body in a FUNC declaration, then in a module decl stmt.
+    method = DeclarationAggregate(
+        name='execute',
+        type=TypeAggregate(kind=TypeKind.FUNC),
+        code=ret,
+    )
+    sample_ast.code = StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=method,
+        lineno=1,
+    )
+
+    # Execute with the real ReturnAnalyzer.
+    result = DomainEvent.handle(
+        AnalyzeReturns,
+        dependencies={'return_analyzer_service': ReturnAnalyzer()},
+        ast=sample_ast,
+    )
+
+    # A single warning should be produced for the trailing EXPR statement.
+    assert len(result) == 1
+    assert result[0]['warning_code'] == UNREACHABLE_AFTER_RETURN_CODE
+    assert result[0]['lineno'] == 11
+    assert result[0]['return_lineno'] == 10
+    assert result[0]['scope_path'] == 'module.execute'

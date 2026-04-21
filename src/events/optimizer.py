@@ -3,13 +3,14 @@
 # *** imports
 
 # ** core
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 # ** app
 from ..interfaces.optimizer import (
     ASTOptimizerService,
     ASTStrengthReducerService,
     OptimizerService,
+    ReturnAnalyzerService,
 )
 from ..mappers import Decl
 from .settings import DomainEvent
@@ -186,3 +187,61 @@ class OptimizeCode(DomainEvent):
 
         # Return the optimized dict.
         return codegen
+
+
+# ** event: analyze_returns
+class AnalyzeReturns(DomainEvent):
+    '''
+    AST analysis event that emits dead-code warnings for statements
+    that follow a ``return`` within the same scope. Delegates the walk
+    to the injected ReturnAnalyzerService and returns the list of
+    warning descriptors (empty when no dead code is found).
+    '''
+
+    # * attribute: return_analyzer_service
+    return_analyzer_service: ReturnAnalyzerService
+
+    # * init
+    def __init__(self, return_analyzer_service: ReturnAnalyzerService):
+        '''
+        Initialize with an injected return analyzer service.
+
+        :param return_analyzer_service: The return analysis service to apply.
+        :type return_analyzer_service: ReturnAnalyzerService
+        '''
+
+        # Set the return analyzer service dependency.
+        self.return_analyzer_service = return_analyzer_service
+
+    # * method: execute
+    @DomainEvent.parameters_required(['ast'])
+    def execute(self,
+            ast: Decl,
+            O: str = 'O1',
+            **kwargs,
+        ) -> List[Dict]:
+        '''
+        Apply the return-analysis pass based on the optimization level.
+        O0 returns an empty list; O1 or higher invokes the analyzer.
+        Defaults to O1 so the IR and compile pipelines always analyze
+        unless told otherwise.
+
+        :param ast: The parsed module DeclarationAggregate.
+        :type ast: Decl
+        :param O: Optimization level (O0, O1, O2, ...).
+        :type O: str
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: dict
+        :return: Warning descriptors for unreachable post-return code.
+        :rtype: List[Dict]
+        '''
+
+        # Normalize the optimization level.
+        level = O.strip().upper() if O else 'O1'
+
+        # O0: emit no warnings and skip the analyzer.
+        if level == 'O0':
+            return []
+
+        # O1 or higher: run the return analyzer.
+        return self.return_analyzer_service.analyze(ast)

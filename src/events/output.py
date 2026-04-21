@@ -44,6 +44,7 @@ class EmitResult(DomainEvent):
             ast: Optional[Decl] = None,
             semantic: Optional[Dict[str, Any]] = None,
             semantic_errors: Optional[List[Dict[str, Any]]] = None,
+            dead_code_warnings: Optional[List[Dict[str, Any]]] = None,
             ir: Optional[IREventGroup] = None,
             codegen: Optional[Dict[str, Any]] = None,
             extract: Optional[str] = None,
@@ -72,6 +73,9 @@ class EmitResult(DomainEvent):
         :type semantic: Optional[Dict[str, Any]]
         :param semantic_errors: Optional list of type check error descriptors.
         :type semantic_errors: Optional[List[Dict[str, Any]]]
+        :param dead_code_warnings: Optional list of dead-code warning
+            descriptors from ``AnalyzeReturns``.
+        :type dead_code_warnings: Optional[List[Dict[str, Any]]]
         :param ir: Optional IREventGroup from ``GenerateIR``.
         :type ir: Optional[IREventGroup]
         :param codegen: Optional codegen dict from ``GenerateCode`` /
@@ -112,6 +116,10 @@ class EmitResult(DomainEvent):
         if resolved_stage in ('semantic', 'codegen'):
             OutputPrinter.print_semantic_errors(semantic_errors)
 
+        # Print dead-code warnings on any stage that can carry them.
+        if resolved_stage in ('semantic', 'ir', 'codegen'):
+            OutputPrinter.print_dead_code_warnings(dead_code_warnings)
+
         # Assemble the stage-appropriate payload.
         payload = EmitResult.build_payload(
             stage=resolved_stage,
@@ -120,6 +128,7 @@ class EmitResult(DomainEvent):
             ast=ast,
             semantic=semantic,
             semantic_errors=semantic_errors,
+            dead_code_warnings=dead_code_warnings,
             ir=ir,
             codegen=codegen,
             extract=extract,
@@ -190,6 +199,7 @@ class EmitResult(DomainEvent):
             ast: Optional[Decl] = None,
             semantic: Optional[Dict[str, Any]] = None,
             semantic_errors: Optional[List[Dict[str, Any]]] = None,
+            dead_code_warnings: Optional[List[Dict[str, Any]]] = None,
             ir: Optional[IREventGroup] = None,
             codegen: Optional[Dict[str, Any]] = None,
             extract: Optional[str] = None,
@@ -246,6 +256,7 @@ class EmitResult(DomainEvent):
                 source_file=source_file,
                 semantic=semantic or {},
                 semantic_errors=semantic_errors,
+                dead_code_warnings=dead_code_warnings,
                 ast=ast,
                 tokens=tokens,
                 include_tokens=include_tokens,
@@ -259,6 +270,7 @@ class EmitResult(DomainEvent):
             return ResultPayloadBuilder.build_codegen_payload(
                 codegen=codegen,
                 semantic_errors=semantic_errors,
+                dead_code_warnings=dead_code_warnings,
             )
 
         # Unknown stage — return None (should be unreachable in practice).

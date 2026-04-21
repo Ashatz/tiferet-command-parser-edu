@@ -10,4 +10,9 @@ from .semantic import SymbolTableBuilder, NameResolver
 from .typecheck import TypeChecker
 from .ir import DocstringParser, IRGenerator
 from .codegen import TiferetGenerator
-from .optimizer import YamlAnchorOptimizer, ConstantFolder, StrengthReducer
+from .optimizer import (
+    YamlAnchorOptimizer,
+    ConstantFolder,
+    StrengthReducer,
+    ReturnAnalyzer,
+)

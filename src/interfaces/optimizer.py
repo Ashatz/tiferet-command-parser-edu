@@ -4,7 +4,7 @@
 
 # ** core
 from abc import abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 # ** infra
 from tiferet.interfaces.settings import Service
@@ -82,6 +82,33 @@ class ASTStrengthReducerService(Service):
         :type ast: Declaration
         :return: The strength-reduced AST root.
         :rtype: Declaration
+        '''
+
+        raise NotImplementedError()
+
+
+# ** interface: return_analyzer_service
+class ReturnAnalyzerService(Service):
+    '''
+    Abstract interface for AST-level return-analysis passes.
+    Implementations walk the parsed AST and collect descriptive
+    warnings for any statements that follow a ``return`` within
+    the same scope (i.e. unreachable code). The pass is purely
+    diagnostic and does not mutate the AST.
+    '''
+
+    # * method: analyze
+    @abstractmethod
+    def analyze(self, ast: Declaration) -> List[Dict]:
+        '''
+        Walk the AST rooted at *ast* and return a list of warning
+        descriptors for statements that are unreachable because they
+        follow a ``return`` within the same scope.
+
+        :param ast: The root DeclarationAggregate produced by the parser.
+        :type ast: Declaration
+        :return: A list of warning dicts (empty when no dead code is found).
+        :rtype: List[Dict]
         '''
 
         raise NotImplementedError()

@@ -6,9 +6,20 @@
 import pytest
 
 # ** app
-from ...domain.ast import ExprKind, StatementKind
-from ...mappers.ast import ExpressionAggregate, StatementAggregate, DeclarationAggregate
-from ..optimizer import YamlAnchorOptimizer, ConstantFolder, StrengthReducer
+from ...domain.ast import ExprKind, StatementKind, TypeKind
+from ...mappers.ast import (
+    ExpressionAggregate,
+    StatementAggregate,
+    DeclarationAggregate,
+    TypeAggregate,
+)
+from ..optimizer import (
+    YamlAnchorOptimizer,
+    ConstantFolder,
+    StrengthReducer,
+    ReturnAnalyzer,
+    UNREACHABLE_AFTER_RETURN_CODE,
+)
 
 # *** fixtures
 
@@ -846,3 +857,316 @@ def test_reduce_ast_return_statement(reducer: StrengthReducer) -> None:
     assert reduced_expr.kind == ExprKind.SHL
     assert reduced_expr.left.name == 'x'
     assert reduced_expr.right.value == '3'
+
+
+# ** fixture: analyzer
+@pytest.fixture
+def analyzer() -> ReturnAnalyzer:
+    '''
+    Returns a fresh ReturnAnalyzer instance.
+
+    :return: A ReturnAnalyzer.
+    :rtype: ReturnAnalyzer
+    '''
+
+    return ReturnAnalyzer()
+
+
+# ** fixture: make_expr_stmt
+def make_expr_stmt(lineno: int, col: int = 4) -> StatementAggregate:
+    '''
+    Helper: build an EXPR statement with a trivial name expression.
+
+    :param lineno: Source line number to attach.
+    :type lineno: int
+    :param col: Source column to attach.
+    :type col: int
+    :return: An EXPR statement aggregate.
+    :rtype: StatementAggregate
+    '''
+
+    return StatementAggregate(
+        kind=StatementKind.EXPR,
+        expr=ExpressionAggregate(kind=ExprKind.NAME, name='noop'),
+        lineno=lineno,
+        col=col,
+    )
+
+
+# ** fixture: make_return_stmt
+def make_return_stmt(lineno: int, col: int = 4) -> StatementAggregate:
+    '''
+    Helper: build a RETURN statement with a trivial name expression.
+
+    :param lineno: Source line number to attach.
+    :type lineno: int
+    :param col: Source column to attach.
+    :type col: int
+    :return: A RETURN statement aggregate.
+    :rtype: StatementAggregate
+    '''
+
+    return StatementAggregate(
+        kind=StatementKind.RETURN,
+        expr=ExpressionAggregate(kind=ExprKind.NAME, name='result'),
+        lineno=lineno,
+        col=col,
+    )
+
+
+# ** fixture: make_if_else_stmt
+def make_if_else_stmt(
+        lineno: int,
+        body: StatementAggregate,
+        else_body: StatementAggregate,
+        col: int = 4,
+    ) -> StatementAggregate:
+    '''
+    Helper: build an IF_ELSE statement with explicit body and else_body chains.
+    Used to exercise ReturnAnalyzer.block_always_returns at the AST level,
+    independent of the current parser INDENT/DEDENT limitations.
+
+    :param lineno: Source line number.
+    :type lineno: int
+    :param body: The if-branch statement chain.
+    :type body: StatementAggregate
+    :param else_body: The else-branch statement chain.
+    :type else_body: StatementAggregate
+    :param col: Source column.
+    :type col: int
+    :return: An IF_ELSE statement aggregate.
+    :rtype: StatementAggregate
+    '''
+
+    return StatementAggregate(
+        kind=StatementKind.IF_ELSE,
+        expr=ExpressionAggregate(kind=ExprKind.NAME, name='cond'),
+        body=body,
+        else_body=else_body,
+        lineno=lineno,
+        col=col,
+    )
+
+
+# ** fixture: method_decl
+def method_decl(name: str, body: StatementAggregate) -> DeclarationAggregate:
+    '''
+    Helper: wrap a statement chain in a FUNC-typed declaration so the
+    analyzer pushes a named scope while walking it.
+
+    :param name: The method name used as the scope segment.
+    :type name: str
+    :param body: The method body statement chain.
+    :type body: StatementAggregate
+    :return: A FUNC DeclarationAggregate.
+    :rtype: DeclarationAggregate
+    '''
+
+    return DeclarationAggregate(
+        name=name,
+        type=TypeAggregate(kind=TypeKind.FUNC),
+        code=body,
+    )
+
+
+# ** test: analyze_no_returns_empty
+def test_analyze_no_returns_empty(analyzer: ReturnAnalyzer) -> None:
+    '''
+    Test that a statement chain with no returns yields no warnings.
+
+    :param analyzer: The ReturnAnalyzer instance.
+    :type analyzer: ReturnAnalyzer
+    '''
+
+    # Build a body of two EXPR statements chained with no return.
+    first = make_expr_stmt(lineno=1)
+    first.next = make_expr_stmt(lineno=2)
+    decl = method_decl('plain', first)
+
+    # Wrap in a minimal module and analyze.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # No returns present -> no warnings.
+    warnings = analyzer.analyze(module)
+    assert warnings == []
+
+
+# ** test: analyze_return_at_end_clean
+def test_analyze_return_at_end_clean(analyzer: ReturnAnalyzer) -> None:
+    '''
+    Test that a trailing return with nothing after it produces no warnings.
+
+    :param analyzer: The ReturnAnalyzer instance.
+    :type analyzer: ReturnAnalyzer
+    '''
+
+    # Build: expr; return.
+    first = make_expr_stmt(lineno=1)
+    first.next = make_return_stmt(lineno=2)
+    decl = method_decl('clean', first)
+
+    # Wrap in a module declaration and analyze.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # The return is the last stmt -> nothing to flag.
+    warnings = analyzer.analyze(module)
+    assert warnings == []
+
+
+# ** test: analyze_statements_after_return_flagged
+def test_analyze_statements_after_return_flagged(analyzer: ReturnAnalyzer) -> None:
+    '''
+    Test that two statements following a return are both flagged with
+    positions and the scope_path reflects the enclosing function.
+
+    :param analyzer: The ReturnAnalyzer instance.
+    :type analyzer: ReturnAnalyzer
+    '''
+
+    # Build: return; expr; expr.
+    ret = make_return_stmt(lineno=10, col=8)
+    dead_a = make_expr_stmt(lineno=11, col=8)
+    dead_b = make_expr_stmt(lineno=12, col=8)
+    ret.next = dead_a
+    dead_a.next = dead_b
+    decl = method_decl('describe', ret)
+
+    # Wrap in a module declaration and analyze.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # Both trailing statements should be flagged against the return.
+    warnings = analyzer.analyze(module)
+    assert len(warnings) == 2
+    assert warnings[0]['warning_code'] == UNREACHABLE_AFTER_RETURN_CODE
+    assert warnings[0]['lineno'] == 11
+    assert warnings[0]['return_lineno'] == 10
+    assert warnings[0]['scope_path'] == 'module.describe'
+    assert warnings[1]['lineno'] == 12
+    assert warnings[1]['return_lineno'] == 10
+
+
+# ** test: analyze_nested_scope_boundary
+def test_analyze_nested_scope_boundary(analyzer: ReturnAnalyzer) -> None:
+    '''
+    Test that a return in one method does not flag statements that live
+    in a sibling method's body -- scope boundaries isolate terminators.
+
+    :param analyzer: The ReturnAnalyzer instance.
+    :type analyzer: ReturnAnalyzer
+    '''
+
+    # First method: return followed by a dead statement.
+    first_ret = make_return_stmt(lineno=5)
+    first_dead = make_expr_stmt(lineno=6)
+    first_ret.next = first_dead
+    first_decl = method_decl('first', first_ret)
+
+    # Second method: a lone expression with no return. Must not be flagged.
+    second_body = make_expr_stmt(lineno=20)
+    second_decl = method_decl('second', second_body)
+
+    # Chain the two declarations as siblings in a module body.
+    first_stmt = StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=first_decl,
+        lineno=1,
+    )
+    second_stmt = StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=second_decl,
+        lineno=15,
+    )
+    first_stmt.next = second_stmt
+    module = DeclarationAggregate(name='test_module', code=first_stmt)
+
+    # Only the dead statement in the first method should be flagged.
+    warnings = analyzer.analyze(module)
+    assert len(warnings) == 1
+    assert warnings[0]['lineno'] == 6
+    assert warnings[0]['scope_path'] == 'module.first'
+
+
+# ** test: analyze_if_else_both_branches_return
+def test_analyze_if_else_both_branches_return(analyzer: ReturnAnalyzer) -> None:
+    '''
+    Test the block_always_returns branch logic: an if/else whose body
+    and else_body both end in a return acts as a terminator for its
+    enclosing chain, so a sibling statement after it is flagged. The
+    AST is constructed directly -- this path does not go through the
+    parser, so it is unaffected by the current INDENT/DEDENT constraints.
+
+    :param analyzer: The ReturnAnalyzer instance.
+    :type analyzer: ReturnAnalyzer
+    '''
+
+    # Build body branch: return.
+    body = make_return_stmt(lineno=6)
+
+    # Build else branch: return.
+    else_body = make_return_stmt(lineno=8)
+
+    # Build: if/else (both branches return); expr (should be flagged).
+    if_else = make_if_else_stmt(lineno=5, body=body, else_body=else_body)
+    sibling = make_expr_stmt(lineno=10)
+    if_else.next = sibling
+    decl = method_decl('branching', if_else)
+
+    # Wrap in a module declaration and analyze.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # The trailing sibling is unreachable because every branch returns.
+    warnings = analyzer.analyze(module)
+    assert len(warnings) == 1
+    assert warnings[0]['lineno'] == 10
+    assert warnings[0]['return_lineno'] == 5
+
+
+# ** test: analyze_if_only_one_branch_returns
+def test_analyze_if_only_one_branch_returns(analyzer: ReturnAnalyzer) -> None:
+    '''
+    Test that when only one branch of an if/else ends in a return,
+    the enclosing chain is NOT considered terminated and subsequent
+    siblings are not flagged.
+
+    :param analyzer: The ReturnAnalyzer instance.
+    :type analyzer: ReturnAnalyzer
+    '''
+
+    # Build body branch: return.
+    body = make_return_stmt(lineno=6)
+
+    # Build else branch: non-return EXPR.
+    else_body = make_expr_stmt(lineno=8)
+
+    # Build: if/else (only one branch returns); expr (should NOT be flagged).
+    if_else = make_if_else_stmt(lineno=5, body=body, else_body=else_body)
+    sibling = make_expr_stmt(lineno=10)
+    if_else.next = sibling
+    decl = method_decl('partial', if_else)
+
+    # Wrap in a module declaration and analyze.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # No terminator reached at the enclosing chain level.
+    warnings = analyzer.analyze(module)
+    assert warnings == []

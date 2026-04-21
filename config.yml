@@ -56,6 +56,12 @@ attrs:
   reduce_strength_event:
     module_path: src.events.optimizer
     class_name: ReduceStrength
+  return_analyzer_service:
+    module_path: src.utils.optimizer
+    class_name: ReturnAnalyzer
+  analyze_returns_event:
+    module_path: src.events.optimizer
+    class_name: AnalyzeReturns
 
 features:
   scan:
@@ -117,6 +123,9 @@ features:
         - attribute_id: perform_type_check_event
           name: Perform type checking against symbol table
           data_key: semantic_errors
+        - attribute_id: analyze_returns_event
+          name: Analyze unreachable code after return
+          data_key: dead_code_warnings
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
           data_key: ast
@@ -147,6 +156,9 @@ features:
         - attribute_id: perform_type_check_event
           name: Perform type checking against symbol table
           data_key: semantic_errors
+        - attribute_id: analyze_returns_event
+          name: Analyze unreachable code after return
+          data_key: dead_code_warnings
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
           data_key: ast
@@ -202,6 +214,9 @@ features:
         - attribute_id: perform_type_check_event
           name: Perform type checking against symbol table
           data_key: semantic_errors
+        - attribute_id: analyze_returns_event
+          name: Analyze unreachable code after return
+          data_key: dead_code_warnings
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
           data_key: ast

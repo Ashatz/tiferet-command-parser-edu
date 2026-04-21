@@ -147,6 +147,41 @@ class OutputPrinter:
                 f"{error.get('message', '')}"
             )
 
+    # * method: print_dead_code_warnings (static)
+    @staticmethod
+    def print_dead_code_warnings(warnings: Optional[List[Dict[str, Any]]]) -> None:
+        '''
+        Print a list of dead-code warnings (statements that follow a
+        ``return`` within the same scope) to the console.
+
+        :param warnings: List of warning descriptors from ``AnalyzeReturns``
+            (each dict may carry ``warning_code``, ``scope_path``,
+            ``message``, ``lineno``, ``col``, ``return_lineno``,
+            ``return_col``).
+        :type warnings: Optional[List[Dict[str, Any]]]
+        '''
+
+        # Nothing to print if no warnings supplied.
+        if not warnings:
+            return
+
+        # Emit one line per warning with location when available.
+        for warning in warnings:
+            loc = ''
+            if warning.get('lineno') is not None:
+                loc = f" (line {warning['lineno']}, col {warning.get('col', '?')})"
+            return_loc = ''
+            if warning.get('return_lineno') is not None:
+                return_loc = (
+                    f" [after return at line {warning['return_lineno']},"
+                    f" col {warning.get('return_col', '?')}]"
+                )
+            print(
+                f"Warning [{warning.get('warning_code', 'UNKNOWN')}] "
+                f"in {warning.get('scope_path', '?')}{loc}: "
+                f"{warning.get('message', '')}{return_loc}"
+            )
+
     # * method: print_ast (static)
     @staticmethod
     def print_ast(ast: Declaration) -> None:
@@ -496,6 +531,7 @@ class ResultPayloadBuilder:
             source_file: Optional[str],
             semantic: Dict[str, Any],
             semantic_errors: Optional[List[Dict[str, Any]]] = None,
+            dead_code_warnings: Optional[List[Dict[str, Any]]] = None,
             ast: Any = None,
             tokens: Optional[List[Any]] = None,
             include_tokens: bool = False,
@@ -510,6 +546,9 @@ class ResultPayloadBuilder:
         :type semantic: Dict[str, Any]
         :param semantic_errors: Optional list of type check error descriptors.
         :type semantic_errors: Optional[List[Dict[str, Any]]]
+        :param dead_code_warnings: Optional list of dead-code warning
+            descriptors from ``AnalyzeReturns``.
+        :type dead_code_warnings: Optional[List[Dict[str, Any]]]
         :param ast: Optional parsed AST root.
         :type ast: Any
         :param tokens: Optional list of token aggregates.
@@ -527,6 +566,10 @@ class ResultPayloadBuilder:
         if not semantic_errors:
             result['symbol_table'] = semantic.get('symbol_table', {}) if semantic else {}
             result['resolution'] = semantic.get('resolution', {}) if semantic else {}
+
+        # Include dead-code warnings when any were reported.
+        if dead_code_warnings:
+            result['dead_code_warnings'] = dead_code_warnings
 
         # Include the AST if requested and available.
         if include_ast and ast is not None and hasattr(ast, 'model_dump'):
@@ -560,15 +603,20 @@ class ResultPayloadBuilder:
     def build_codegen_payload(
             codegen: Dict[str, Any],
             semantic_errors: Optional[List[Dict[str, Any]]] = None,
+            dead_code_warnings: Optional[List[Dict[str, Any]]] = None,
         ) -> Dict[str, Any]:
         '''
-        Return the codegen dict as the payload. ``semantic_errors`` are
-        printed by the caller and do not alter the payload shape.
+        Return the codegen dict as the payload. ``semantic_errors`` and
+        ``dead_code_warnings`` are printed by the caller and do not alter
+        the payload shape.
 
         :param codegen: The codegen output dict.
         :type codegen: Dict[str, Any]
         :param semantic_errors: Optional list of type check error descriptors.
         :type semantic_errors: Optional[List[Dict[str, Any]]]
+        :param dead_code_warnings: Optional list of dead-code warning
+            descriptors from ``AnalyzeReturns``.
+        :type dead_code_warnings: Optional[List[Dict[str, Any]]]
         :return: The codegen dict.
         :rtype: Dict[str, Any]
         '''
