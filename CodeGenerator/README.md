@@ -26,14 +26,14 @@ The ECE 506 Code Generator deliverable requires the following artifacts. Each is
 | 4 | Call the function to print the AST (testing) | `src/utils/output.py` (`OutputPrinter`); invoked by `src/events/output.py` (`EmitResult`) for the `semantic` stage |
 | 5 | Generate code for an expression | `src/utils/codegen.py` (`TiferetGenerator.build_snippets` / `.build_snippet`) consumes the IR expression strings produced by `src/utils/ir.py` (`IRGenerator.encode_expr`) |
 | 6 | Test your code | Reference outputs in `CodeGenerator/samples/*.yaml` round-trip from the paired `samples/*.py` sources (see §10) |
-| 7 | Update the main method to call the code generator after parsing | `compiler.py` + `config.yml` — the `compile event` feature chains parsing → semantic → IR → codegen → optimize → emit |
+| 7 | Update the main method to call the code generator after parsing | `compiler.py` + `config.yml` — the `compile event` feature chains parsing → semantic → IR → codegen → emit (with optimizer stages documented separately in the [Optimizer README](../Optimizer/README.md)) |
 | 8 | Document this module | This README |
 
 The rest of the document expands each row with file, class, and method references.
 
 ## 3. Pipeline Overview
 
-The code generator is the second-to-last stage of the `compile event` feature declared in `config.yml`. It is wired into the Tiferet domain-event pipeline and receives an `IREventGroup` instance (from `GenerateIR`) as input:
+The code generator is the final transformation stage of the `compile event` feature declared in `config.yml`. It is wired into the Tiferet domain-event pipeline and receives an `IREventGroup` instance (from `GenerateIR`) as input:
 
 ```
 Source File (.py)
@@ -47,19 +47,18 @@ Source File (.py)
 │ GenerateCode             │  TiferetGenerator.generate(ir)  →  codegen dict
 └──────────────────────────┘
 ┌──────────────────────────┐
-│ OptimizeCode             │  YamlAnchorOptimizer.optimize(codegen)
-└──────────────────────────┘
-┌──────────────────────────┐
 │ EmitResult               │  emit(codegen, output, format)
 └──────────────────────────┘  → output.yaml / output.json
 ```
+
+A subsequent post-codegen optimization stage (`OptimizeCode` / `YamlAnchorOptimizer`) runs between `GenerateCode` and `EmitResult` at `-O O2`; it is documented separately in the [Optimizer README](../Optimizer/README.md) and is omitted from the diagram above to keep the code-generation story self-contained.
 
 Two sibling sub-features reuse the back half of the pipeline when the source is already compiled to an earlier form:
 
 - `compile keter` — starts from a `.keter` IR file via `LoadFromKeter`.
 - `compile ast` — starts from a JSON AST file via `LoadFromAST`, then re-runs semantic analysis, type checking, and IR generation before entering the codegen stages.
 
-All three sub-features are declared in `config.yml` under the `compile:` feature group and share the same `GenerateCode → OptimizeCode → EmitCodegenResult` tail.
+All three sub-features are declared in `config.yml` under the `compile:` feature group and share the same `GenerateCode → EmitResult` tail.
 
 ## 4. Folder Contents
 
@@ -195,9 +194,7 @@ Return(Add(a, Mul(b, Exp(3, 2))))
 
 The output omits empty nodes entirely, per the `schema.yml` rule.
 
-### 9.3 Optional optimization pass
-
-`YamlAnchorOptimizer` in `src/utils/optimizer.py` implements `OptimizerService.optimize`. At `-O O1`, it deduplicates repeated `params`/`returns` lists across events by sharing a single Python list object, which PyYAML then emits as `&anchor` / `*alias` pairs. `-O O0` (the default) passes the dict through unchanged.
+Post-codegen structural optimizations (YAML anchor/alias deduplication) are handled separately by the optimizer stage documented in the [Optimizer README](../Optimizer/README.md).
 
 ## 10. Deliverable 6 — Testing via Sample Round-Trips
 
@@ -285,12 +282,10 @@ compile:
         params:
           codegen_service: codegen_service
         data_key: codegen
-      - attribute_id: optimize_code_event
-        params:
-          optimizer_service: optimizer_service
-        data_key: codegen
-      - attribute_id: emit_codegen_result_event              # ← emit YAML
+      - attribute_id: emit_result_event                      # ← emit YAML
 ```
+
+The full `compile event` chain in `config.yml` also includes AST-level optimization stages (`analyze_returns_event`, `fold_constants_event`, `reduce_strength_event`) before `generate_ir_event` and a post-codegen `optimize_code_event` before `emit_result_event`; those stages are described in the [Optimizer README](../Optimizer/README.md).
 
 Three CLI entry points drive the code generator:
 
@@ -303,9 +298,6 @@ python compiler.py compile keter CodeGenerator/samples/pass_helper_method_event.
 
 # From pre-generated JSON AST
 python compiler.py compile ast Parser/samples/pass_helper_method_event.json -o out.yaml
-
-# With optimization
-python compiler.py compile event samples/pass_multiple_operator_events.py -O O1 -o out.yaml
 ```
 
 ## 12. Schema
