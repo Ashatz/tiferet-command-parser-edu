@@ -1,22 +1,23 @@
-# Utilities – YamlAnchorOptimizer, ConstantFolder, and StrengthReducer
+# Utilities – YamlAnchorOptimizer, ConstantFolder, StrengthReducer, and ReturnAnalyzer
 
 **Project:** Tiferet Command Parser — Educational Compiler Front-End
 **Version:** 0.3.2
 
 ## Overview
 
-The optimizer module provides three concrete utilities that together implement the compiler's optimization levels:
+The optimizer module provides four concrete utilities that together implement the compiler's optimization levels:
 
 - **`YamlAnchorOptimizer`** — codegen-level pass that deduplicates repeated `params` / `returns` lists so PyYAML can emit anchors and aliases automatically. Runs at `-O O2`.
 - **`ConstantFolder`** — AST-level pass that folds binary arithmetic expressions with two numeric-literal operands into a single literal. Runs at `-O O1` and `-O O2`.
 - **`StrengthReducer`** — AST-level pass that rewrites a small set of expensive arithmetic operations into cheaper equivalents (shifts and self-multiplication). Runs at `-O O1` and `-O O2` immediately after `ConstantFolder`.
+- **`ReturnAnalyzer`** — AST-level analysis pass that detects statements appearing after a `return` within the same scope and emits diagnostic `UNREACHABLE_AFTER_RETURN` warnings. Runs at `-O O1` and `-O O2` and does not mutate the AST.
 
 Each utility implements a dedicated service interface and is driven by a single-purpose domain event, keeping each optimization independently injectable, testable, and wirable.
 
 **Files:**
-- `src/utils/optimizer.py` — `YamlAnchorOptimizer`, `ConstantFolder`, `StrengthReducer`
-- `src/interfaces/optimizer.py` — `OptimizerService`, `ASTOptimizerService`, `ASTStrengthReducerService` abstract interfaces
-- `src/events/optimizer.py` — `FoldConstants`, `ReduceStrength`, `OptimizeCode` domain events
+- `src/utils/optimizer.py` — `YamlAnchorOptimizer`, `ConstantFolder`, `StrengthReducer`, `ReturnAnalyzer`
+- `src/interfaces/optimizer.py` — `OptimizerService`, `ASTOptimizerService`, `ASTStrengthReducerService`, `ReturnAnalyzerService` abstract interfaces
+- `src/events/optimizer.py` — `FoldConstants`, `ReduceStrength`, `OptimizeCode`, `AnalyzeReturns` domain events
 
 ## Service Interfaces
 
@@ -47,6 +48,16 @@ class ASTStrengthReducerService(Service):
     @abstractmethod
     def reduce(self, ast: Declaration) -> Declaration:
         '''Apply strength reduction to the AST rooted at *ast*.'''
+        raise NotImplementedError()
+```
+
+### ReturnAnalyzerService
+
+```python
+class ReturnAnalyzerService(Service):
+    @abstractmethod
+    def analyze(self, ast: Declaration) -> List[Dict]:
+        '''Return warnings for statements following a return in scope.'''
         raise NotImplementedError()
 ```
 
@@ -168,19 +179,64 @@ Replacement `SHL`, `SHR`, and self-multiplication `MUL` nodes inherit `lineno` /
 #   squared = value * value
 ```
 
+## ReturnAnalyzer
+
+AST-level analyzer that performs a non-mutating walk of the declaration tree, maintaining a scope stack so findings carry a qualified `scope_path`. For every function or method body it walks the statement chain left-to-right; as soon as a `return` statement is seen, all remaining statements on the same chain are recorded as `UNREACHABLE_AFTER_RETURN` warnings. Each statement's inner bodies (e.g. `body`, `else_body`) are always analyzed independently so dead code inside an earlier branch is still caught.
+
+### Warning Shape
+
+Warnings are plain dicts, following the same pattern as `TypeChecker` errors:
+
+```python
+{
+    'warning_code': 'UNREACHABLE_AFTER_RETURN',
+    'message': 'Statement is unreachable (follows a return statement)',
+    'scope_path': 'module.ClassifyScore.describe',
+    'lineno': 11,
+    'col': 8,
+    'return_lineno': 10,
+    'return_col': 8,
+}
+```
+
+The warning code and message strings live as module-level constants `UNREACHABLE_AFTER_RETURN_CODE` and `UNREACHABLE_AFTER_RETURN_MESSAGE` in `src/utils/optimizer.py` so they can be referenced consistently from tests and consumers.
+
+### Branch Awareness (AST level)
+
+The analyzer also treats an `if/else` statement whose `body` and `else_body` chains both provably end in a `return` as a terminator for its enclosing chain, so a sibling statement that follows it is flagged. This branch path is validated at the AST level — it is currently not exercised from source because the parser's INDENT/DEDENT injection does not yet fully support nested `if/else` blocks. The sample file (`samples/pass_dead_code_after_return.py`) therefore demonstrates only the direct post-return case; the branch-aware case is tested via direct AST construction in `src/utils/tests/test_optimizer.py`.
+
+### Public Methods
+
+- **`analyze(ast)`** — entry point. Resets internal state and returns the collected warnings list.
+- **`walk_declaration(decl)`** — pushes/pops a named scope on `CLASS` / `FUNC` declarations and recurses into their bodies.
+- **`scan_block(stmt)`** — walks a statement chain, tracking the current terminator and flagging subsequent siblings.
+- **`descend(stmt)`** — recurses into a statement's inner bodies and inline declarations.
+- **`flag_unreachable(stmt, terminator)`** — records an `UNREACHABLE_AFTER_RETURN` warning.
+- **`block_always_returns(stmt)`** — helper used to decide whether an `if/else` trailing a chain terminates it.
+
+### Example
+
+```python
+# Source (method body):
+return 'label: ' + label
+trailing = 'trailing assignment'   # flagged as UNREACHABLE_AFTER_RETURN
+extra = 'another trailing assignment'  # flagged as UNREACHABLE_AFTER_RETURN
+```
+
 ## Domain Events
 
-The three utilities are driven by three sibling domain events. Each event takes an `-O` level parameter (`'O0'`, `'O1'`, or `'O2'`) and passes through unchanged at the inapplicable levels.
+The four utilities are driven by four sibling domain events. Each event takes an `-O` level parameter (`'O0'`, `'O1'`, or `'O2'`) and passes through unchanged at the inapplicable levels.
 
 - **`FoldConstants`** — injects `ASTOptimizerService`; at `O1+` calls `fold(ast)`; at `O0` returns the AST unchanged.
 - **`ReduceStrength`** — injects `ASTStrengthReducerService`; at `O1+` calls `reduce(ast)`; at `O0` returns the AST unchanged.
+- **`AnalyzeReturns`** — injects `ReturnAnalyzerService`; at `O1+` calls `analyze(ast)` and returns the warning list; at `O0` returns an empty list. Does not mutate the AST.
 - **`OptimizeCode`** — injects `OptimizerService`; at `O2+` calls `optimize(codegen)`; at `O0` and `O1` returns the codegen dict unchanged.
 
 ### Level Semantics
 
-- `-O O0` — no optimization (pipelines still run the three events, but each is a passthrough).
-- `-O O1` — `FoldConstants` then `ReduceStrength`. `OptimizeCode` is a passthrough.
-- `-O O2` — `FoldConstants`, then `ReduceStrength`, then (after codegen) `OptimizeCode` for YAML anchor/alias deduplication.
+- `-O O0` — no optimization (pipelines still run the events, but each is a passthrough).
+- `-O O1` — `FoldConstants`, `ReduceStrength`, and `AnalyzeReturns`. `OptimizeCode` is a passthrough.
+- `-O O2` — `FoldConstants`, `ReduceStrength`, `AnalyzeReturns`, then (after codegen) `OptimizeCode` for YAML anchor/alias deduplication.
 
 ### Test Invocation
 
@@ -196,7 +252,7 @@ result = DomainEvent.handle(
 
 ## Pipeline Integration
 
-The two AST-level events run in a fixed order immediately before IR generation, and the codegen-level event runs immediately after codegen. The full AST-optimization order is `FoldConstants` → `ReduceStrength` → `GenerateIR` → `GenerateCode` → `OptimizeCode`.
+The AST-level events run in a fixed order immediately before IR generation, and the codegen-level event runs immediately after codegen. The full AST-optimization order is `AnalyzeReturns` → `FoldConstants` → `ReduceStrength` → `GenerateIR` → `GenerateCode` → `OptimizeCode`. `AnalyzeReturns` is placed before `FoldConstants` so warnings refer to original source positions, before any AST-mutating pass runs.
 
 The `ir.event`, `compile.event`, and `compile.ast` features all wire this order. The `compile.keter` feature skips the AST stages because it loads an IR directly.
 
@@ -226,12 +282,20 @@ ast_strength_reducer_service:
 reduce_strength_event:
   module_path: src.events.optimizer
   class_name: ReduceStrength
+
+# AST-level return analyzer (O1+; diagnostic, non-mutating).
+return_analyzer_service:
+  module_path: src.utils.optimizer
+  class_name: ReturnAnalyzer
+analyze_returns_event:
+  module_path: src.events.optimizer
+  class_name: AnalyzeReturns
 ```
 
 ## Testing
 
-Optimizer utility tests: `src/utils/tests/test_optimizer.py` (26 tests covering all three classes)
-Optimizer event tests: `src/events/tests/test_optimizer.py` (10 tests covering all three events)
+Optimizer utility tests: `src/utils/tests/test_optimizer.py` (now covers all four classes)
+Optimizer event tests: `src/events/tests/test_optimizer.py` (now covers all four events)
 
 ```bash
 python -m pytest src/utils/tests/test_optimizer.py -v

@@ -94,6 +94,9 @@ python compiler.py compile event samples/pass_constant_folding_event.py -o outpu
 # Compile with constant folding + YAML anchor/alias deduplication
 python compiler.py compile event samples/pass_minimal_event.py -o output.yaml -O O2
 
+# Compile with return-analysis diagnostics (emits UNREACHABLE_AFTER_RETURN warnings)
+python compiler.py compile event samples/pass_dead_code_after_return.py -o output.yaml -O O1
+
 # Compile from keter IR
 python compiler.py compile keter CodeGenerator/samples/pass_minimal_event.keter -o output.yaml
 
@@ -130,6 +133,7 @@ The `samples/` directory contains 23 Tiferet Domain Event source files used for 
 | `pass_multiple_operator_events.py` | Multi-event module with arithmetic operators |
 | `pass_helper_method_event.py` | Event with helper method and chained arithmetic expression |
 | `pass_constant_folding_event.py` | Event with constant numeric sub-expressions demonstrating constant folding |
+| `pass_dead_code_after_return.py` | Event with unreachable statements after `return`, demonstrating return analysis (`UNREACHABLE_AFTER_RETURN`) |
 
 **Failure cases:**
 
@@ -245,22 +249,22 @@ src/
     typecheck.py         — Type checking domain event: PerformTypeCheck
     ir.py                — IR domain event: GenerateIR
     codegen.py           — Codegen domain events: GenerateCode, LoadFromKeter, LoadFromAST
-    optimizer.py         — Optimizer domain events: FoldConstants, OptimizeCode
+    optimizer.py         — Optimizer domain events: FoldConstants, ReduceStrength, AnalyzeReturns, OptimizeCode
     output.py            — Unified output domain event: EmitResult (stage auto-detection, payload dispatch, console + file emission)
     tests/
       test_lexer.py      — 2 tests for PerformLexicalAnalysis
       test_parser.py     — 4 tests for PerformSyntacticAnalysis
       test_ir.py         — 3 tests for GenerateIR
       test_codegen.py    — 4 tests for GenerateCode + LoadFromKeter/AST
-      test_optimizer.py  — 6 tests for FoldConstants + OptimizeCode
+      test_optimizer.py  — 14 tests for FoldConstants + ReduceStrength + OptimizeCode + AnalyzeReturns
       test_output.py     — 14 tests for EmitResult (stage detection, per-stage dispatch, overrides, file writes)
   interfaces/
-    __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService, ASTOptimizerService
+    __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService, ASTOptimizerService, ASTStrengthReducerService, ReturnAnalyzerService
     lexer.py             — LexerService abstract interface (extends tiferet Service)
     parser.py            — ParserService abstract interface (extends tiferet Service)
     ir.py                — IRService abstract interface (extends tiferet Service)
     codegen.py           — CodegenService abstract interface (extends tiferet Service)
-    optimizer.py         — OptimizerService: abstract optimize(codegen); ASTOptimizerService: abstract fold(ast)
+    optimizer.py         — OptimizerService: abstract optimize(codegen); ASTOptimizerService: abstract fold(ast); ASTStrengthReducerService: abstract reduce(ast); ReturnAnalyzerService: abstract analyze(ast) -> List[Dict]
   mappers/
     __init__.py          — Exports: KeterTransferObject, TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate, KeterIREventGroup
     settings.py          — KeterTransferObject base class for keter transfer objects + KT_* token-type constants (KT_KEYWORD, KT_STRING, KT_IDENT, KT_LPAREN, KT_RPAREN, KT_COMMA)
@@ -274,7 +278,7 @@ src/
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
       test_settings.py   — 13 tests for KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer (KeterLexer is NOT exported here; import it directly via `from src.utils.lexer_keter import KeterLexer` to avoid triggering the utils package import chain)
+    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ConstantFolder, StrengthReducer, ReturnAnalyzer (KeterLexer is NOT exported here; import it directly via `from src.utils.lexer_keter import KeterLexer` to avoid triggering the utils package import chain)
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST to produce IREventGroup)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant (intentionally NOT re-exported from utils/__init__.py)
@@ -283,7 +287,7 @@ src/
     semantic.py          — SymbolTableBuilder (single-pass scope/symbol construction) + NameResolver (name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
-    optimizer.py         — YamlAnchorOptimizer (YAML anchor/alias deduplication); ConstantFolder (post-order AST constant folding)
+    optimizer.py         — YamlAnchorOptimizer (YAML anchor/alias deduplication); ConstantFolder (post-order AST constant folding); StrengthReducer (post-order AST strength reduction for power-of-two multiplication/division and `x ** 2`); ReturnAnalyzer (non-mutating scope-aware walker that flags statements after a return as `UNREACHABLE_AFTER_RETURN`)
     tests/
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
@@ -292,7 +296,7 @@ src/
       test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
       test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
       test_codegen.py    — 10 tests for TiferetGenerator
-      test_optimizer.py  — 13 tests for YamlAnchorOptimizer + ConstantFolder
+      test_optimizer.py  — 32 tests for YamlAnchorOptimizer + ConstantFolder + StrengthReducer + ReturnAnalyzer
 ```
 
 ### Project Documentation
@@ -306,6 +310,7 @@ src/
 - **[Code Generator](./docs/guides/utils/codegen.md)** — Code generation utility (TiferetGenerator, output schema)
 - **[IR Generator](./docs/guides/utils/ir.md)** — IR generation utility (DocstringParser, IRGenerator)
 - **[Dynamic PLY Lexer](./docs/guides/utils/lexer.md)** — Architecture guide for the dynamic lexer pattern (assets, import chain, rule composition)
+- **[Optimizer Utilities](./docs/guides/utils/optimizer.md)** — Optimizer utilities guide (YamlAnchorOptimizer, ConstantFolder, StrengthReducer, ReturnAnalyzer)
 - **[Output Utilities](./docs/guides/utils/output.md)** — Unified output utilities (OutputWriter, OutputPrinter, ResultPayloadBuilder, emit)
 - **[Parser Utility](./docs/guides/utils/parser.md)** — Parser utility guide (TiferetParser, AST structure)
 - **[Semantic Analysis](./docs/guides/utils/semantic.md)** — Semantic analysis utility (SymbolTableBuilder, NameResolver)
