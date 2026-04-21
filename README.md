@@ -158,7 +158,7 @@ The `samples/` directory contains 23 Tiferet Domain Event source files used for 
 The test suite validates domain objects, mappers, utilities, and domain events across all pipeline stages.
 
 ```bash
-# Run all tests (280 total)
+# Run all tests (269 total)
 python -m pytest src/ -v
 
 # Domain object tests
@@ -168,13 +168,13 @@ python -m pytest src/domain/tests/ -v        # 40 tests (AST, Token, IR, Semanti
 python -m pytest src/mappers/tests/ -v        # 35 tests (Token, AST, Semantic, IR, KeterTransferObject settings)
 
 # Utility tests
-python -m pytest src/utils/tests/ -v          # 172 tests (Lexer, KeterLexer, Parser, Artifact, Output, Semantic, IR, Codegen, Optimizer)
+python -m pytest src/utils/tests/ -v          # 159 tests (Lexer, KeterLexer, Parser, Output, Semantic, IR, Codegen, Optimizer)
 
 # Domain event tests
 python -m pytest src/events/tests/ -v         # 33 tests (Lexer, Parser, IR, Codegen, Optimizer, Output)
 ```
 
-**Total: 280 tests** across 23 test files
+**Total: 269 tests** across 22 test files
 
 ### Project Structure
 
@@ -188,7 +188,6 @@ docs/
     lexical_spec.md      — Formal lexical specification for all 58 token types
     grammar_spec.md      — Context-free grammar specification and LR(1)/LALR verification
     utils/
-      artifact.md        — Artifact block parser utility guide
       codegen.md         — Code generation utility guide (TiferetGenerator, schema)
       ir.md              — IR generator utility guide (DocstringParser, IRGenerator)
       lexer.md           — Lexer utility guide (dynamic PLY pattern, BlockTracker)
@@ -276,7 +275,6 @@ src/
       test_settings.py   — 13 tests for KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers
   utils/
     __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer (KeterLexer is NOT exported here; import it directly via `from src.utils.lexer_keter import KeterLexer` to avoid triggering the utils package import chain)
-    artifact.py          — ArtifactBlockParser: artifact block extraction, imports parsing, extract filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST to produce IREventGroup)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant (intentionally NOT re-exported from utils/__init__.py)
@@ -287,7 +285,6 @@ src/
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
     optimizer.py         — YamlAnchorOptimizer (YAML anchor/alias deduplication); ConstantFolder (post-order AST constant folding)
     tests/
-      test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
       test_lexer_keter.py — 8 tests for KeterLexer tokenization and KETER_KEYWORDS
@@ -306,7 +303,6 @@ src/
 - **[AGENTS.md](./AGENTS.md)** — AI agent codebase index
 
 **Utility Guides:**
-- **[Artifact Parser](./docs/guides/utils/artifact.md)** — Artifact block extraction and filtering
 - **[Code Generator](./docs/guides/utils/codegen.md)** — Code generation utility (TiferetGenerator, output schema)
 - **[IR Generator](./docs/guides/utils/ir.md)** — IR generation utility (DocstringParser, IRGenerator)
 - **[Dynamic PLY Lexer](./docs/guides/utils/lexer.md)** — Architecture guide for the dynamic lexer pattern (assets, import chain, rule composition)

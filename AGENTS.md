@@ -122,7 +122,6 @@ docs/
     lexical_spec.md      — Formal lexical specification for all token types
     grammar_spec.md      — Context-free grammar specification
     utils/
-      artifact.md        — Artifact block parser utility guide
       codegen.md         — Code generation utility guide (TiferetGenerator, schema)
       ir.md              — IR generator utility guide (DocstringParser, IRGenerator)
       lexer.md           — Lexer utility guide
@@ -250,7 +249,6 @@ src/
       test_settings.py   — 13 tests for KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers
   utils/
     __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ConstantFolder (KeterLexer is intentionally NOT re-exported here; import it directly via `from src.utils.lexer_keter import KeterLexer`)
-    artifact.py          — ArtifactBlockParser: static methods for block extraction and filtering
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST via public build_* methods)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant; consumed by KeterIREventGroup via a lazy import
@@ -261,7 +259,6 @@ src/
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
     optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; YAML anchor/alias deduplication); ConstantFolder (implements ASTOptimizerService; post-order constant folding of numeric AST sub-expressions)
     tests/
-      test_artifact.py   — 13 tests for ArtifactBlockParser
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
       test_lexer_keter.py — 8 tests for KeterLexer tokenization and KETER_KEYWORDS
@@ -330,14 +327,6 @@ Three classes:
 - **TokenStream** — Adapter converting `List[TokenAggregate]` to PLY-compatible token stream.
 - **ParserBase** — Base class with shared utilities (`parse_member_kind`, `get_attribute_type`, `p_error`). Loads precedence and tokens from `src/assets/parser.py`.
 - **TiferetParser** — Full grammar implementation with `p_*` rule methods. Builds Pydantic AST nodes in semantic actions.
-
-### `src/utils/artifact.py`
-Artifact block parser (`ArtifactBlockParser`) with static methods:
-- **`parse_extract_filter`** — Converts comma-separated extract string to a set of names.
-- **`extract_imports_block`** — Locates and extracts the `# *** imports` section.
-- **`extract_group_header`** — Extracts the first non-imports top-level group header.
-- **`extract_artifact_blocks`** — Walks source lines to extract all blocks matching a group type.
-- **`filter_blocks`** — Applies an optional name filter to a list of blocks.
 
 ### `src/utils/ir.py`
 Two classes:
@@ -441,7 +430,7 @@ python compiler.py compile ast <ast_file> -o output.yaml
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 280 tests total
+python -m pytest src/ -v    # 269 tests total
 ```
 
 Test breakdown:
@@ -453,7 +442,6 @@ Test breakdown:
 - `src/mappers/tests/test_lexer.py` — 9 tests (TokenAggregate mapper)
 - `src/mappers/tests/test_semantic.py` — 9 tests (ScopeAggregate factories and mutation)
 - `src/mappers/tests/test_settings.py` — 13 tests (KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers)
-- `src/utils/tests/test_artifact.py` — 13 tests (ArtifactBlockParser)
 - `src/utils/tests/test_ir.py` — 19 tests (DocstringParser + IRGenerator)
 - `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
 - `src/utils/tests/test_lexer_keter.py` — 8 tests (KeterLexer tokenization + KETER_KEYWORDS)
