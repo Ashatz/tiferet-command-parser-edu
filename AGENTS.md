@@ -5,13 +5,13 @@
 **Branch:** ece-506-submission
 **Framework:** Tiferet (DDD, Domain Events) + Pydantic (AST domain objects)
 **Python:** >= 3.10
-**Purpose:** Educational compiler for ECE 506 (Compiler Design) — performs lexical scanning, syntactic parsing, semantic analysis, type checking, IR generation, AST-level constant folding, code generation, and output optimization on Python source files written in the Tiferet framework's Domain Event dialect.
+**Purpose:** Educational compiler for ECE 506 (Compiler Design) — performs lexical scanning, syntactic parsing, semantic analysis, type checking, IR generation, AST-level constant folding, AST-level strength reduction, code generation, and output optimization on Python source files written in the Tiferet framework's Domain Event dialect.
 
 ## Architecture
 
 This project has two layers:
 
-1. **Tiferet pipeline layer** (`src/`) — A Tiferet application using Domain Events wired via `config.yml` and executed through the Tiferet CLI context. Handles the full compiler pipeline: lexical analysis, syntactic parsing, semantic analysis, type checking, IR generation, AST-level constant folding, code generation, and output optimization.
+1. **Tiferet pipeline layer** (`src/`) — A Tiferet application using Domain Events wired via `config.yml` and executed through the Tiferet CLI context. Handles the full compiler pipeline: lexical analysis, syntactic parsing, semantic analysis, type checking, IR generation, AST-level constant folding, AST-level strength reduction, code generation, and output optimization.
 2. **Semantic routines layer** (`SemanticRoutines/`) — A standalone Pydantic-based AST domain model and mapper layer. Consumes the JSON AST output from the Tiferet pipeline and provides typed domain objects for semantic analysis (e.g., symbol table construction, name resolution).
 
 ### Bounded Contexts
@@ -22,8 +22,8 @@ This project has two layers:
 - **Type checking** (`src/events/typecheck.py`, `src/utils/typecheck.py`) — Structural artifact validation and type checking against the symbol table. Validates import groups, section-class name concordance, artifact member types, method signatures, and assignment/operation type compatibility.
 - **IR generation** (`src/events/ir.py`) — Walks the parsed AST to produce a keter IR conforming to the schema in `IntermediateRepresentation/schema.txt`.
 - **Code generation** (`src/events/codegen.py`, `src/utils/codegen.py`) — Transforms the IR into a structured YAML-conforming output dict via `TiferetGenerator`, conforming to `CodeGen/schema.yml`.
-- **AST optimization** (`src/events/optimizer.py`, `src/utils/optimizer.py`) — `FoldConstants` applies `ConstantFolder` (implements `ASTOptimizerService`) to fold constant numeric sub-expressions in the AST before IR generation.
-- **Output optimization** (`src/events/optimizer.py`, `src/utils/optimizer.py`) — `OptimizeCode` applies `YamlAnchorOptimizer` (implements `OptimizerService`) to deduplicate repeated params/returns for YAML anchor/alias emission at `-O O1`.
+- **AST optimization** (`src/events/optimizer.py`, `src/utils/optimizer.py`) — `FoldConstants` applies `ConstantFolder` (implements `ASTOptimizerService`) to fold constant numeric sub-expressions, and `ReduceStrength` applies `StrengthReducer` (implements `ASTStrengthReducerService`) to rewrite multiplication/division by a power of two into shifts and `x ** 2` into `x * x`. Both run at `-O O1` before IR generation.
+- **Output optimization** (`src/events/optimizer.py`, `src/utils/optimizer.py`) — `OptimizeCode` applies `YamlAnchorOptimizer` (implements `OptimizerService`) to deduplicate repeated params/returns for YAML anchor/alias emission at `-O O2`.
 - **Output** (`src/events/output.py`, `src/utils/output.py`) — Terminal pipeline stage. The single `EmitResult` domain event dispatches per-stage payload assembly via `ResultPayloadBuilder`, handles console diagnostics via `OutputPrinter`, and writes files via `OutputWriter` / `emit()`.
 
 ### Unified Output Event
@@ -61,29 +61,31 @@ Defined in `config.yml`. Five chained commands:
 
 ### Pipeline (Feature: `ir.event`)
 
-Defined in `config.yml`. Seven chained commands:
+Defined in `config.yml`. Eight chained commands:
 
 1. **PerformLexicalAnalysis** — Same as `scan.event`.
 2. **PerformSyntacticAnalysis** — Same as `parse.event`.
 3. **PerformSemanticAnalysis** — Same as `semantic.event`.
 4. **PerformTypeCheck** — Same as `semantic.event`.
 5. **FoldConstants** — Applies `ConstantFolder` (injected as `ASTOptimizerService`) to fold constant numeric sub-expressions in the AST in place.
-6. **GenerateIR** — Walks the (folded) AST via `IRGenerator` (injected as `IRService`) and produces an `IREventGroup`.
-7. **EmitResult** — Auto-detects the `ir` stage; calls `ir.to_keter()` to produce the keter DSL string.
+6. **ReduceStrength** — Applies `StrengthReducer` (injected as `ASTStrengthReducerService`) to rewrite `x * 2**k` / `x / 2**k` / `x ** 2` into `x << k` / `x >> k` / `x * x`.
+7. **GenerateIR** — Walks the (folded and reduced) AST via `IRGenerator` (injected as `IRService`) and produces an `IREventGroup`.
+8. **EmitResult** — Auto-detects the `ir` stage; calls `ir.to_keter()` to produce the keter DSL string.
 
 ### Pipeline (Feature: `compile.event`)
 
-Defined in `config.yml`. Nine chained commands (full source-to-YAML pipeline):
+Defined in `config.yml`. Ten chained commands (full source-to-YAML pipeline):
 
 1. **PerformLexicalAnalysis** — Same as `scan.event`.
 2. **PerformSyntacticAnalysis** — Same as `parse.event`.
 3. **PerformSemanticAnalysis** — Same as `semantic.event`.
 4. **PerformTypeCheck** — Same as `semantic.event`.
 5. **FoldConstants** — Same as `ir.event`.
-6. **GenerateIR** — Same as `ir.event`.
-7. **GenerateCode** — Walks the IR via `TiferetGenerator` (injected as `CodegenService`) and produces a schema-conforming output dict.
-8. **OptimizeCode** — At `-O O2`, applies `YamlAnchorOptimizer` (injected as `OptimizerService`) to deduplicate repeated structures. `-O O0` and `-O O1` pass through unchanged.
-9. **EmitResult** — Auto-detects the `codegen` stage; prints `semantic_errors` and passes the codegen dict through to `emit()`.
+6. **ReduceStrength** — Same as `ir.event`.
+7. **GenerateIR** — Same as `ir.event`.
+8. **GenerateCode** — Walks the IR via `TiferetGenerator` (injected as `CodegenService`) and produces a schema-conforming output dict.
+9. **OptimizeCode** — At `-O O2`, applies `YamlAnchorOptimizer` (injected as `OptimizerService`) to deduplicate repeated structures. `-O O0` and `-O O1` pass through unchanged.
+10. **EmitResult** — Auto-detects the `codegen` stage; prints `semantic_errors` and passes the codegen dict through to `emit()`.
 
 ### Pipeline (Feature: `compile.keter`)
 
@@ -96,16 +98,17 @@ Defined in `config.yml`. Four chained commands (keter IR to YAML):
 
 ### Pipeline (Feature: `compile.ast`)
 
-Defined in `config.yml`. Eight chained commands (JSON AST to YAML):
+Defined in `config.yml`. Nine chained commands (JSON AST to YAML):
 
 1. **LoadFromAST** — Reads a JSON AST file and reconstructs the `DeclarationAggregate` via Pydantic `model_validate()`.
 2. **PerformSemanticAnalysis** — Same as `semantic.event`.
 3. **PerformTypeCheck** — Same as `semantic.event`.
 4. **FoldConstants** — Same as `ir.event`.
-5. **GenerateIR** — Same as `ir.event`.
-6. **GenerateCode** — Same as `compile.event`.
-7. **OptimizeCode** — Same as `compile.event` (YAML dedup at `-O O2`).
-8. **EmitResult** — Same as `compile.event`.
+5. **ReduceStrength** — Same as `ir.event`.
+6. **GenerateIR** — Same as `ir.event`.
+7. **GenerateCode** — Same as `compile.event`.
+8. **OptimizeCode** — Same as `compile.event` (YAML dedup at `-O O2`).
+9. **EmitResult** — Same as `compile.event`.
 
 ## Project Structure
 
@@ -125,17 +128,19 @@ docs/
       codegen.md         — Code generation utility guide (TiferetGenerator, schema)
       ir.md              — IR generator utility guide (DocstringParser, IRGenerator)
       lexer.md           — Lexer utility guide
+      optimizer.md       — Optimizer utilities guide (YamlAnchorOptimizer, ConstantFolder, StrengthReducer)
       output.md          — Output utilities guide (OutputWriter, OutputPrinter, ResultPayloadBuilder, emit)
       parser.md          — Parser utility guide (TiferetParser, AST structure)
       semantic.md        — Semantic analysis utility guide (SymbolTableBuilder, NameResolver)
 
-samples/                 — End-to-end sample Tiferet source files for all pipeline stages (23 files)
+samples/                 — End-to-end sample Tiferet source files for all pipeline stages (24 files)
   pass_imports_only.py               — Imports-only module (success case)
   pass_minimal_event.py              — Minimal event with no injection (success case)
   pass_minimal_injection_event.py    — Event with service injection (success case)
   pass_multiple_operator_events.py   — Multi-event module with operators (success case)
   pass_helper_method_event.py        — Event with helper method and chained arithmetic (success case)
   pass_constant_folding_event.py     — Event with constant numeric sub-expressions demonstrating constant folding (success case)
+  pass_strength_reduction_event.py   — Event demonstrating multiplication/division by a power of two and exponentiation by 2 reduced to shifts and self-multiplication at -O O1 (success case)
   fail_bare_function.py              — Top-level function outside artifact structure (failure case)
   fail_class_bare_attribute.py       — Class attribute without member artifact (failure case)
   fail_class_bare_method.py          — Class method without member artifact (failure case)
@@ -219,22 +224,22 @@ src/
     typecheck.py         — Type checking domain event: PerformTypeCheck
     ir.py                — IR domain event: GenerateIR (injects IRService, produces IREventGroup)
     codegen.py           — Codegen domain events: GenerateCode, LoadFromKeter, LoadFromAST
-    optimizer.py         — Optimizer domain events: FoldConstants (injects ASTOptimizerService), OptimizeCode (injects OptimizerService)
+    optimizer.py         — Optimizer domain events: FoldConstants (injects ASTOptimizerService), ReduceStrength (injects ASTStrengthReducerService), OptimizeCode (injects OptimizerService)
     output.py            — Unified output domain event: EmitResult (stage auto-detection, payload dispatch, console + file emission)
     tests/
       test_lexer.py      — 2 tests for PerformLexicalAnalysis
       test_parser.py     — 4 tests for PerformSyntacticAnalysis
       test_ir.py         — 3 tests for GenerateIR
       test_codegen.py    — 4 tests for GenerateCode + LoadFromKeter/AST
-      test_optimizer.py  — 6 tests for FoldConstants + OptimizeCode
+      test_optimizer.py  — 10 tests for FoldConstants + ReduceStrength + OptimizeCode
       test_output.py     — 14 tests for EmitResult (stage detection, per-stage dispatch, overrides, file writes)
   interfaces/
-    __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService, ASTOptimizerService
+    __init__.py          — Exports: LexerService, ParserService, IRService, CodegenService, OptimizerService, ASTOptimizerService, ASTStrengthReducerService
     lexer.py             — LexerService(Service): abstract `tokenize(text) -> List[TokenAggregate]`
     parser.py            — ParserService(Service): abstract `parse(tokens) -> Dict[str, Any]`
     ir.py                — IRService(Service): abstract `generate(ast, symbol_table) -> IREventGroup`
     codegen.py           — CodegenService(Service): abstract `generate(ir) -> Dict[str, Any]`
-    optimizer.py         — OptimizerService: abstract `optimize(codegen)`; ASTOptimizerService: abstract `fold(ast)`
+    optimizer.py         — OptimizerService: abstract `optimize(codegen)`; ASTOptimizerService: abstract `fold(ast)`; ASTStrengthReducerService: abstract `reduce(ast)`
   mappers/
     __init__.py          — Exports: KeterTransferObject, TokenAggregate/Tok, DeclarationAggregate/Decl, ExpressionAggregate/Expr, StatementAggregate/Stmt, TypeAggregate/Type, ParamListAggregate/ParamList, ScopeAggregate/SymbolScope, IREventGroupAggregate, KeterIREventGroup
     settings.py          — KeterTransferObject base class + KT_* token-type constants (KT_KEYWORD, KT_STRING, KT_IDENT, KT_LPAREN, KT_RPAREN, KT_COMMA) shared by all keter transfer objects
@@ -248,7 +253,7 @@ src/
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
       test_settings.py   — 13 tests for KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ConstantFolder (KeterLexer is intentionally NOT re-exported here; import it directly via `from src.utils.lexer_keter import KeterLexer`)
+    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ConstantFolder, StrengthReducer (KeterLexer is intentionally NOT re-exported here; import it directly via `from src.utils.lexer_keter import KeterLexer`)
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST via public build_* methods)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant; consumed by KeterIREventGroup via a lazy import
@@ -257,7 +262,7 @@ src/
     semantic.py          — SymbolTableBuilder (single-pass AST walker for scope/symbol construction) + NameResolver (second-pass name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
-    optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; YAML anchor/alias deduplication); ConstantFolder (implements ASTOptimizerService; post-order constant folding of numeric AST sub-expressions)
+    optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; YAML anchor/alias deduplication); ConstantFolder (implements ASTOptimizerService; post-order constant folding of numeric AST sub-expressions); StrengthReducer (implements ASTStrengthReducerService; post-order rewrite of multiplication/division by a power of two to shifts and `x ** 2` to `x * x`)
     tests/
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
@@ -266,7 +271,7 @@ src/
       test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
       test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
       test_codegen.py    — 10 tests for TiferetGenerator
-      test_optimizer.py  — 13 tests for YamlAnchorOptimizer + ConstantFolder
+      test_optimizer.py  — 26 tests for YamlAnchorOptimizer + ConstantFolder + StrengthReducer
 ```
 
 ## Key Concepts
@@ -276,7 +281,7 @@ src/
 The AST is built from Pydantic `BaseModel` classes defined in `src/domain/ast.py` and extended with mutation methods in `src/mappers/ast.py`. This is separate from the Tiferet framework's `schematics`-based DomainObject system.
 
 - **TypeKind** — Enum: `unknown`, `None`, `bool`, `str`, `int`, `float`, `list`, `dict`, `class`, `func`, `artifact`, `module`
-- **ExprKind** — Enum: `add`, `sub`, `mul`, `div`, `mod`, `exp`, `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `name`, `num_val`, `int_val`, `str_val`, `bool_val`, `assign`, `args_list`, `call`, `import`, `import_as`, `import_multi`, `artifact`, `comment`
+- **ExprKind** — Enum: `add`, `sub`, `mul`, `div`, `mod`, `exp`, `shl`, `shr`, `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `name`, `num_val`, `int_val`, `str_val`, `bool_val`, `assign`, `args_list`, `call`, `import`, `import_as`, `import_multi`, `artifact`, `comment`
 - **StatementKind** — Enum: `decl`, `expr`, `if_else`, `for`, `while`, `print`, `return`, `block`, `import`, `import_from`, `artifact`, `comment`, `snippet`
 
 AST nodes use linked-list chaining via `.next` fields (not Python lists). Mapper aggregates provide `set_next()`, `set_left()`, `set_right()`, `set_return_type()`, and static factories like `Decl.new_module_decl()`, `Stmt.new_artifact_stmt()`, `Expr.new_name_expr()`, etc.
@@ -349,9 +354,10 @@ One class:
 - **TiferetGenerator** — Implements `CodegenService`. Walks an `IREventGroup` and produces a structured dict conforming to `CodeGen/schema.yml`. Methods: `build_imports()`, `build_events()`, `build_event()`, `build_attributes()`, `build_injections()`, `build_execute()`, `build_methods()`, `build_params()`, `build_returns()`, `build_snippets()`.
 
 ### `src/utils/optimizer.py`
-Two classes:
+Three classes:
 - **YamlAnchorOptimizer** — Implements `OptimizerService`. Deduplicates repeated `params` and `returns` lists across events by sharing Python object references, enabling PyYAML to emit YAML anchors and aliases automatically. Adds a top-level `vars` section when shared structures exist.
 - **ConstantFolder** — Implements `ASTOptimizerService`. Post-order walk of the AST that replaces binary arithmetic nodes whose both children are numeric literals (`INT_VAL`, `NUM_VAL`, or `STR_VAL` with numeric content) with a single folded literal. Uses `is_numeric()` to detect foldable operands and `evaluate()` to compute the result.
+- **StrengthReducer** — Implements `ASTStrengthReducerService`. Post-order walk of the AST that rewrites three textbook strength-reduction patterns: multiplication by a positive integer power of two (`x * 2**k` → `x << k`, either operand), division by a positive integer power of two (`x / 2**k` → `x >> k`, divisor only), and exponentiation by 2 (`x ** 2` → `x * x` with a deep-copied left operand). Uses `is_power_of_two_literal()` to detect eligible literals, `is_literal_two()` for the `** 2` guard, and `deep_copy_expr()` to keep the synthesized `x * x` tree acyclic. Replacement nodes preserve `lineno` / `col` from the outer expression.
 
 ### `src/events/semantic.py`
 One domain event:
@@ -372,9 +378,10 @@ Three domain events:
 - **LoadFromAST** — Reads a JSON AST file and reconstructs the `DeclarationAggregate` via Pydantic `model_validate()`.
 
 ### `src/events/optimizer.py`
-Two domain events:
-- **FoldConstants** — Injects `ASTOptimizerService`; calls `ast_optimizer_service.fold(ast)` and returns the optimized AST root. Runs after type checking and before IR generation.
-- **OptimizeCode** — Injects `OptimizerService`; at `-O O1` applies YAML anchor/alias deduplication; at `-O O0` passes through unchanged.
+Three domain events:
+- **FoldConstants** — Injects `ASTOptimizerService`; calls `ast_optimizer_service.fold(ast)` and returns the optimized AST root. Runs after type checking and before IR generation at `-O O1`; passes through at `-O O0`.
+- **ReduceStrength** — Injects `ASTStrengthReducerService`; calls `ast_strength_reducer_service.reduce(ast)` and returns the reduced AST root. Runs after constant folding and before IR generation at `-O O1`; passes through at `-O O0`.
+- **OptimizeCode** — Injects `OptimizerService`; at `-O O2` applies YAML anchor/alias deduplication; at `-O O0` and `-O O1` passes through unchanged.
 
 ### `src/mappers/settings.py`
 Hosts the mapper base class and shared keter token-type constants:
@@ -396,7 +403,7 @@ Two classes:
 
 ### `config.yml`
 Tiferet YAML configuration defining:
-- **attrs** — Container attributes for all pipeline events and services including `ir_service`, `codegen_service`, `optimizer_service`, `ast_optimizer_service`, `generate_ir_event`, `generate_code_event`, `fold_constants_event`, `optimize_code_event`, `load_from_keter_event`, `load_from_ast_event`, `perform_type_check_event`, and the terminal `emit_result_event`
+- **attrs** — Container attributes for all pipeline events and services including `ir_service`, `codegen_service`, `optimizer_service`, `ast_optimizer_service`, `ast_strength_reducer_service`, `generate_ir_event`, `generate_code_event`, `fold_constants_event`, `reduce_strength_event`, `optimize_code_event`, `load_from_keter_event`, `load_from_ast_event`, `perform_type_check_event`, and the terminal `emit_result_event`
 - **features** — `scan.event`, `parse.event`, `semantic.event`, `ir.event`, `compile.event`, `compile.keter`, and `compile.ast`
 - **errors** — `TEXT_EXTRACTION_FAILED`, `LEXICAL_ERROR_DETECTED`, `PARSER_NOT_INITIALIZED`, `INVALID_AST_STRUCTURE`, `MISSING_AST`, `TYPE_MISMATCH_ASSIGNMENT`, `TYPE_MISMATCH_OPERATION`, `INVALID_KETER_SYNTAX`, `INVALID_CODEGEN_SCHEMA`, `INVALID_IMPORT_GROUP`, `INVALID_IMPORT_CONTENT`, `ARTIFACT_CLASS_NAME_MISMATCH`, `INVALID_ATTRIBUTE_MEMBER_TYPE`, `ATTRIBUTE_MEMBER_NAME_MISMATCH`, `INVALID_METHOD_MEMBER_TYPE`, `METHOD_MEMBER_NAME_MISMATCH`, `METHOD_MISSING_SELF`, `INVALID_METHOD_RETURN_TYPE`, `EVENT_MISSING_EXECUTE`
 - **cli** — `scan event`, `parse event`, `semantic event`, `ir event`, `compile event`, `compile keter`, and `compile ast` commands
@@ -430,7 +437,7 @@ python compiler.py compile ast <ast_file> -o output.yaml
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 269 tests total
+python -m pytest src/ -v    # 293 tests total
 ```
 
 Test breakdown:
@@ -442,22 +449,22 @@ Test breakdown:
 - `src/mappers/tests/test_lexer.py` — 9 tests (TokenAggregate mapper)
 - `src/mappers/tests/test_semantic.py` — 9 tests (ScopeAggregate factories and mutation)
 - `src/mappers/tests/test_settings.py` — 13 tests (KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers)
-- `src/utils/tests/test_ir.py` — 19 tests (DocstringParser + IRGenerator)
+- `src/utils/tests/test_ir.py` — 21 tests (DocstringParser + IRGenerator, including SHL/SHR encoding)
 - `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
 - `src/utils/tests/test_lexer_keter.py` — 8 tests (KeterLexer tokenization + KETER_KEYWORDS)
 - `src/utils/tests/test_output.py` — 19 tests (OutputWriter, ResultPayloadBuilder, emit)
-- `src/utils/tests/test_parser.py` — 51 tests (TiferetParser grammar rules)
+- `src/utils/tests/test_parser.py` — 55 tests (TiferetParser grammar rules, including shift grammar)
 - `src/utils/tests/test_semantic.py` — 26 tests (SymbolTableBuilder + NameResolver)
 - `src/utils/tests/test_codegen.py` — 10 tests (TiferetGenerator)
-- `src/utils/tests/test_optimizer.py` — 13 tests (YamlAnchorOptimizer + ConstantFolder)
+- `src/utils/tests/test_optimizer.py` — 26 tests (YamlAnchorOptimizer + ConstantFolder + StrengthReducer)
 - `src/events/tests/test_lexer.py` — 2 tests (PerformLexicalAnalysis)
 - `src/events/tests/test_parser.py` — 4 tests (PerformSyntacticAnalysis)
 - `src/events/tests/test_ir.py` — 3 tests (GenerateIR)
 - `src/events/tests/test_codegen.py` — 4 tests (GenerateCode + LoadFromKeter/AST)
-- `src/events/tests/test_optimizer.py` — 6 tests (FoldConstants + OptimizeCode)
+- `src/events/tests/test_optimizer.py` — 10 tests (FoldConstants + ReduceStrength + OptimizeCode)
 - `src/events/tests/test_output.py` — 14 tests (EmitResult stage detection + dispatch + overrides + file writes)
 
-Tests use `DomainEvent.handle` for event invocation and mock `LexerService`/`ParserService`/`CodegenService`/`OptimizerService`/`ASTOptimizerService` for isolation. Utility tests validate lexing, parsing, output, codegen, and optimization logic independently.
+Tests use `DomainEvent.handle` for event invocation and mock `LexerService`/`ParserService`/`CodegenService`/`OptimizerService`/`ASTOptimizerService`/`ASTStrengthReducerService` for isolation. Utility tests validate lexing, parsing, output, codegen, and optimization logic independently.
 
 ## Dependencies
 
