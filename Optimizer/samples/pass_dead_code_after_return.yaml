@@ -1,0 +1,55 @@
+evt_grp:
+  name: pass_dead_code_after_return
+  desc: 'An event that demonstrates return-analysis: statements that appear
+
+    after a ``return`` within the same scope are flagged by the compiler
+
+    as unreachable code. This sample keeps the pattern simple -- a direct
+
+    post-return statement in two different method scopes -- to stay inside
+
+    what the parser''s INDENT/DEDENT injection currently supports.'
+  impt:
+    infra:
+    - src: tiferet.events
+      tgts:
+      - DomainEvent
+  evts:
+    classify_score:
+      name: ClassifyScore
+      desc: Classify a score with intentionally unreachable trailing code.
+      execute:
+        params:
+        - score:int:true::The score to classify.
+        - kwargs:dict:false::Additional keyword arguments.
+        returns:
+        - str:A classification label.
+        snpt:
+        - coms:
+          - Return the label immediately.
+          stmt:
+          - Return('score recorded')
+        - coms:
+          - This statement is unreachable because it follows a return
+          - within the same scope, and the compiler flags it as
+          - UNREACHABLE_AFTER_RETURN.
+          stmt:
+          - Assign(note, 'never reached')
+      methods:
+        describe:
+          params:
+          - label:str:true::The label to describe.
+          - kwargs:dict:false::Additional keyword arguments.
+          returns:
+          - str:A description string.
+          snpt:
+          - coms:
+            - Return the decorated label immediately.
+            stmt:
+            - 'Return(Add(''label: '', label))'
+          - coms:
+            - The following two statements both sit on the same post-return
+            - chain and are flagged as UNREACHABLE_AFTER_RETURN in order.
+            stmt:
+            - Assign(trailing, 'trailing assignment')
+            - Assign(extra, 'another trailing assignment')

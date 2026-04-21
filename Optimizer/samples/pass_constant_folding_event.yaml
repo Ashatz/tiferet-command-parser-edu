@@ -1,0 +1,30 @@
+evt_grp:
+  name: pass_constant_folding_event
+  desc: 'An event that demonstrates constant folding: arithmetic sub-expressions
+
+    composed entirely of numeric literals can be evaluated at compile time.'
+  impt:
+    infra:
+    - src: tiferet.events
+      tgts:
+      - DomainEvent
+  evts:
+    compute_adjusted_score:
+      name: ComputeAdjustedScore
+      desc: Compute a score with a fixed scaling factor applied to a penalty.
+      execute:
+        params:
+        - base_score:int:true::The raw score before adjustment.
+        - penalty:int:true::The penalty factor to apply.
+        - kwargs:dict:false::Additional keyword arguments.
+        returns:
+        - int:The adjusted score after applying a fixed bonus.
+        snpt:
+        - coms:
+          - 'Subtract the scaled penalty: 3 * 5 is a constant sub-expression.'
+          stmt:
+          - Assign(adjusted, Sub(base_score, Mul(15, penalty)))
+        - coms:
+          - 'Return the score with a fixed bonus: 4 * 5 is a constant sub-expression.'
+          stmt:
+          - Return(Add(adjusted, 20))

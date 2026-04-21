@@ -1,0 +1,39 @@
+evt_grp:
+  name: pass_strength_reduction_event
+  desc: 'An event that demonstrates strength reduction: arithmetic on power-of-two
+
+    literals (and exponentiation by 2) is rewritten into cheaper shifts or
+
+    self-multiplication at compile time.'
+  impt:
+    infra:
+    - src: tiferet.events
+      tgts:
+      - DomainEvent
+  evts:
+    compute_metrics:
+      name: ComputeMetrics
+      desc: Compute a trio of values exercising each strength-reduction pattern.
+      execute:
+        params:
+        - value:int:true::The raw input value.
+        - kwargs:dict:false::Additional keyword arguments.
+        returns:
+        - int:The combined metric (sum of the three reduced values).
+        snpt:
+        - coms:
+          - 'Multiplication by a power of two: `value * 8` reduces to `value << 3`.'
+          stmt:
+          - Assign(scaled, Shl(value, 3))
+        - coms:
+          - 'Division by a power of two: `value / 4` reduces to `value >> 2`.'
+          stmt:
+          - Assign(halved, Shr(value, 2))
+        - coms:
+          - 'Exponentiation by two: `value ** 2` reduces to `value * value`.'
+          stmt:
+          - Assign(squared, Mul(value, value))
+        - coms:
+          - Return the combined metric.
+          stmt:
+          - Return(Add(Add(scaled, halved), squared))
