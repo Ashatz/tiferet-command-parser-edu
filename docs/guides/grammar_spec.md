@@ -1,9 +1,8 @@
 # Context-Free Grammar Specification
 
-This grammar defines the **Tiferet Domain Event dialect** — a highly structured subset of Python 3.10+ used within the Tiferet framework for Domain-Driven Design. The grammar is organized around Tiferet's three-tier artifact comment hierarchy (`# ***` groups → `# **` sections → `# *` members), with class definitions, method definitions, standalone function definitions, attribute declarations, and import statements as the structural building blocks. Method and function bodies are parsed as sequences of **code snippets** — optional `LINE_COMMENT` headers followed by one or more statements — rather than full expression trees. Statement internals use a generic flat token sequence (`TokenSeq`) with matched bracket groups to handle multi-line parenthesized expressions.
+This grammar defines the **Tiferet Domain Event dialect** — a highly structured subset of Python 3.10+ used within the Tiferet framework for Domain-Driven Design. The grammar is organized around Tiferet's three-tier artifact comment hierarchy (`# ***` groups → `# **` sections → `# *` members), with class definitions, methods, typed attribute declarations, and import statements as the structural building blocks. Method bodies are parsed as sequences of **code snippets** — optional `LINE_COMMENT` headers followed by one or more statements — and statement internals are parsed with a full **PEMDAS-correct expression hierarchy** that includes bitwise shift operators (`<<`, `>>`), comparison operators, call expressions, assignments, and dotted name references.
 
-The grammar distinguishes **MethodDef** (inside a class, parameter list must begin with `SELF`) from **FuncDef** (standalone at the section level, no `SELF` requirement). `OBSOLETE` and `TODO` annotations are modeled as optional prefixes or suffixes at both the section and member tiers. Synthetic `INDENT`/`DEDENT` tokens serve as block delimiters for class bodies, method bodies, and compound statements (e.g., if-blocks).
-
+The grammar distinguishes ordinary imports (`IMPORT ImportExpr`) from relative / `from`-imports (`FROM FromExpr IMPORT ImportExpr`) and decomposes each into structured expression nodes. `OBSOLETE` and `TODO` annotations are modeled as optional prefixes or suffixes at both the section and member tiers. Synthetic `INDENT`/`DEDENT` tokens — injected by `BlockTracker` during lexing — serve as block delimiters for class bodies and method bodies.
 
 ## Formal Definition
 
@@ -12,62 +11,95 @@ The grammar G is a 4-tuple (V, Σ, R, S):
 ### V (Variables/Non-terminals):
 
 ```
-V = { Module, GroupList, Group, GroupHeader,
+V = { Module,
+      GroupList, Group, GroupHeader,
       SectionList, Section, SectionHeader, Annots, Annot,
-      SectionBody, ImportBlock, ImportStmt,
-      ClassDef, ClassBody, NameList,
-      MemberList, Member, MemberBody,
-      AttrDecl, MethodDef, MethodName, ParamTail, RetAnnot, Decorator,
-      FuncDef, ParamBody,
-      Body, SnippetList, Snippet, StmtList, Stmt,
-      TokenSeq, TokenItem, Enclosed, Inner, InnerItem, Token }
+      SectionBody, ImportBlock, ImportStmt, ImportExpr, FromExpr,
+      ClassDef, ClassBody, SuperClsList, SuperCls,
+      MemberList, Member, MemberStmt,
+      AttrDecl, AttrTypes,
+      Decorator, DecoratorCall, DecoratorIdent, DecoratorArgs, DecoratorArg,
+      MethodDecl, MethodName, MethodType, MethodDocString,
+      MethodParamList, ParamList, Param, ParamTypes,
+      RetAnnot, RetTypes,
+      SnippetList, Snippet, CommentList, CommentStmt,
+      StmtList, Stmt, AssignExpr, AssignRHS, ReturnExpr,
+      OperationExpr, ComparisonExpr, CompOp,
+      ShiftExpr, AdditiveExpr, MultiplicativeExpr, ExponentialExpr,
+      CallExpr, CallArgs, CallArg,
+      NameOrLiteral, LiteralExpr, IdentExpr, Ident, IdentDot }
 ```
 
-**36 non-terminals** organized into four layers:
+**62 non-terminals** organized into six layers. The table below groups them by role:
 
 | Non-terminal | Layer | Description |
 |---|---|---|
-| Module | Tier 1 | Root of the parse tree; represents an entire source file. |
-| GroupList | Tier 1 | One or more top-level artifact groups. |
+| Module | Tier 1 | Root of the parse tree; represents an entire source file (optionally preceded by a module docstring). |
+| GroupList | Tier 1 | Zero or more top-level artifact groups. |
 | Group | Tier 1 | A single `# ***` artifact group with its header and child sections. |
 | GroupHeader | Tier 1 | The opening marker of a group (`ARTIFACT_IMPORTS_START` or `ARTIFACT_START`). |
-| SectionList | Tier 2 | One or more artifact sections within a group. |
+| SectionList | Tier 2 | Zero or more artifact sections within a group. |
 | Section | Tier 2 | A single `# **` artifact section with optional annotations, header, and body. |
 | SectionHeader | Tier 2 | The opening marker of a section (`ARTIFACT_SECTION` or `ARTIFACT_IMPORT_GROUP`). |
 | Annots | Tier 2 | One or more annotations (`OBSOLETE`/`TODO`) attached before or after a section or member header. |
 | Annot | Tier 2 | A single annotation marker — either `OBSOLETE` or `TODO`. |
-| SectionBody | Tier 2 | The content of a section: a class definition, function definition, or import block. |
+| SectionBody | Tier 2 | The content of a section: a class definition or an import block. |
 | ImportBlock | Tier 2 | One or more import statements within an import-group section. |
 | ImportStmt | Tier 2 | A single `import` or `from … import` statement. |
+| ImportExpr | Tier 2 | The imported name(s): a bare identifier, an aliased identifier, or a comma-separated multi-import. |
+| FromExpr | Tier 2 | The module path in a `from … import` statement, supporting leading dots (relative imports) and dotted paths. |
 | ClassDef | Tier 3 | A class definition with inheritance list, optional docstring, and member list. |
 | ClassBody | Tier 3 | The interior of a class: optional docstring followed by artifact members. |
-| NameList | Tier 3 | Comma-separated identifier list (used for base class names in inheritance). |
-| MemberList | Tier 3 | One or more `# *` artifact members within a class body. |
+| SuperClsList | Tier 3 | The base-class list inside the class signature (may be empty). |
+| SuperCls | Tier 3 | A single base class identifier (or comma-chained sequence). |
+| MemberList | Tier 3 | Zero or more `# *` artifact members within a class body. |
 | Member | Tier 3 | A single artifact member with optional annotations and its body. |
-| MemberBody | Tier 3 | The content of a member: an attribute declaration or a method definition. |
-| AttrDecl | Tier 3 | A typed attribute declaration (`name : type_annotation`). |
-| MethodDef | Tier 3 | A method definition inside a class; parameter list must begin with `SELF`. |
-| MethodName | Tier 3 | The name token of a method: an `IDENTIFIER` or the `INIT` keyword. |
-| ParamTail | Tier 3 | Optional additional parameters after `SELF` in a method signature. |
-| RetAnnot | Tier 3 | Optional return-type annotation (`-> type`). |
-| Decorator | Tier 3 | A decorator line (`@` followed by a token sequence). |
-| FuncDef | Tier 3 | A standalone function definition at the section level; no `SELF` requirement. |
-| ParamBody | Tier 3 | The full parameter list of a standalone function (may be empty). |
-| Body | Body | The interior of a method or function: optional docstring followed by snippets. |
-| SnippetList | Body | One or more code snippets within a method/function body. |
+| MemberStmt | Tier 3 | The content of a member: an attribute declaration, a method declaration, or a decorator chain wrapping another member statement. |
+| AttrDecl | Tier 3 | An attribute declaration (name, optional `:` type annotation). |
+| AttrTypes | Tier 3 | A pipe-separated union type annotation on an attribute (e.g. `int | str`). |
+| Decorator | Tier 3 | A decorator line (`@` followed by a call expression). |
+| DecoratorCall | Tier 3 | The call form of a decorator: `ident(args)`. |
+| DecoratorIdent | Tier 3 | The decorator's target name, with optional dotted access (`a.b.c`). |
+| DecoratorArgs | Tier 3 | Zero or more comma-separated decorator arguments. |
+| DecoratorArg | Tier 3 | A single decorator argument (name or literal). |
+| MethodDecl | Tier 3 | A method declaration: `def`, name, parameter list, optional return annotation, body. |
+| MethodName | Tier 3 | The name of a method: an `IDENTIFIER` or the `INIT` keyword. |
+| MethodType | Tier 3 | The parenthesized parameter list plus return annotation (the method's type signature). |
+| MethodDocString | Tier 3 | An optional `DOCSTRING` at the head of the method body. |
+| MethodParamList | Tier 3 | The parameter list with `SELF` as the mandatory first parameter. |
+| ParamList | Tier 3 | A linked list of parameters (after `SELF`). |
+| Param | Tier 3 | A single parameter: name, optional type annotation, optional default, or `*args`/`**kwargs`. |
+| ParamTypes | Tier 3 | A pipe-separated union type annotation on a parameter. |
+| RetAnnot | Tier 3 | Optional return-type annotation (`-> type` or ε). |
+| RetTypes | Tier 3 | A pipe-separated union return type list. |
+| SnippetList | Body | Zero or more code snippets within a method body, tolerating blank lines. |
 | Snippet | Body | A logical code unit: an optional `LINE_COMMENT` header followed by statements. |
-| StmtList | Body | One or more statements within a snippet or compound block. |
-| Stmt | Body | A single statement; optionally followed by an `INDENT`-delimited sub-block. |
-| TokenSeq | Token | A flat sequence of token items — the generic content consumer. |
-| TokenItem | Token | A single element in a token sequence: a plain token or an enclosed bracket group. |
-| Enclosed | Token | A matched bracket group (`()`, `[]`, or `{}`) with arbitrary inner content. |
-| Inner | Token | Zero or more items inside a bracket group, including newlines. |
-| InnerItem | Token | A single element inside brackets: a token item or a `NEWLINE`. |
-| Token | Token | Catch-all for content terminals (identifiers, keywords, operators, literals). |
+| CommentList | Body | One or more `LINE_COMMENT` lines that head a snippet. |
+| CommentStmt | Body | A single `LINE_COMMENT` followed by a `NEWLINE`. |
+| StmtList | Body | Zero or more statements inside a snippet. |
+| Stmt | Body | A single statement: `return`, assignment, operation expression, or call. |
+| AssignExpr | Expr | An assignment expression `target = rhs`. |
+| AssignRHS | Expr | The right-hand side of an assignment (operation or call). |
+| ReturnExpr | Expr | The expression returned by a `return` statement (operation, call, or empty). |
+| OperationExpr | Expr | The top of the expression precedence hierarchy — currently aliases `ComparisonExpr`. |
+| ComparisonExpr | Expr | Comparison-precedence expression (`==`, `!=`, `<`, `>`, `<=`, `>=`, `|`, `&`). |
+| CompOp | Expr | A single comparison operator terminal. |
+| ShiftExpr | Expr | Bitwise shift precedence (`<<`, `>>`), left-associative; sits between comparison and additive precedence. |
+| AdditiveExpr | Expr | Additive precedence (`+`, `-`), left-associative. |
+| MultiplicativeExpr | Expr | Multiplicative precedence (`*`, `/`, `%`), left-associative. |
+| ExponentialExpr | Expr | Exponentiation (`**`), right-associative. |
+| CallExpr | Expr | A call expression `ident(args)`. |
+| CallArgs | Expr | Zero or more comma-separated call arguments. |
+| CallArg | Expr | A single call argument (operation or nested call). |
+| NameOrLiteral | Expr | Atom level: either an identifier expression or a literal. |
+| LiteralExpr | Expr | A literal: `STRING_LITERAL`, `NUMBER_LITERAL`, `TRUE`, `FALSE`. |
+| IdentExpr | Expr | An identifier expression — a plain `Ident` or a dotted `IdentDot`. |
+| Ident | Expr | A bare identifier: `IDENTIFIER` or `SELF`. |
+| IdentDot | Expr | A dotted name chain (`a.b.c`, `self.x.y`). |
 
 #### Non-terminal Examples
 
-The following examples are drawn from `Scanner/samples/add_error_event.py` and related sample files. Each group illustrates what the non-terminals match in real Tiferet source code.
+The following examples illustrate what the non-terminals match in real Tiferet source code.
 
 **Tier 1 — Module / Groups**
 
@@ -80,37 +112,29 @@ A source file is a **Module** containing a **GroupList** of two **Groups**, each
   ...sections...
 ```
 
-The entire file from the first `# ***` to EOF is the Module.
+The entire file from the first `# ***` to EOF is the Module. An optional module-level `DOCSTRING` may precede the first group.
 
 **Tier 2 — Sections / Imports / Annotations**
 
-Within the `# *** imports` group, each import category is a **Section** opened by a **SectionHeader**. Its **SectionBody** is an **ImportBlock** of one or more **ImportStmts**:
+Within the `# *** imports` group, each import category is a **Section** opened by a **SectionHeader**. Its **SectionBody** is an **ImportBlock** of one or more **ImportStmts**, each fully decomposed into an **ImportExpr** (and, for `from`-imports, a **FromExpr**):
 
 ```python path=null start=null
-# ** core              ← SectionHeader (ARTIFACT_IMPORT_GROUP)
-from typing import (   ← ImportStmt: PYTHON_KEYWORD TokenSeq NEWLINE
-    List,              ←   (NEWLINE inside brackets is consumed by Enclosed/Inner)
-    Dict,
-    Any
-)
+# ** core                              ← SectionHeader (ARTIFACT_IMPORT_GROUP)
+from typing import List, Dict, Any     ← ImportStmt → FROM FromExpr IMPORT ImportExpr
+                                            FromExpr   = "typing"
+                                            ImportExpr = "List, Dict, Any"
 
-# ** app               ← SectionHeader (ARTIFACT_IMPORT_GROUP)
-from .settings import DomainEvent, a   ← ImportStmt
-from ..domain import Error             ← ImportStmt
+# ** app                               ← SectionHeader (ARTIFACT_IMPORT_GROUP)
+from .settings import DomainEvent, a   ← FromExpr = ".settings", ImportExpr = "DomainEvent, a"
+from ..domain import Error             ← FromExpr = "..domain",  ImportExpr = "Error"
+import tiferet as tif                  ← ImportStmt → IMPORT ImportExpr(ident AS ident)
 ```
 
-Annotations (**Annots** / **Annot**) may appear either *before* or *after* a section or member header. From `obsolete_rename_error_event.py` (pre-header):
+Annotations (**Annots** / **Annot**) may appear either *before* or *after* a section or member header:
 
 ```python path=null start=null
 # -- obsolete: superseded by ErrorAggregate.rename()   ← Annot (OBSOLETE NEWLINE)
 # ** event: rename_error                               ← SectionHeader
-```
-
-From `todo_get_error_event.py` (pre-header):
-
-```python path=null start=null
-# ++ todo: add CacheService injection   ← Annot (TODO NEWLINE)
-# ** event: get_error                    ← SectionHeader
 ```
 
 Post-header annotations appear between the header and the body:
@@ -118,80 +142,79 @@ Post-header annotations appear between the header and the body:
 ```python path=null start=null
 # ** event: rename_error                               ← SectionHeader
 # -- obsolete: superseded by ErrorAggregate.rename()   ← Annot (post-header)
-class RenameError(DomainEvent):                        ← SectionBody
+class RenameError(DomainEvent):                        ← SectionBody → ClassDef
 ```
 
-**Tier 3 — Class / Members / Methods**
+**Tier 3 — Class / Members / Attributes / Methods**
 
-Inside the `# *** events` group, a **Section** whose body is a **ClassDef**. The **NameList** captures base classes. The **ClassBody** contains a **DOCSTRING** followed by a **MemberList**:
+Inside the `# *** events` group, a **Section** whose body is a **ClassDef**. The **SuperClsList** captures base classes. The **ClassBody** contains a `DOCSTRING` followed by a **MemberList**:
 
 ```python path=null start=null
 # ** event: add_error                              ← Section header
-class AddError(DomainEvent):                       ← ClassDef (NameList = [DomainEvent])
+class AddError(DomainEvent):                       ← ClassDef (SuperClsList = [DomainEvent])
     """Command to add a new Error..."""            ← DOCSTRING (part of ClassBody)
 
     # * attribute: error_service                   ← Member header (ARTIFACT_MEMBER)
-    error_service: ErrorService                    ← MemberBody → AttrDecl
+    error_service: ErrorService                    ← MemberStmt → AttrDecl
+                                                        AttrDecl → IDENTIFIER COLON AttrTypes
 
     # * init                                       ← Member header
-    def __init__(self, error_service: ErrorService):  ← MemberBody → MethodDef
-        ...                                              MethodName = INIT, ParamTail present
+    def __init__(self, error_service: ErrorService):  ← MemberStmt → MethodDecl
+                                                          MethodName = INIT
+                                                          MethodParamList = SELF COMMA ParamList
+        ...
 
     # * method: execute                            ← Member header
-    @DomainEvent.parameters_required(...)          ← Decorator (AT TokenSeq NEWLINE)
-    def execute(self, id: str, ...) -> None:       ← MethodDef with RetAnnot
-        ...                                              MethodName = IDENTIFIER("execute")
+    @DomainEvent.parameters_required(...)          ← Decorator (AT DecoratorCall)
+    def execute(self, id: str, ...) -> None:       ← MethodDecl with RetAnnot = "-> None"
+        ...                                            MethodName = IDENTIFIER("execute")
 ```
 
-Note: **MethodDef** requires `SELF` as the first parameter (rules 37–38). A **FuncDef** (rules 46–47) would appear directly under a section body without a class, and has no `SELF` requirement.
+**Body / Snippets / Statements / Expressions**
 
-**Body / Snippets**
-
-Inside the `execute` method, the **Body** begins with a **DOCSTRING** followed by a **SnippetList**. Each **Snippet** is an optional **LINE_COMMENT** header and a **StmtList**:
+Inside the `execute` method, the body begins with an optional `DOCSTRING` (captured by **MethodDocString**) followed by a **SnippetList**. Each **Snippet** is an optional **CommentList** header and a **StmtList**:
 
 ```python path=null start=null
-        """Add a new Error to the app..."""       ← DOCSTRING (part of Body)
+        """Add a new Error to the app..."""       ← MethodDocString (DOCSTRING NEWLINE)
 
-        # Check if an error with the same ID already exists.   ← LINE_COMMENT (Snippet header)
-        exists = self.error_service.exists(id)                 ← Stmt (TokenSeq NEWLINE)
-        self.verify(                                           ← Stmt (compound via Enclosed)
-            expression=exists is False,
-            error_code=a.const.ERROR_ALREADY_EXISTS_ID,
-            message=f'An error with ID {id} already exists.',
-            id=id
-        )
+        # Check if an error with the same ID already exists.   ← CommentStmt (Snippet header)
+        exists = self.error_service.exists(id)                 ← Stmt → AssignExpr NEWLINE
+                                                                   target = IdentExpr("exists")
+                                                                   rhs = CallExpr(self.error_service.exists, [id])
 
-        # Create the Error aggregate.              ← LINE_COMMENT (next Snippet header)
-        error_messages = [{'lang': lang, ...}]     ← Stmt
-        new_error = Aggregate.new(                 ← Stmt (multi-line via Enclosed)
-            ErrorAggregate,
-            id=id,
-            name=name,
-            message=error_messages
-        )
+        # Create the Error aggregate.                          ← CommentStmt (next Snippet header)
+        result = x + y * 3 - 2                                 ← Stmt with PEMDAS expression
+                                                                   AdditiveExpr(AdditiveExpr(x, +, MultiplicativeExpr(y, *, 3)), -, 2)
 ```
 
-**Token Layer**
+**Expression Layer**
 
-A single statement like `exists = self.error_service.exists(id)` decomposes into a **TokenSeq** of **TokenItems**:
+A statement like `result = (a << 2) + b * c ** 2` decomposes through the precedence hierarchy as:
 
 ```
-TokenSeq = IDENTIFIER("exists") EQUALS SELF DOT IDENTIFIER("error_service")
-           DOT IDENTIFIER("exists") Enclosed( LPAREN IDENTIFIER("id") RPAREN )
+AssignExpr
+ ├── IdentExpr("result")
+ └── AdditiveExpr
+      ├── ShiftExpr(IdentExpr("a"), LSHIFT, LiteralExpr(2))
+      └── MultiplicativeExpr
+           ├── IdentExpr("b")
+           └── ExponentialExpr(IdentExpr("c"), DOUBLESTAR, LiteralExpr(2))
 ```
 
-Each element is a **Token** (catch-all terminal) except the parenthesized call arguments, which form an **Enclosed** group. Inside the brackets, **Inner** permits **NEWLINE** tokens — this is how multi-line calls like `self.verify(\n  expression=...,\n  ...\n)` are consumed without prematurely terminating the **Stmt**.
+Each precedence level corresponds to a distinct non-terminal; recursion direction determines associativity (`ShiftExpr`, `AdditiveExpr`, `MultiplicativeExpr` are left-recursive; `ExponentialExpr` is right-recursive).
 
 ### Σ (Terminals):
 
-All 53 token types produced by the scanner (including synthetic INDENT/DEDENT):
+All 58 token types produced by the scanner, including synthetic `INDENT`/`DEDENT`:
 
 ```
 Σ = { ARTIFACT_IMPORTS_START, ARTIFACT_IMPORT_GROUP, ARTIFACT_START,
       ARTIFACT_SECTION, ARTIFACT_MEMBER, OBSOLETE, TODO,
       DOCSTRING, LINE_COMMENT,
+      FROM, IMPORT, AS,
       CLASS, DEF, INIT, RETURN, SELF,
       PYTHON_KEYWORD, IDENTIFIER, STRING_LITERAL, NUMBER_LITERAL,
+      TRUE, FALSE,
       DOUBLESTAR, PLUS, MINUS, STAR, SLASH, DOUBLESLASH, PERCENT,
       PIPE, AMPERSAND, TILDE, CARET, LSHIFT, RSHIFT,
       EQEQ, NOTEQ, LTEQ, GTEQ, LT, GT, AT,
@@ -200,9 +223,19 @@ All 53 token types produced by the scanner (including synthetic INDENT/DEDENT):
       NEWLINE, UNKNOWN, INDENT, DEDENT }
 ```
 
-Terminals are partitioned into two roles:
-- **Structural terminals** — appear explicitly in grammar productions as delimiters, headers, or keywords: all ARTIFACT_* tokens, OBSOLETE, TODO, DOCSTRING, LINE_COMMENT, CLASS, DEF, INIT, SELF, AT, LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE, COLON, ARROW, COMMA, NEWLINE, INDENT, DEDENT.
-- **Content terminals** — consumed by the `Token` non-terminal as generic content within `TokenSeq`: IDENTIFIER, RETURN, PYTHON_KEYWORD, STRING_LITERAL, NUMBER_LITERAL, DOT, EQUALS, all operators, UNKNOWN, and structural keywords when they appear inside token sequences.
+Terminals are partitioned by role:
+
+- **Structural tier markers** — `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`, `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`. These are the tier-1/2/3 hierarchy delimiters.
+- **Annotation markers** — `OBSOLETE`, `TODO`.
+- **Keywords** — `CLASS`, `DEF`, `INIT`, `RETURN`, `SELF`, `FROM`, `IMPORT`, `AS`, `TRUE`, `FALSE`. `PYTHON_KEYWORD` catches all other Python keywords (`if`, `else`, `for`, etc.), currently reserved for future extension.
+- **Atoms** — `IDENTIFIER`, `STRING_LITERAL`, `NUMBER_LITERAL`, `DOCSTRING`.
+- **Operators** — arithmetic (`PLUS`, `MINUS`, `STAR`, `SLASH`, `DOUBLESLASH`, `PERCENT`, `DOUBLESTAR`), bitwise (`PIPE`, `AMPERSAND`, `TILDE`, `CARET`, `LSHIFT`, `RSHIFT`), comparison (`EQEQ`, `NOTEQ`, `LT`, `GT`, `LTEQ`, `GTEQ`), and other (`AT`).
+- **Delimiters** — `LPAREN`, `RPAREN`, `LBRACK`, `RBRACK`, `LBRACE`, `RBRACE`, `COMMA`, `COLON`, `ARROW`, `DOT`, `EQUALS`.
+- **Layout** — `NEWLINE`, `INDENT`, `DEDENT` (the latter two synthesized by `BlockTracker`).
+- **Documentation / comments** — `LINE_COMMENT`, `DOCSTRING`.
+- **Misc** — `UNKNOWN` (reserved for unrecognized input).
+
+`DOUBLESLASH`, `TILDE`, and `CARET` are tokenized by the lexer but currently unused by the parser; they are reserved for future grammar extensions (floor division, bitwise not, xor).
 
 ### S (Start Symbol):
 
@@ -216,147 +249,232 @@ S = Module
 
 ```ebnf
 (1)  Module       --> GroupList
-(2)  GroupList    --> Group
+(2)  Module       --> DOCSTRING NEWLINE Module
 (3)  GroupList    --> GroupList Group
-(4)  Group        --> GroupHeader NEWLINE SectionList
-(5)  GroupHeader  --> ARTIFACT_IMPORTS_START
-(6)  GroupHeader  --> ARTIFACT_START
+(4)  GroupList    --> ε
+(5)  Group        --> GroupHeader NEWLINE SectionList
+(6)  GroupHeader  --> ARTIFACT_IMPORTS_START
+(7)  GroupHeader  --> ARTIFACT_START
 ```
 
-#### Tier 2 — Artifact Sections
+#### Tier 2 — Artifact Sections and Annotations
 
 ```ebnf
-(7)  SectionList  --> Section
 (8)  SectionList  --> SectionList Section
-(9)  Section      --> SectionHeader NEWLINE SectionBody
-(10) Section      --> Annots SectionHeader NEWLINE SectionBody
-(11) Section      --> SectionHeader NEWLINE Annots SectionBody
-(12) SectionHeader --> ARTIFACT_SECTION
-(13) SectionHeader --> ARTIFACT_IMPORT_GROUP
-(14) Annots       --> Annot
-(15) Annots       --> Annots Annot
-(16) Annot        --> OBSOLETE NEWLINE
-(17) Annot        --> TODO NEWLINE
+(9)  SectionList  --> ε
+(10) Section      --> SectionHeader NEWLINE SectionBody
+(11) Section      --> Annots SectionHeader NEWLINE SectionBody
+(12) Section      --> SectionHeader NEWLINE Annots SectionBody
+(13) SectionHeader --> ARTIFACT_SECTION
+(14) SectionHeader --> ARTIFACT_IMPORT_GROUP
+(15) Annots       --> Annot
+(16) Annots       --> Annots Annot
+(17) Annot        --> OBSOLETE NEWLINE
+(18) Annot        --> TODO NEWLINE
 ```
 
 #### Section Body
 
 ```ebnf
-(18) SectionBody  --> ClassDef
-(19) SectionBody  --> FuncDef
+(19) SectionBody  --> ClassDef
 (20) SectionBody  --> ImportBlock
+```
+
+#### Import Statements
+
+```ebnf
 (21) ImportBlock  --> ImportStmt
 (22) ImportBlock  --> ImportBlock ImportStmt
-(23) ImportStmt   --> PYTHON_KEYWORD TokenSeq NEWLINE
+(23) ImportStmt   --> IMPORT ImportExpr NEWLINE
+(24) ImportStmt   --> FROM FromExpr IMPORT ImportExpr NEWLINE
+(25) ImportExpr   --> IDENTIFIER
+(26) ImportExpr   --> ImportExpr AS IDENTIFIER
+(27) ImportExpr   --> ImportExpr COMMA IDENTIFIER
+(28) FromExpr     --> IDENTIFIER
+(29) FromExpr     --> DOT FromExpr
+(30) FromExpr     --> FromExpr DOT IDENTIFIER
 ```
+
+Rule 29 captures the leading-dot prefix used in relative imports (e.g. `from .settings`, `from ..domain`); rule 30 chains the module path (`a.b.c`); rule 27 captures multi-import lists (`import a, b, c`).
 
 #### Class Definition
 
 ```ebnf
-(24) ClassDef     --> CLASS IDENTIFIER LPAREN NameList RPAREN COLON NEWLINE INDENT ClassBody DEDENT
-(25) ClassBody    --> DOCSTRING NEWLINE MemberList
-(26) ClassBody    --> MemberList
-(27) NameList     --> IDENTIFIER
-(28) NameList     --> NameList COMMA IDENTIFIER
+(31) ClassDef     --> CLASS IDENTIFIER LPAREN SuperClsList RPAREN COLON NEWLINE INDENT ClassBody DEDENT
+(32) ClassBody    --> DOCSTRING NEWLINE MemberList
+(33) ClassBody    --> MemberList
+(34) SuperClsList --> ε
+(35) SuperClsList --> SuperCls
+(36) SuperCls     --> IDENTIFIER
+(37) SuperCls     --> SuperCls COMMA SuperCls
 ```
 
 #### Tier 3 — Artifact Members
 
 ```ebnf
-(29) MemberList   --> Member
-(30) MemberList   --> MemberList Member
-(31) Member       --> ARTIFACT_MEMBER NEWLINE MemberBody
-(32) Member       --> Annots ARTIFACT_MEMBER NEWLINE MemberBody
-(33) Member       --> ARTIFACT_MEMBER NEWLINE Annots MemberBody
-(34) MemberBody   --> AttrDecl
-(35) MemberBody   --> MethodDef
-(36) AttrDecl     --> IDENTIFIER COLON TokenSeq NEWLINE
+(38) MemberList   --> Member
+(39) MemberList   --> MemberList Member
+(40) MemberList   --> ε
+(41) Member       --> ARTIFACT_MEMBER NEWLINE MemberStmt
+(42) Member       --> Annots ARTIFACT_MEMBER NEWLINE MemberStmt
+(43) Member       --> ARTIFACT_MEMBER NEWLINE Annots MemberStmt
+(44) MemberStmt   --> AttrDecl
+(45) MemberStmt   --> MethodDecl
+(46) MemberStmt   --> Decorator NEWLINE MemberStmt
 ```
 
-#### Method Definition (inside class — requires SELF)
+Rule 46 recurses, allowing any number of decorators to stack above an attribute or method body.
+
+#### Attribute Declaration
 
 ```ebnf
-(37) MethodDef    --> DEF MethodName LPAREN SELF ParamTail RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
-(38) MethodDef    --> Decorator DEF MethodName LPAREN SELF ParamTail RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
-(39) MethodName   --> IDENTIFIER
-(40) MethodName   --> INIT
-(41) ParamTail    --> COMMA TokenSeq
-(42) ParamTail    --> ε
-(43) RetAnnot     --> ARROW TokenSeq
-(44) RetAnnot     --> ε
-(45) Decorator    --> AT TokenSeq NEWLINE
+(47) AttrDecl     --> IDENTIFIER NEWLINE
+(48) AttrDecl     --> IDENTIFIER COLON AttrTypes NEWLINE
+(49) AttrTypes    --> IDENTIFIER
+(50) AttrTypes    --> AttrTypes PIPE IDENTIFIER
 ```
 
-#### Function Definition (standalone at section level — no SELF)
+#### Decorators
 
 ```ebnf
-(46) FuncDef      --> DEF IDENTIFIER LPAREN ParamBody RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
-(47) FuncDef      --> Decorator DEF IDENTIFIER LPAREN ParamBody RPAREN RetAnnot COLON NEWLINE INDENT Body DEDENT
-(48) ParamBody    --> TokenSeq
-(49) ParamBody    --> ε
+(51) Decorator      --> AT DecoratorCall
+(52) DecoratorCall  --> DecoratorIdent LPAREN DecoratorArgs RPAREN
+(53) DecoratorIdent --> IDENTIFIER
+(54) DecoratorIdent --> DecoratorIdent DOT IDENTIFIER
+(55) DecoratorArgs  --> DecoratorArg
+(56) DecoratorArgs  --> DecoratorArgs COMMA DecoratorArg
+(57) DecoratorArg   --> NameOrLiteral
 ```
 
-#### Method/Function Body — Snippets
+#### Method Definition
 
 ```ebnf
-(50) Body         --> DOCSTRING NEWLINE SnippetList
-(51) Body         --> SnippetList
-(52) SnippetList  --> Snippet
-(53) SnippetList  --> SnippetList Snippet
-(54) Snippet      --> LINE_COMMENT NEWLINE StmtList
-(55) Snippet      --> StmtList
-(56) StmtList     --> Stmt
-(57) StmtList     --> StmtList Stmt
-(58) Stmt         --> TokenSeq NEWLINE
-(59) Stmt         --> TokenSeq NEWLINE INDENT StmtList DEDENT
+(58) MethodDecl       --> DEF MethodName MethodType COLON NEWLINE INDENT MethodDocString SnippetList DEDENT
+(59) MethodName       --> IDENTIFIER
+(60) MethodName       --> INIT
+(61) MethodType       --> LPAREN MethodParamList RPAREN RetAnnot
+(62) MethodDocString  --> DOCSTRING NEWLINE
+(63) MethodDocString  --> ε
 ```
 
-Rule 58 covers simple statements (assignments, return, expression calls). Rule 59 covers compound statements (if-blocks, for-loops, etc.) where the header line is followed by an indented body.
-
-#### Token Sequence — Generic Content
+#### Parameters and Type Annotations
 
 ```ebnf
-(60) TokenSeq     --> TokenItem
-(61) TokenSeq     --> TokenSeq TokenItem
-(62) TokenItem    --> Token
-(63) TokenItem    --> Enclosed
-(64) Enclosed     --> LPAREN Inner RPAREN
-(65) Enclosed     --> LBRACK Inner RBRACK
-(66) Enclosed     --> LBRACE Inner RBRACE
-(67) Inner        --> InnerItem Inner
-(68) Inner        --> ε
-(69) InnerItem    --> TokenItem
-(70) InnerItem    --> NEWLINE
+(64) MethodParamList --> SELF
+(65) MethodParamList --> SELF COMMA ParamList
+(66) ParamList       --> Param
+(67) ParamList       --> ParamList COMMA Param
+(68) Param           --> IDENTIFIER
+(69) Param           --> STAR IDENTIFIER
+(70) Param           --> DOUBLESTAR IDENTIFIER
+(71) Param           --> Param COLON ParamTypes
+(72) Param           --> Param EQUALS NameOrLiteral
+(73) Param           --> NEWLINE Param
+(74) ParamTypes      --> IDENTIFIER
+(75) ParamTypes      --> ParamTypes PIPE IDENTIFIER
+(76) RetAnnot        --> ARROW RetTypes
+(77) RetAnnot        --> ε
+(78) RetTypes        --> IDENTIFIER
+(79) RetTypes        --> RetTypes PIPE IDENTIFIER
 ```
 
-`Enclosed` handles multi-line parenthesized expressions by allowing `NEWLINE` inside matched brackets (rules 64–70). Outside brackets, `NEWLINE` terminates a statement (rules 58–59).
+Rule 73 tolerates `NEWLINE` between parameters, supporting multi-line signatures.
 
-#### Token — Content Terminals
+#### Method Body — Snippets
 
 ```ebnf
-(71) Token --> IDENTIFIER | SELF | INIT | RETURN | CLASS | DEF
-            | STRING_LITERAL | NUMBER_LITERAL | DOCSTRING
-            | PYTHON_KEYWORD
-            | DOT | COMMA | COLON | EQUALS | ARROW
-            | PLUS | MINUS | STAR | DOUBLESTAR | SLASH | DOUBLESLASH | PERCENT
-            | PIPE | AMPERSAND | TILDE | CARET | LSHIFT | RSHIFT
-            | EQEQ | NOTEQ | LTEQ | GTEQ | LT | GT | AT
-            | UNKNOWN
+(80) SnippetList  --> SnippetList Snippet
+(81) SnippetList  --> SnippetList NEWLINE
+(82) SnippetList  --> ε
+(83) Snippet      --> CommentList StmtList
+(84) Snippet      --> StmtList
+(85) CommentList  --> CommentStmt
+(86) CommentList  --> CommentList CommentStmt
+(87) CommentStmt  --> LINE_COMMENT NEWLINE
 ```
 
-`Token` accepts **any terminal except** the following structural delimiters (which serve as boundaries in the grammar):
-- Layout: `NEWLINE`, `INDENT`, `DEDENT`
-- Brackets: `LPAREN`, `RPAREN`, `LBRACK`, `RBRACK`, `LBRACE`, `RBRACE`
-- Artifact markers: `ARTIFACT_IMPORTS_START`, `ARTIFACT_IMPORT_GROUP`, `ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`
-- Annotations: `OBSOLETE`, `TODO`
-- Documentation: `LINE_COMMENT`
+Rule 81 consumes stray blank lines between snippets; rule 80 is the productive recursion.
 
-Note: Terminals like `CLASS`, `DEF`, `INIT`, `SELF`, `RETURN`, `AT`, `COLON`, `COMMA`, and `ARROW` appear both in explicit structural productions (e.g., ClassDef, MethodDef) **and** in the `Token` catch-all. This is unambiguous because the parser is in a different LR state when processing structural positions vs. generic token sequences.
+#### Statements
 
+```ebnf
+(88) StmtList     --> Stmt
+(89) StmtList     --> StmtList Stmt
+(90) StmtList     --> ε
+(91) Stmt         --> RETURN ReturnExpr NEWLINE
+(92) Stmt         --> AssignExpr NEWLINE
+(93) Stmt         --> OperationExpr NEWLINE
+(94) Stmt         --> CallExpr NEWLINE
+```
+
+#### Expressions — Assignment and Return
+
+```ebnf
+(95)  AssignExpr  --> IdentExpr EQUALS AssignRHS
+(96)  AssignRHS   --> OperationExpr
+(97)  AssignRHS   --> CallExpr
+(98)  ReturnExpr  --> OperationExpr
+(99)  ReturnExpr  --> CallExpr
+(100) ReturnExpr  --> ε
+```
+
+#### Expressions — PEMDAS Hierarchy with Bitwise Shift
+
+```ebnf
+(101) OperationExpr      --> ComparisonExpr
+(102) ComparisonExpr     --> ShiftExpr CompOp ShiftExpr
+(103) ComparisonExpr     --> ShiftExpr
+(104) CompOp             --> EQEQ | NOTEQ | LT | GT | LTEQ | GTEQ | PIPE | AMPERSAND
+
+(105) ShiftExpr          --> ShiftExpr LSHIFT AdditiveExpr         (* left-associative *)
+(106) ShiftExpr          --> ShiftExpr RSHIFT AdditiveExpr
+(107) ShiftExpr          --> AdditiveExpr
+
+(108) AdditiveExpr       --> AdditiveExpr PLUS MultiplicativeExpr  (* left-associative *)
+(109) AdditiveExpr       --> AdditiveExpr MINUS MultiplicativeExpr
+(110) AdditiveExpr       --> MultiplicativeExpr
+
+(111) MultiplicativeExpr --> MultiplicativeExpr STAR ExponentialExpr  (* left-associative *)
+(112) MultiplicativeExpr --> MultiplicativeExpr SLASH ExponentialExpr
+(113) MultiplicativeExpr --> MultiplicativeExpr PERCENT ExponentialExpr
+(114) MultiplicativeExpr --> ExponentialExpr
+
+(115) ExponentialExpr    --> NameOrLiteral DOUBLESTAR ExponentialExpr  (* right-associative *)
+(116) ExponentialExpr    --> NameOrLiteral
+```
+
+Precedence from lowest to highest: **comparison → shift → additive → multiplicative → exponential → call → atom**. The `ShiftExpr` layer was introduced to support AST-level strength reduction (rewriting multiplication/division by a power of two into `<<` / `>>`).
+
+#### Expressions — Calls and Atoms
+
+```ebnf
+(117) CallExpr       --> IdentExpr LPAREN CallArgs RPAREN
+(118) CallArgs       --> ε
+(119) CallArgs       --> CallArg
+(120) CallArgs       --> CallArgs COMMA CallArg
+(121) CallArg        --> OperationExpr
+(122) CallArg        --> CallExpr
+
+(123) NameOrLiteral  --> IdentExpr
+(124) NameOrLiteral  --> LiteralExpr
+(125) LiteralExpr    --> STRING_LITERAL
+(126) LiteralExpr    --> NUMBER_LITERAL
+(127) LiteralExpr    --> TRUE
+(128) LiteralExpr    --> FALSE
+
+(129) IdentExpr      --> Ident
+(130) IdentExpr      --> IdentDot
+(131) Ident          --> IDENTIFIER
+(132) Ident          --> SELF
+(133) IdentDot       --> Ident DOT IDENTIFIER
+(134) IdentDot       --> IdentDot DOT IDENTIFIER
+```
+
+Rule 133/134 support arbitrarily long dotted chains (`a.b.c.d`, `self.service.method`).
 
 ## LR(1) Automaton
 
-The LR(1) automaton is constructed from a **core subset** of the full grammar, capturing the three-tier artifact comment hierarchy. This subset uses 10 production rules and 5 terminals, producing 17 canonical LR(1) states.
+The full grammar has 134 productions. For pedagogical purposes, the LR(1) automaton is constructed from a **core subset** capturing the three-tier artifact comment hierarchy. This subset uses 10 production rules and 5 terminals, producing 17 canonical LR(1) states.
 
 ### Core Subset Grammar
 
@@ -565,10 +683,9 @@ Action: reduce (9) on {$, AS, ASEC, AM}
                               (shared I4)
 ```
 
-
 ## LALR Verification
 
-### Item Sets:
+### Item Sets
 
 To merge LR(1) states into LALR states, we look for states with **identical cores** (same items ignoring lookaheads) but **different lookahead sets**.
 
@@ -599,7 +716,6 @@ Examining all 17 states:
 This is a consequence of the grammar's clean hierarchical structure — each tier (Group, Section, Member) uses distinct terminal tokens (`ARTIFACT_START`, `ARTIFACT_SECTION`, `ARTIFACT_MEMBER`), so the parser never reaches the same dot position from different contexts that would produce mergeable states.
 
 **No states can be merged. The LALR automaton is identical to the LR(1) automaton (17 states).**
-
 
 ### Parse Table and Conflict Check
 
@@ -657,61 +773,55 @@ This pattern reflects the grammar's design: at each tier boundary, the **next-ti
 
 **The grammar is LALR(1) with zero conflicts.**
 
-
 ### LALR Automaton
 
 Since no states were merged (all 17 LR(1) states have unique cores), the **LALR automaton is identical to the LR(1) automaton** shown above. The 17-state diagram and parse table apply without modification.
 
-
 ## Implementation Notes
 
-Practical guidance for translating this grammar into a PLY `yacc` parser.
+Practical guidance for translating this grammar into a PLY `yacc` parser. The authoritative implementation lives in `src/utils/parser.py` — `ParserBase` + `TiferetParser`. See also `Parser/README.md` § 4 for a narrative walkthrough of the PLY conventions in use.
 
 ### PLY Adaptation
 
-- **Empty list productions** — PLY idiom uses `GroupList → ε | GroupList Group` rather than the formal grammar's non-empty `GroupList → Group | GroupList Group`. Convert all list non-terminals (`GroupList`, `SectionList`, `MemberList`, `SnippetList`, `StmtList`) to use empty base cases for cleaner PLY rule functions.
-- **Token catch-all** — Rule 69 (`Token`) expands to 36 alternatives. In PLY, implement as a single `p_token` function matching a tuple of terminal names.
-- **Enclosed / Inner** — Rules 62–68 handle matched brackets with NEWLINE inside. In PLY, these translate to recursive `p_enclosed` and `p_inner` rules naturally.
+- **Rule-per-method convention.** Each production is a `p_*` method whose **docstring** holds the rule. PLY parses the docstring (not the method body) to build the LALR(1) automaton; the method body is the semantic action that runs on reduction.
+- **Epsilon / empty list rules.** The PLY idiom for list non-terminals uses `list : list item | ε` with the empty alternative as its own `p_*` method (e.g. `p_group_list_empty`, `p_section_list_empty`). Rules 4, 9, 34, 40, 63, 77, 82, 90, 100, and 118 above correspond to these empty productions.
+- **Alternative rules.** Multiple right-hand sides for the same non-terminal may share a single `p_*` method (with `|` inside the docstring) when the semantic action is uniform, or be split across several methods when the actions differ. This is a purely stylistic choice; PLY collapses same-name rules at automaton build time.
+- **Operator precedence.** The expression grammar encodes precedence **structurally** through the `ComparisonExpr → ShiftExpr → AdditiveExpr → MultiplicativeExpr → ExponentialExpr` chain. Recursion direction selects associativity (left vs. right).
 
 ### Precedence Declaration
 
-To prevent shift-reduce ambiguity at structural boundaries, declare artifact tokens with `nonassoc` precedence:
+To prevent shift-reduce ambiguity at structural boundaries, artifact and layout tokens are declared `nonassoc`:
 
-```python
+```python path=null start=null
 precedence = (
+    ('right', 'COLON'),
+    ('right', 'ARROW'),
     ('nonassoc', 'ARTIFACT_START', 'ARTIFACT_SECTION', 'ARTIFACT_MEMBER',
                  'OBSOLETE', 'TODO', 'DEDENT'),
 )
 ```
 
-This ensures the parser prefers shifting on structural tokens over reducing generic content, preventing false reductions in `TokenSeq`, `Payload`, and `LineContent` contexts.
+This ensures the parser prefers shifting on structural tokens over reducing, preventing false reductions at tier boundaries.
 
-### Semantic Value Structure
+### Semantic Actions
 
-Parser actions build a **Pydantic-based AST** using mapper aggregates from `src/mappers/ast.py`. AST nodes use linked-list chaining via `.next` fields (not Python lists).
+Parser actions produce a structured intermediate representation via mapper aggregates. AST node structure, type enumerations, and linked-list chaining are documented separately in `SemanticRoutines/README.md` to keep this grammar specification focused on syntax.
 
-Core mapper aggregates:
-- **`DeclarationAggregate` (`Decl`)** — module, class, function, and attribute declarations. Static factories: `Decl.new_module_decl()`, `Decl.new_class_decl()`, `Decl.new_func_decl()`
-- **`StatementAggregate` (`Stmt`)** — statements: artifact, import, decl, expr, snippet, comment, return. Static factories: `Stmt.new_artifact_stmt()`, `Stmt.new_import_from_stmt()`, `Stmt.new_snippet_stmt()`
-- **`ExpressionAggregate` (`Expr`)** — expressions: name, literal, assignment, binary ops, call, import. Static factories: `Expr.new_name_expr()`, `Expr.new_assign_expr()`, `Expr.new_call_expr()`
-- **`TypeAggregate` (`Type`)** — type annotations with `TypeKind` enum (str, int, float, class, func, artifact, module, etc.)
-- **`ParamListAggregate` (`ParamList`)** — linked-list parameter chain with name, type, default, required
-
-The AST root is a `DeclarationAggregate` (module declaration), serialized via `model_dump(exclude_none=True, exclude_unset=True)`.
+Positions (`lineno`, `col`) are stamped on every constructed node using the `pos(p, k)` helper on `ParserBase`, which combines `p.lineno(k)` with a column computed from `p.lexpos(k)` against the stored source text.
 
 ### Acceptance Criteria
 
-1. Parser accepts all scanner sample files (`Scanner/samples/`) and all parser pass samples without syntax errors
-2. Parser rejects all parser fail samples with appropriate syntax errors
-3. Correctly distinguishes `MethodDef` (with `SELF`) from `FuncDef` (without)
-4. Identifies code snippets within method bodies — comment-headed statement groups
-5. Handles multi-line parenthesized expressions without premature statement termination
-6. Compound statements (if-blocks) correctly nest via `INDENT`/`DEDENT` within snippet bodies
-
+1. Parser accepts all parser pass samples (`Parser/samples/pass_*.py`) without syntax errors.
+2. Parser rejects all parser fail samples with a descriptive `SyntaxError`.
+3. Expression precedence is honoured: `x + y * 3 - 2` reduces as `(x + (y * 3)) - 2`, `a * 2**k` reduces as `a * (2**k)`, `a << 2 + b` reduces as `a << (2 + b)`.
+4. `from ... import` correctly decomposes leading dots (`from ..domain import Error`) and multi-imports (`from typing import List, Dict, Any`).
+5. Typed attribute declarations parse both simple (`error_service: ErrorService`) and union (`value: int | str`) annotations.
+6. Method signatures accept `self`-prefixed parameter lists with typed, defaulted, `*args`, and `**kwargs` parameters, across multiple lines.
+7. Decorators stack above attribute or method members via the recursive `MemberStmt → Decorator NEWLINE MemberStmt` rule.
 
 ## Sample Files
 
-Parser-specific sample files live in `Parser/samples/`. Each file is a minimal, focused test case for a single grammar scenario.
+Parser-specific sample files live in `Parser/samples/`. Each file is a focused test case that exercises one or more grammar features.
 
 ### Passing Samples
 
@@ -719,20 +829,22 @@ These files conform to the grammar and should be accepted without errors.
 
 | File | Description |
 |---|---|
-| `pass_minimal_event.py` | Simplest valid file: one import group, one event class with a single method. Exercises the core three-tier hierarchy (Group → Section → Member). |
-| `pass_multi_member_event.py` | Event class with attribute, init, and decorated method. Exercises AttrDecl, MethodDef with INIT, Decorator, ParamTail, RetAnnot, multi-line Enclosed calls, and multiple Snippets. |
-| `pass_standalone_function.py` | FuncDef at the section level (no class, no SELF). Exercises the FuncDef / ParamBody productions and compound Stmt (if-block with INDENT/DEDENT). |
-| `pass_annotated_event.py` | OBSOLETE annotation on a section header, TODO annotation on a member header. Exercises the Annots / Annot productions at both tiers. |
-| `pass_multi_section_event.py` | Two event sections (`get_error`, `list_errors`) each with attribute, init, and method members. Exercises SectionList and MemberList repetition (rules 8, 29) across multiple classes within a single group. |
+| `pass_imports_only.py` | Imports-only module with `core` and `app` import groups — no event definitions. Exercises Tier 1–2 structure plus full `ImportStmt` / `FromExpr` / `ImportExpr` decomposition (dotted paths, multi-imports). |
+| `pass_minimal_event.py` | Simplest valid three-tier program: one import group, one event class with a single `execute` method. Exercises the core Group → Section → Member hierarchy. |
+| `pass_minimal_injection_event.py` | Event with attribute, `__init__` member (using the `INIT` keyword), and `execute` method. Exercises `AttrDecl`, `MethodDecl` with `INIT`, `SELF`-prefixed parameter lists, and assignment expressions. |
+| `pass_multiple_operator_events.py` | Six arithmetic events (`Add`, `Subtract`, `Multiply`, `Divide`, `Modulus`, `Exponentiate`). Exercises multi-section parsing and every PEMDAS operator (`+`, `-`, `*`, `/`, `%`, `**`). |
+| `pass_helper_method_event.py` | Event with a helper method alongside `execute`; body contains chained arithmetic expressions parsed with correct precedence (`x + y * 3 - 2`) and call RHS in assignments. |
 
 ### Failing Samples
 
-These files violate the artifact hierarchy and should produce parse errors. Each targets a specific structural rule.
+These files violate the artifact hierarchy and should produce `SyntaxError`. Each targets a specific structural rule.
 
 | File | Violation | Expected Error |
 |---|---|---|
-| `fail_import_no_group.py` | `from` statements appear directly under `# *** imports` with no `# **` import group header. | SectionList expects ARTIFACT_SECTION or ARTIFACT_IMPORT_GROUP; receives PYTHON_KEYWORD (`from`). |
-| `fail_bare_function.py` | `def` appears directly under `# *** utils` with no `# **` section header. | SectionList expects ARTIFACT_SECTION; receives DEF. |
-| `fail_class_no_section.py` | `class` appears directly under `# *** events` with no `# **` section header. | SectionList expects ARTIFACT_SECTION; receives CLASS. |
-| `fail_class_bare_attribute.py` | Typed attribute (`error_service: ErrorService`) inside a class with no `# *` member header. | ClassBody / MemberList expects ARTIFACT_MEMBER; receives IDENTIFIER. |
-| `fail_class_bare_method.py` | `def execute(self, ...)` inside a class with no `# *` member header. | ClassBody / MemberList expects ARTIFACT_MEMBER; receives DEF. |
+| `fail_import_no_group.py` | `from` statement appears directly under `# *** imports` with no `# **` import group header. | SectionList expects ARTIFACT_SECTION or ARTIFACT_IMPORT_GROUP; receives `FROM`. |
+| `fail_bare_function.py` | `def` appears directly under `# ***` with no `# **` section header. | SectionList expects ARTIFACT_SECTION; receives `DEF`. |
+| `fail_class_no_section.py` | `class` appears directly under `# ***` with no `# **` section header. | SectionList expects ARTIFACT_SECTION; receives `CLASS`. |
+| `fail_class_bare_attribute.py` | Typed attribute inside a class with no `# *` member header. | MemberList expects ARTIFACT_MEMBER; receives `IDENTIFIER`. |
+| `fail_class_bare_method.py` | `def` inside a class with no `# *` member header. | MemberList expects ARTIFACT_MEMBER; receives `DEF`. |
+| `fail_missing_group_header.py` | Content without any `# ***` group header. | Module expects ARTIFACT_START; receives `LINE_COMMENT`. |
+| `fail_missing_member_artifact.py` | Method body without `# *` member artifact comment inside a class. | MemberList expects ARTIFACT_MEMBER; receives `LINE_COMMENT`. |
