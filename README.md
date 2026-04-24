@@ -278,8 +278,9 @@ src/
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
       test_settings.py   — 13 tests for KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ConstantFolder, StrengthReducer, ReturnAnalyzer (KeterLexer is NOT exported here; import it directly via `from src.utils.lexer_keter import KeterLexer` to avoid triggering the utils package import chain)
-    ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST to produce IREventGroup)
+    __init__.py          — Exports: ASTTraversal, TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ConstantFolder, StrengthReducer, ReturnAnalyzer (KeterLexer is NOT exported here; import it directly via `from src.utils.lexer_keter import KeterLexer` to avoid triggering the utils package import chain)
+    settings.py          — ASTTraversal base class providing the shared declaration/statement traversal skeleton for AST transformation passes
+    ir.py
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant (intentionally NOT re-exported from utils/__init__.py)
     output.py            — OutputWriter (YAML/JSON/keter file output with format auto-detection), OutputPrinter (AST/symbol-table/error console output), ResultPayloadBuilder (per-stage payload assembly), emit() helper
@@ -287,7 +288,7 @@ src/
     semantic.py          — SymbolTableBuilder (single-pass scope/symbol construction) + NameResolver (name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
-    optimizer.py         — YamlAnchorOptimizer (YAML anchor/alias deduplication); ConstantFolder (post-order AST constant folding); StrengthReducer (post-order AST strength reduction for power-of-two multiplication/division and `x ** 2`); ReturnAnalyzer (non-mutating scope-aware walker that flags statements after a return as `UNREACHABLE_AFTER_RETURN`)
+    optimizer.py         — YamlAnchorOptimizer (YAML anchor/alias deduplication); ConstantFolder (extends ASTTraversal; post-order AST constant folding); StrengthReducer (extends ASTTraversal; post-order AST strength reduction for power-of-two multiplication/division and `x ** 2`); ReturnAnalyzer (non-mutating scope-aware walker that flags statements after a return as `UNREACHABLE_AFTER_RETURN`)
     tests/
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker

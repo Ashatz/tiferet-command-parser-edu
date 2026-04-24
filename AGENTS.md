@@ -258,7 +258,8 @@ src/
       test_semantic.py   — 9 tests for ScopeAggregate factories and mutation
       test_settings.py   — 13 tests for KeterTransferObject consume/peek/skip_comma/collect_balanced/decode_* helpers
   utils/
-    __init__.py          — Exports: TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ConstantFolder, StrengthReducer, ReturnAnalyzer (KeterLexer is intentionally NOT re-exported here; import it directly via `from src.utils.lexer_keter import KeterLexer`)
+    __init__.py          — Exports: ASTTraversal, TiferetLexer, TiferetParser, OutputWriter, OutputPrinter, ResultPayloadBuilder, emit, SymbolTableBuilder, NameResolver, TypeChecker, DocstringParser, IRGenerator, TiferetGenerator, YamlAnchorOptimizer, ConstantFolder, StrengthReducer, ReturnAnalyzer (KeterLexer is intentionally NOT re-exported here; import it directly via `from src.utils.lexer_keter import KeterLexer`)
+    settings.py          — ASTTraversal base class providing the shared declaration/statement traversal skeleton for AST transformation passes (traverse_declaration, traverse_statement, transform_expression hook)
     ir.py                — DocstringParser (static RST extraction) + IRGenerator (implements IRService; walks AST via public build_* methods)
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant; consumed by KeterIREventGroup via a lazy import
@@ -267,7 +268,7 @@ src/
     semantic.py          — SymbolTableBuilder (single-pass AST walker for scope/symbol construction) + NameResolver (second-pass name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
-    optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; YAML anchor/alias deduplication); ConstantFolder (implements ASTOptimizerService; post-order constant folding of numeric AST sub-expressions); StrengthReducer (implements ASTStrengthReducerService; post-order rewrite of multiplication/division by a power of two to shifts and `x ** 2` to `x * x`); ReturnAnalyzer (implements ReturnAnalyzerService; non-mutating scope-aware walk that flags statements following a return as `UNREACHABLE_AFTER_RETURN`)
+    optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; YAML anchor/alias deduplication); ConstantFolder (extends ASTTraversal + ASTOptimizerService; post-order constant folding of numeric AST sub-expressions); StrengthReducer (extends ASTTraversal + ASTStrengthReducerService; post-order rewrite of multiplication/division by a power of two to shifts and `x ** 2` to `x * x`); ReturnAnalyzer (implements ReturnAnalyzerService; non-mutating scope-aware walk that flags statements following a return as `UNREACHABLE_AFTER_RETURN`)
     tests/
       test_ir.py         — 19 tests for DocstringParser and IRGenerator
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker

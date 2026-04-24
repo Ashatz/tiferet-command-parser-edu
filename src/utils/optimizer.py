@@ -21,6 +21,7 @@ from ..interfaces.optimizer import (
     ReturnAnalyzerService,
 )
 from ..mappers.ast import ExpressionAggregate
+from .settings import ASTTraversal
 
 # *** constants
 
@@ -147,7 +148,7 @@ class YamlAnchorOptimizer(OptimizerService):
 
 
 # ** util: constant_folder
-class ConstantFolder(ASTOptimizerService):
+class ConstantFolder(ASTOptimizerService, ASTTraversal):
     '''
     Concrete AST optimizer that folds constant arithmetic expressions.
 
@@ -220,73 +221,25 @@ class ConstantFolder(ASTOptimizerService):
         :rtype: Declaration
         '''
 
-        # Walk the declaration chain starting at the root.
-        self.fold_declaration(ast)
+        # Walk the declaration chain via the shared ASTTraversal skeleton.
+        self.traverse_declaration(ast)
 
         # Return the (mutated) root.
         return ast
 
-    # * method: fold_declaration
-    def fold_declaration(self, decl: Optional[Declaration]) -> None:
+    # * method: transform_expression
+    def transform_expression(self, expr: Optional[Expression]) -> Optional[Expression]:
         '''
-        Recursively fold constant expressions within a declaration chain.
+        Route the ASTTraversal hook into fold_expression for constant folding.
 
-        :param decl: A Declaration node, or None to stop recursion.
-        :type decl: Declaration | None
-        '''
-
-        # Base case: nothing to fold.
-        if decl is None:
-            return
-
-        # Fold constant expressions in the declaration value field.
-        if decl.value is not None:
-            decl.value = self.fold_expression(decl.value)
-
-        # Recurse into the code block of the declaration.
-        if decl.code is not None:
-            self.fold_statement(decl.code)
-
-        # Continue to the next declaration in the chain.
-        if decl.next is not None:
-            self.fold_declaration(decl.next)
-
-    # * method: fold_statement
-    def fold_statement(self, stmt: Optional[Statement]) -> None:
-        '''
-        Recursively fold constant expressions within a statement chain.
-
-        :param stmt: A Statement node, or None to stop recursion.
-        :type stmt: Statement | None
+        :param expr: The expression node to transform, or None.
+        :type expr: Expression | None
+        :return: The folded expression, or the original if no fold applies.
+        :rtype: Expression | None
         '''
 
-        # Base case: nothing to fold.
-        if stmt is None:
-            return
-
-        # Fold expressions nested inside inline declarations.
-        if stmt.decl is not None:
-            self.fold_declaration(stmt.decl)
-
-        # Fold the primary expression of the statement.
-        if stmt.expr is not None:
-            stmt.expr = self.fold_expression(stmt.expr)
-
-        # Fold the initialisation expression (e.g. for-loop range).
-        if stmt.init_expr is not None:
-            stmt.init_expr = self.fold_expression(stmt.init_expr)
-
-        # Recurse into statement bodies (if-else, for, while, snippet).
-        if stmt.body is not None:
-            self.fold_statement(stmt.body)
-
-        # Recurse into the else branch.
-        if stmt.else_body is not None:
-            self.fold_statement(stmt.else_body)
-
-        # Continue to the next statement in the chain.
-        if stmt.next is not None:
-            self.fold_statement(stmt.next)
+        # Delegate to the fold-expression post-order traversal.
+        return self.fold_expression(expr)
 
     # * method: fold_expression
     def fold_expression(self, expr: Optional[Expression]) -> Optional[Expression]:
@@ -384,7 +337,7 @@ class ConstantFolder(ASTOptimizerService):
 
 
 # ** util: strength_reducer
-class StrengthReducer(ASTStrengthReducerService):
+class StrengthReducer(ASTStrengthReducerService, ASTTraversal):
     '''
     Concrete AST optimizer that rewrites a small set of expensive
     arithmetic operations into cheaper equivalents.
@@ -536,73 +489,25 @@ class StrengthReducer(ASTStrengthReducerService):
         :rtype: Declaration
         '''
 
-        # Walk the declaration chain starting at the root.
-        self.reduce_declaration(ast)
+        # Walk the declaration chain via the shared ASTTraversal skeleton.
+        self.traverse_declaration(ast)
 
         # Return the (mutated) root.
         return ast
 
-    # * method: reduce_declaration
-    def reduce_declaration(self, decl: Optional[Declaration]) -> None:
+    # * method: transform_expression
+    def transform_expression(self, expr: Optional[Expression]) -> Optional[Expression]:
         '''
-        Recursively strength-reduce expressions within a declaration chain.
+        Route the ASTTraversal hook into reduce_expression for strength reduction.
 
-        :param decl: A Declaration node, or None to stop recursion.
-        :type decl: Declaration | None
-        '''
-
-        # Base case: nothing to reduce.
-        if decl is None:
-            return
-
-        # Reduce the declaration value field, if any.
-        if decl.value is not None:
-            decl.value = self.reduce_expression(decl.value)
-
-        # Recurse into the declaration's code block.
-        if decl.code is not None:
-            self.reduce_statement(decl.code)
-
-        # Continue to the next declaration in the chain.
-        if decl.next is not None:
-            self.reduce_declaration(decl.next)
-
-    # * method: reduce_statement
-    def reduce_statement(self, stmt: Optional[Statement]) -> None:
-        '''
-        Recursively strength-reduce expressions within a statement chain.
-
-        :param stmt: A Statement node, or None to stop recursion.
-        :type stmt: Statement | None
+        :param expr: The expression node to transform, or None.
+        :type expr: Expression | None
+        :return: The strength-reduced expression, or the original if no pattern applies.
+        :rtype: Expression | None
         '''
 
-        # Base case: nothing to reduce.
-        if stmt is None:
-            return
-
-        # Recurse into inline declarations.
-        if stmt.decl is not None:
-            self.reduce_declaration(stmt.decl)
-
-        # Reduce the primary expression of the statement.
-        if stmt.expr is not None:
-            stmt.expr = self.reduce_expression(stmt.expr)
-
-        # Reduce the initialisation expression (e.g. for-loop range).
-        if stmt.init_expr is not None:
-            stmt.init_expr = self.reduce_expression(stmt.init_expr)
-
-        # Recurse into statement bodies (if-else, for, while, snippet).
-        if stmt.body is not None:
-            self.reduce_statement(stmt.body)
-
-        # Recurse into the else branch.
-        if stmt.else_body is not None:
-            self.reduce_statement(stmt.else_body)
-
-        # Continue to the next statement in the chain.
-        if stmt.next is not None:
-            self.reduce_statement(stmt.next)
+        # Delegate to the reduce-expression post-order traversal.
+        return self.reduce_expression(expr)
 
     # * method: reduce_expression
     def reduce_expression(self, expr: Optional[Expression]) -> Optional[Expression]:

@@ -103,13 +103,13 @@ Constant folding evaluates constant numeric sub-expressions at compile time, rep
 ### 5.2 Implementation
 
 - **Service interface:** `ASTOptimizerService` in [`src/interfaces/optimizer.py`](../src/interfaces/optimizer.py).
-- **Concrete utility:** `ConstantFolder` in [`src/utils/optimizer.py`](../src/utils/optimizer.py).
+- **Concrete utility:** `ConstantFolder` in [`src/utils/optimizer.py`](../src/utils/optimizer.py) — extends `ASTTraversal` (from [`src/utils/settings.py`](../src/utils/settings.py)) to inherit the shared declaration and statement traversal skeleton.
 - **Domain event:** `FoldConstants` in [`src/events/optimizer.py`](../src/events/optimizer.py).
 - **Container wiring:** `ast_optimizer_service` (concrete `ConstantFolder`) + `fold_constants_event` (domain event) in [`config.yml`](../config.yml).
 
 ### 5.3 Algorithm
 
-`ConstantFolder.fold(ast)` performs a **post-order walk** across the AST:
+`ConstantFolder.fold(ast)` calls `traverse_declaration(ast)` (inherited from `ASTTraversal`), which visits every declaration and statement node and calls `transform_expression` on each expression field. `ConstantFolder.transform_expression` delegates to `fold_expression`, which performs a **post-order walk** across the expression tree:
 
 - Recursively folds children of each `Expression` node.
 - Attempts to fold the current node only when its `kind` is in `ARITHMETIC_OPS = {ADD, SUB, MUL, DIV, MOD, EXP}` **and** both child expressions return `True` from `is_numeric(expr)` (INT_VAL, NUM_VAL, or STR_VAL whose value parses as a number — the latter accommodates the parser's habit of storing raw integer tokens as STR_VAL).
@@ -159,7 +159,7 @@ Strength reduction replaces expensive arithmetic with cheaper equivalents. The T
 ### 6.2 Implementation
 
 - **Service interface:** `ASTStrengthReducerService` in [`src/interfaces/optimizer.py`](../src/interfaces/optimizer.py).
-- **Concrete utility:** `StrengthReducer` in [`src/utils/optimizer.py`](../src/utils/optimizer.py).
+- **Concrete utility:** `StrengthReducer` in [`src/utils/optimizer.py`](../src/utils/optimizer.py) — extends `ASTTraversal` (from [`src/utils/settings.py`](../src/utils/settings.py)) to inherit the shared declaration and statement traversal skeleton.
 - **Domain event:** `ReduceStrength` in [`src/events/optimizer.py`](../src/events/optimizer.py).
 - **Container wiring:** `ast_strength_reducer_service` + `reduce_strength_event` in [`config.yml`](../config.yml).
 
@@ -525,9 +525,11 @@ python compiler.py ir event <source>.py -O O1 -o out.keter
 
 The Tiferet optimizer is implemented as four cleanly-separated Tiferet domain events, each backed by a concrete utility class that implements an injectable service interface:
 
-- **`FoldConstants` → `ConstantFolder` → `ASTOptimizerService`** — compile-time arithmetic on numeric literals.
-- **`ReduceStrength` → `StrengthReducer` → `ASTStrengthReducerService`** — three textbook strength-reduction rewrites (`* 2**k`, `/ 2**k`, `** 2`).
+- **`FoldConstants` → `ConstantFolder` → `ASTOptimizerService` + `ASTTraversal`** — compile-time arithmetic on numeric literals. Inherits the shared declaration/statement traversal from `ASTTraversal`; overrides `transform_expression` to route into `fold_expression`.
+- **`ReduceStrength` → `StrengthReducer` → `ASTStrengthReducerService` + `ASTTraversal`** — three textbook strength-reduction rewrites (`* 2**k`, `/ 2**k`, `** 2`). Inherits the shared traversal from `ASTTraversal`; overrides `transform_expression` to route into `reduce_expression`.
 - **`AnalyzeReturns` → `ReturnAnalyzer` → `ReturnAnalyzerService`** — non-mutating unreachable-code detection.
 - **`OptimizeCode` → `YamlAnchorOptimizer` → `OptimizerService`** — post-codegen YAML anchor/alias deduplication.
+
+`ASTTraversal` (defined in `src/utils/settings.py`) provides the shared `traverse_declaration` and `traverse_statement` skeleton consumed by both `ConstantFolder` and `StrengthReducer`, eliminating duplicated traversal code between the two passes.
 
 The four passes are wired into [`config.yml`](../config.yml) and executed from [`compiler.py`](../compiler.py) via the standard `-O` flag. This folder supplies only the **documentation** and the **reference YAML outputs** — satisfying the deliverable while keeping the single source of truth in the production code under [`src/`](../src).

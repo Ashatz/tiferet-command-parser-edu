@@ -3,6 +3,7 @@
 # *** exports
 
 # ** app
+from .settings import ASTTraversal
 from .lexer import TiferetLexer
 from .parser import TiferetParser
 from .output import OutputWriter, OutputPrinter, ResultPayloadBuilder, emit

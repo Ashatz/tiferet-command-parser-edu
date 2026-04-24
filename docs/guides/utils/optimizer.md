@@ -15,6 +15,7 @@ The optimizer module provides four concrete utilities that together implement th
 Each utility implements a dedicated service interface and is driven by a single-purpose domain event, keeping each optimization independently injectable, testable, and wirable.
 
 **Files:**
+- `src/utils/settings.py` — `ASTTraversal` shared traversal base class
 - `src/utils/optimizer.py` — `YamlAnchorOptimizer`, `ConstantFolder`, `StrengthReducer`, `ReturnAnalyzer`
 - `src/interfaces/optimizer.py` — `OptimizerService`, `ASTOptimizerService`, `ASTStrengthReducerService`, `ReturnAnalyzerService` abstract interfaces
 - `src/events/optimizer.py` — `FoldConstants`, `ReduceStrength`, `OptimizeCode`, `AnalyzeReturns` domain events
@@ -59,6 +60,36 @@ class ReturnAnalyzerService(Service):
     def analyze(self, ast: Declaration) -> List[Dict]:
         '''Return warnings for statements following a return in scope.'''
         raise NotImplementedError()
+```
+
+## ASTTraversal
+
+Base class in `src/utils/settings.py` that provides the shared declaration and statement traversal skeleton for AST transformation passes.
+
+Both `ConstantFolder` and `StrengthReducer` extend `ASTTraversal` alongside their respective service interfaces, inheriting `traverse_declaration` and `traverse_statement` and overriding the `transform_expression` hook to route into their own expression-level rewrite logic.
+
+### Public Methods
+
+- **`traverse_declaration(decl)`** — walks a `Declaration` chain: transforms `decl.value`, recurses into `decl.code` via `traverse_statement`, then follows `decl.next`.
+- **`traverse_statement(stmt)`** — walks a `Statement` chain: recurses into `stmt.decl`, transforms `stmt.expr` and `stmt.init_expr`, recurses into `stmt.body` and `stmt.else_body`, then follows `stmt.next`.
+- **`transform_expression(expr)`** — hook called by the traversal for every expression field encountered. Default returns `expr` unchanged. Subclasses override to apply per-expression rewrites.
+
+### Extending ASTTraversal
+
+To write a new AST transformation pass, extend `ASTTraversal`, override `transform_expression` to apply your rewrite after children are handled, and call `traverse_declaration(ast)` as the entry point:
+
+```python path=null start=null
+class MyPass(ASTTraversal):
+    def transform_expression(self, expr):
+        return self.my_rewrite(expr)  # your expression-level logic
+
+    def my_rewrite(self, expr):
+        if expr is None:
+            return None
+        if expr.left:  expr.left  = self.my_rewrite(expr.left)
+        if expr.right: expr.right = self.my_rewrite(expr.right)
+        # ... apply rewrite and return
+        return expr
 ```
 
 ## YamlAnchorOptimizer
@@ -114,11 +145,12 @@ AST-level optimizer that performs a post-order walk over the module declaration 
 ### Public Methods
 
 - **`is_numeric(expr)`** — returns True when *expr* is a foldable numeric literal (including numeric `STR_VAL`).
-- **`fold(ast)`** — entry point. Walks the entire declaration chain and returns the (mutated) root.
-- **`fold_declaration(decl)`** — recurses into `decl.value` and `decl.code`, then into `decl.next`.
-- **`fold_statement(stmt)`** — recurses into inline declarations, `expr`, `init_expr`, `body`, `else_body`, and `next`.
-- **`fold_expression(expr)`** — post-order: folds left and right children first, then attempts to collapse the current node.
+- **`fold(ast)`** — entry point. Calls `traverse_declaration(ast)` (inherited from `ASTTraversal`) and returns the (mutated) root.
+- **`transform_expression(expr)`** — overrides the `ASTTraversal` hook; routes directly into `fold_expression`.
+- **`fold_expression(expr)`** — post-order: recurses into left and right children (via itself), then attempts to collapse the current node.
 - **`evaluate(expr)`** — computes the result of a binary arithmetic node with two numeric-literal children.
+
+`traverse_declaration` and `traverse_statement` are inherited from `ASTTraversal` and are no longer defined on `ConstantFolder` directly.
 
 ### Result Kind Rules
 
@@ -157,9 +189,12 @@ Anything that does not match one of these patterns — non-integer literals, zer
 - **`is_literal_two(expr)`** — guard used by the exponentiation rewrite; returns True iff *expr* is the literal `2`.
 - **`deep_copy_expr(expr)`** — recursive structural clone of an `Expression` tree into a fresh `ExpressionAggregate`. Used only for the `x ** 2` rewrite.
 - **`make_int_literal(value, lineno, col)`** — helper that builds an `INT_VAL` node carrying the shift amount.
-- **`reduce(ast)`** — entry point. Walks the entire declaration chain and returns the (mutated) root.
-- **`reduce_declaration(decl)`** / **`reduce_statement(stmt)`** / **`reduce_expression(expr)`** — mirror the traversal structure of `ConstantFolder.fold_*`.
+- **`reduce(ast)`** — entry point. Calls `traverse_declaration(ast)` (inherited from `ASTTraversal`) and returns the (mutated) root.
+- **`transform_expression(expr)`** — overrides the `ASTTraversal` hook; routes directly into `reduce_expression`.
+- **`reduce_expression(expr)`** — post-order: recurses into left and right children (via itself), then attempts the three strength-reduction rewrites.
 - **`try_reduce_mul(expr)`** / **`try_reduce_div(expr)`** / **`try_reduce_exp(expr)`** — per-pattern rewrite helpers.
+
+`traverse_declaration` and `traverse_statement` are inherited from `ASTTraversal` and are no longer defined on `StrengthReducer` directly.
 
 ### Position Preservation
 
