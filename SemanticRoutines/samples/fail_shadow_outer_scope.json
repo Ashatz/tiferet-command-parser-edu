@@ -1,0 +1,233 @@
+{
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-26T20:58:18.791222+00:00",
+  "source_file": "samples/fail_shadow_outer_scope.py",
+  "ast": {
+    "name": "fail_shadow_outer_scope",
+    "doc_string": "\"\"\"Semantic failure: the execute method declares a local `count` that shadows the class attribute `count` defined in the enclosing class scope.\"\"\"",
+    "code": {
+      "kind": "artifact",
+      "decl": {
+        "name": "imports",
+        "type": {
+          "kind": "artifact"
+        },
+        "metadata": {
+          "type": "***"
+        },
+        "lineno": 3,
+        "col": 0
+      },
+      "body": {
+        "kind": "artifact",
+        "decl": {
+          "name": "app",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "**"
+          },
+          "lineno": 5,
+          "col": 0
+        },
+        "body": {
+          "kind": "import_from",
+          "lineno": 6,
+          "col": 0,
+          "init_expr": {
+            "kind": "name",
+            "name": ".settings"
+          },
+          "expr": {
+            "kind": "name",
+            "name": "DomainEvent"
+          }
+        }
+      },
+      "next": {
+        "kind": "artifact",
+        "decl": {
+          "name": "events",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "***"
+          },
+          "lineno": 8,
+          "col": 0
+        },
+        "body": {
+          "kind": "artifact",
+          "decl": {
+            "name": "shadow_var",
+            "type": {
+              "kind": "artifact"
+            },
+            "metadata": {
+              "type": "** event"
+            },
+            "lineno": 10,
+            "col": 0
+          },
+          "body": {
+            "kind": "decl",
+            "decl": {
+              "name": "ShadowVar",
+              "type": {
+                "kind": "class",
+                "name": "ShadowVar",
+                "subtype": {
+                  "kind": "class",
+                  "name": "DomainEvent"
+                }
+              },
+              "doc_string": "\"\"\"An event whose local variable shadows an attribute defined on the same class.\"\"\"",
+              "code": {
+                "kind": "decl",
+                "decl": {
+                  "name": "attribute",
+                  "type": {
+                    "kind": "artifact"
+                  },
+                  "metadata": {
+                    "type": "ARTIFACT_MEMBER"
+                  },
+                  "code": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "count",
+                      "type": {
+                        "kind": "int"
+                      },
+                      "lineno": 15,
+                      "col": 4
+                    }
+                  },
+                  "lineno": 14,
+                  "col": 4,
+                  "next": {
+                    "name": "method",
+                    "type": {
+                      "kind": "artifact"
+                    },
+                    "metadata": {
+                      "type": "ARTIFACT_MEMBER"
+                    },
+                    "code": {
+                      "kind": "decl",
+                      "decl": {
+                        "name": "execute",
+                        "type": {
+                          "kind": "func",
+                          "return_type": {
+                            "kind": "int"
+                          },
+                          "params": {
+                            "name": "self",
+                            "type": {
+                              "kind": "unknown"
+                            },
+                            "required": true,
+                            "next": {
+                              "name": "a",
+                              "type": {
+                                "kind": "int"
+                              },
+                              "required": true
+                            }
+                          }
+                        },
+                        "doc_string": "\"\"\"Declare a local `count` that shadows the outer class attribute.\n\n        :param a: An offset added to the shadowed local.\n        :type a: int\n        :return: The combined int value.\n        :rtype: int\n        \"\"\"",
+                        "code": {
+                          "kind": "snippet",
+                          "body": {
+                            "kind": "comment",
+                            "lineno": 27,
+                            "col": 8,
+                            "expr": {
+                              "kind": "comment",
+                              "value": "# `count` already exists in the enclosing class scope \u2014 flagged as shadowing.",
+                              "lineno": 27,
+                              "col": 8
+                            },
+                            "next": {
+                              "kind": "expr",
+                              "lineno": 0,
+                              "col": 0,
+                              "expr": {
+                                "kind": "assign",
+                                "left": {
+                                  "kind": "name",
+                                  "name": "count",
+                                  "lineno": 28,
+                                  "col": 8
+                                },
+                                "right": {
+                                  "kind": "int_val",
+                                  "value": "5",
+                                  "lineno": 28,
+                                  "col": 16
+                                },
+                                "lineno": 28,
+                                "col": 14
+                              }
+                            }
+                          },
+                          "next": {
+                            "kind": "snippet",
+                            "body": {
+                              "kind": "comment",
+                              "lineno": 30,
+                              "col": 8,
+                              "expr": {
+                                "kind": "comment",
+                                "value": "# Return the shadowed local plus a parameter.",
+                                "lineno": 30,
+                                "col": 8
+                              },
+                              "next": {
+                                "kind": "return",
+                                "lineno": 31,
+                                "col": 8,
+                                "expr": {
+                                  "kind": "add",
+                                  "value": "+",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "count",
+                                    "lineno": 31,
+                                    "col": 15
+                                  },
+                                  "right": {
+                                    "kind": "name",
+                                    "name": "a",
+                                    "lineno": 31,
+                                    "col": 23
+                                  },
+                                  "lineno": 31,
+                                  "col": 21
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "lineno": 18,
+                        "col": 4
+                      }
+                    },
+                    "lineno": 17,
+                    "col": 4
+                  }
+                }
+              },
+              "lineno": 11,
+              "col": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

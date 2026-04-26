@@ -12,7 +12,7 @@ import ply.yacc as yacc
 from ..events import a
 from ..interfaces import ParserService
 from ..mappers import TokenAggregate, Decl, Stmt, Expr, Type, ParamList
-from ..mappers.ast import TypeKind
+from ..mappers.ast import TypeKind, ExprKind
 
 # *** utils
 
@@ -1106,8 +1106,8 @@ class TiferetParser(ParserBase):
 
     # * method: p_exponential_expr (rule)
     def p_exponential_expr(self, p):
-        '''exponential_expr : name_or_literal_expr DOUBLESTAR exponential_expr
-                            | name_or_literal_expr'''
+        '''exponential_expr : primary_expr DOUBLESTAR exponential_expr
+                            | primary_expr'''
 
         # Build an exponential expression (right-associative) or pass through the base expression.
         if len(p) == 4:
@@ -1115,6 +1115,20 @@ class TiferetParser(ParserBase):
             p[0] = Expr.new_operator_expr(left=p[1], operator=p[2], right=p[3], lineno=ln, col=col)
         else:
             p[0] = p[1]
+
+    # * method: p_primary_expr (rule)
+    def p_primary_expr(self, p):
+        '''primary_expr : name_or_literal_expr'''
+
+        # Pass through a name or literal expression as the simplest primary form.
+        p[0] = p[1]
+
+    # * method: p_primary_expr_paren (rule)
+    def p_primary_expr_paren(self, p):
+        '''primary_expr : LPAREN operation_expr RPAREN'''
+
+        # Parenthesized expressions group a full operation_expr as a primary expression, allowing arbitrary nesting.
+        p[0] = p[2]
 
     # * method: p_call_expr (rule)
     def p_call_expr(self, p):
@@ -1161,8 +1175,36 @@ class TiferetParser(ParserBase):
                  | FALSE'''
 
         # Build a literal expression from a string, number, or boolean token.
+        # Use the actual token type from PLY to choose the correct ExprKind
+        # rather than inferring from the raw value (which is always a str).
         ln, col = self.pos(p, 1)
-        p[0] = Expr.new_name_or_literal_expr(p[1], lineno=ln, col=col)
+        token_type = p.slice[1].type
+        value = p[1]
+
+        if token_type == 'STRING_LITERAL':
+            p[0] = Expr(
+                kind=ExprKind.STR_VAL,
+                value=value,
+                lineno=ln,
+                col=col,
+            )
+        elif token_type == 'NUMBER_LITERAL':
+            kind = ExprKind.NUM_VAL if '.' in str(value) else ExprKind.INT_VAL
+            p[0] = Expr(
+                kind=kind,
+                value=value,
+                lineno=ln,
+                col=col,
+            )
+        elif token_type in ('TRUE', 'FALSE'):
+            p[0] = Expr(
+                kind=ExprKind.BOOL_VAL,
+                value=value,
+                lineno=ln,
+                col=col,
+            )
+        else:
+            p[0] = Expr.new_name_or_literal_expr(value, lineno=ln, col=col)
 
     # * method: p_name_or_literal_expr (rule)
     def p_name_or_literal_expr(self, p):

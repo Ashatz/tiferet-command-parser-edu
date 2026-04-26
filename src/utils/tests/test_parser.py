@@ -1279,3 +1279,269 @@ def test_parse_shift_precedence_below_additive(parser: TiferetParser) -> None:
     assert outer.left.kind == ExprKind.ADD
     assert outer.left.left.name == 'a'
     assert outer.left.right.name == 'b'
+
+
+# *** tests — parenthesized arithmetic expressions
+
+# ** test: parse_paren_simple
+def test_parse_paren_simple(parser: TiferetParser) -> None:
+    '''Parse `return (a + b)` — a parenthesized sum is preserved as an ADD
+    expression with no surrounding wrapper kind.'''
+
+    body_tokens = [
+        tok('RETURN', 'return'),
+        tok('LPAREN', '('),
+        tok('IDENTIFIER', 'a'),
+        tok('PLUS', '+'),
+        tok('IDENTIFIER', 'b'),
+        tok('RPAREN', ')'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    ret = get_func_decl(module).code.body
+    assert ret.kind == StatementKind.RETURN
+    assert ret.expr.kind == ExprKind.ADD
+    assert ret.expr.left.name == 'a'
+    assert ret.expr.right.name == 'b'
+
+
+# ** test: parse_paren_overrides_precedence
+def test_parse_paren_overrides_precedence(parser: TiferetParser) -> None:
+    '''Parse `return 2 * (3 + 4)` — parentheses lift `+` above `*`, so the
+    multiplication's right operand is the parenthesized ADD subtree.'''
+
+    body_tokens = [
+        tok('RETURN', 'return'),
+        tok('NUMBER_LITERAL', '2'),
+        tok('STAR', '*'),
+        tok('LPAREN', '('),
+        tok('NUMBER_LITERAL', '3'),
+        tok('PLUS', '+'),
+        tok('NUMBER_LITERAL', '4'),
+        tok('RPAREN', ')'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    ret = get_func_decl(module).code.body
+    mul = ret.expr
+    assert mul.kind == ExprKind.MUL
+    assert mul.left.value == '2'
+    assert mul.right.kind == ExprKind.ADD
+    assert mul.right.left.value == '3'
+    assert mul.right.right.value == '4'
+
+
+# ** test: parse_paren_complex_arithmetic
+def test_parse_paren_complex_arithmetic(parser: TiferetParser) -> None:
+    '''Parse `return 5 * 8 - 6 + (11 - 9 * 7) + 3` — the canonical large
+    arithmetic expression. The expected tree (left-associative `+`/`-`,
+    `*` binding tighter than `+`/`-`, parens lifting an inner expression)
+    is:
+
+        ((((5*8) - 6) + (11 - 9*7)) + 3)
+    '''
+
+    body_tokens = [
+        tok('RETURN', 'return'),
+        tok('NUMBER_LITERAL', '5'),
+        tok('STAR', '*'),
+        tok('NUMBER_LITERAL', '8'),
+        tok('MINUS', '-'),
+        tok('NUMBER_LITERAL', '6'),
+        tok('PLUS', '+'),
+        tok('LPAREN', '('),
+        tok('NUMBER_LITERAL', '11'),
+        tok('MINUS', '-'),
+        tok('NUMBER_LITERAL', '9'),
+        tok('STAR', '*'),
+        tok('NUMBER_LITERAL', '7'),
+        tok('RPAREN', ')'),
+        tok('PLUS', '+'),
+        tok('NUMBER_LITERAL', '3'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    ret = get_func_decl(module).code.body
+    root = ret.expr
+
+    # Outermost `+ 3`.
+    assert root.kind == ExprKind.ADD
+    assert root.right.value == '3'
+
+    # Next layer: `((5*8 - 6) + (11 - 9*7))`.
+    plus_paren = root.left
+    assert plus_paren.kind == ExprKind.ADD
+
+    # Left of plus_paren: `(5*8) - 6`.
+    minus_six = plus_paren.left
+    assert minus_six.kind == ExprKind.SUB
+    assert minus_six.right.value == '6'
+    times = minus_six.left
+    assert times.kind == ExprKind.MUL
+    assert times.left.value == '5'
+    assert times.right.value == '8'
+
+    # Right of plus_paren: `(11 - 9*7)` with `9*7` binding tighter than `-`.
+    inner = plus_paren.right
+    assert inner.kind == ExprKind.SUB
+    assert inner.left.value == '11'
+    assert inner.right.kind == ExprKind.MUL
+    assert inner.right.left.value == '9'
+    assert inner.right.right.value == '7'
+
+
+# ** test: parse_paren_nested
+def test_parse_paren_nested(parser: TiferetParser) -> None:
+    '''Parse `return ((a + b) * c)` — nested parens parse cleanly.'''
+
+    body_tokens = [
+        tok('RETURN', 'return'),
+        tok('LPAREN', '('),
+        tok('LPAREN', '('),
+        tok('IDENTIFIER', 'a'),
+        tok('PLUS', '+'),
+        tok('IDENTIFIER', 'b'),
+        tok('RPAREN', ')'),
+        tok('STAR', '*'),
+        tok('IDENTIFIER', 'c'),
+        tok('RPAREN', ')'),
+        tok('NEWLINE', '\n'),
+    ]
+    tokens = make_event_module(make_method_tokens(body=body_tokens))
+    module = parser.parse('test', tokens)
+
+    ret = get_func_decl(module).code.body
+    mul = ret.expr
+    assert mul.kind == ExprKind.MUL
+    assert mul.right.name == 'c'
+    assert mul.left.kind == ExprKind.ADD
+    assert mul.left.left.name == 'a'
+    assert mul.left.right.name == 'b'
+
+
+# ** test: parse_module_multiple_decls_stmts
+def test_parse_module_multiple_decls_stmts(parser: TiferetParser) -> None:
+    '''Parse a module with two class declarations, two methods (a third
+    declaration each), multiple statements per method, and parameters
+    of multiple types. Verifies that the AST surfaces multiple
+    declarations, statements, expressions, and types.'''
+
+    method_one = [
+        tok('LINE_COMMENT', '# Compute total.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'total'),
+        tok('EQUALS', '='),
+        tok('IDENTIFIER', 'a'),
+        tok('PLUS', '+'),
+        tok('IDENTIFIER', 'b'),
+        tok('NEWLINE', '\n'),
+        tok('RETURN', 'return'),
+        tok('IDENTIFIER', 'total'),
+        tok('NEWLINE', '\n'),
+    ]
+    method_two = [
+        tok('LINE_COMMENT', '# Format label.'),
+        tok('NEWLINE', '\n'),
+        tok('IDENTIFIER', 'label'),
+        tok('EQUALS', '='),
+        tok('STRING_LITERAL', "'value'"),
+        tok('NEWLINE', '\n'),
+        tok('RETURN', 'return'),
+        tok('IDENTIFIER', 'label'),
+        tok('NEWLINE', '\n'),
+    ]
+
+    int_params_one = [
+        tok('IDENTIFIER', 'a'), tok('COLON', ':'), tok('IDENTIFIER', 'int'),
+        tok('COMMA', ','),
+        tok('IDENTIFIER', 'b'), tok('COLON', ':'), tok('IDENTIFIER', 'int'),
+    ]
+    str_params = [
+        tok('IDENTIFIER', 'name'), tok('COLON', ':'), tok('IDENTIFIER', 'str'),
+    ]
+    int_ret = [tok('ARROW', '->'), tok('IDENTIFIER', 'int')]
+    str_ret = [tok('ARROW', '->'), tok('IDENTIFIER', 'str')]
+
+    tokens = [
+        # First class.
+        tok('ARTIFACT_START', '# *** events'),
+        tok('NEWLINE', '\n'),
+        tok('ARTIFACT_SECTION', '# ** event: adder'),
+        tok('NEWLINE', '\n'),
+        tok('CLASS', 'class'),
+        tok('IDENTIFIER', 'Adder'),
+        tok('LPAREN', '('),
+        tok('IDENTIFIER', 'DomainEvent'),
+        tok('RPAREN', ')'),
+        tok('COLON', ':'),
+        tok('NEWLINE', '\n'),
+        tok('INDENT', ''),
+        *make_method_tokens(name='compute', params=int_params_one,
+                            ret=int_ret, body=method_one),
+        tok('DEDENT', ''),
+        # Second class.
+        tok('ARTIFACT_SECTION', '# ** event: greeter'),
+        tok('NEWLINE', '\n'),
+        tok('CLASS', 'class'),
+        tok('IDENTIFIER', 'Greeter'),
+        tok('LPAREN', '('),
+        tok('IDENTIFIER', 'DomainEvent'),
+        tok('RPAREN', ')'),
+        tok('COLON', ':'),
+        tok('NEWLINE', '\n'),
+        tok('INDENT', ''),
+        *make_method_tokens(name='describe', params=str_params,
+                            ret=str_ret, body=method_two),
+        tok('DEDENT', ''),
+    ]
+    module = parser.parse('test', tokens)
+
+    # Two sections (one class each) inside the same group.
+    sections = collect(get_group(module).body)
+    assert len(sections) == 2
+    adder = get_class_decl(module, g=0, s=0)
+    greeter = get_class_decl(module, g=0, s=1)
+    assert adder.name == 'Adder'
+    assert greeter.name == 'Greeter'
+
+    # Each class has at least one method member.
+    adder_member = collect(adder.code.decl)[0]
+    greeter_member = collect(greeter.code.decl)[0]
+    assert adder_member.name == 'method'
+    assert greeter_member.name == 'method'
+
+    # Method signatures cover multiple types.
+    adder_func = adder_member.code.decl
+    greeter_func = greeter_member.code.decl
+    assert adder_func.type.return_type.kind == TypeKind.INT
+    assert greeter_func.type.return_type.kind == TypeKind.STR
+
+    # Adder.compute params: self, a:int, b:int.
+    adder_params = collect(adder_func.type.params)
+    assert [p.name for p in adder_params] == ['self', 'a', 'b']
+    assert adder_params[1].type.kind == TypeKind.INT
+
+    # Greeter.describe params: self, name:str.
+    greeter_params = collect(greeter_func.type.params)
+    assert [p.name for p in greeter_params] == ['self', 'name']
+    assert greeter_params[1].type.kind == TypeKind.STR
+
+    # The compute method body has two statements (assign + return) and
+    # the assignment RHS is an ADD expression.
+    snippet = adder_func.code
+    assign_stmt = [s for s in collect(snippet.body) if s.kind == StatementKind.EXPR][0]
+    assert assign_stmt.expr.kind == ExprKind.ASSIGN
+    assert assign_stmt.expr.right.kind == ExprKind.ADD
+
+    # The describe method body assigns a string literal and then returns the local.
+    desc_snippet = greeter_func.code
+    desc_stmts = collect(desc_snippet.body)
+    desc_assign = [s for s in desc_stmts if s.kind == StatementKind.EXPR][0]
+    assert desc_assign.expr.right.kind == ExprKind.STR_VAL
+    assert any(s.kind == StatementKind.RETURN for s in desc_stmts)

@@ -55,5 +55,8 @@ class PerformTypeCheck(DomainEvent):
         checker = TypeChecker(scopes)
         errors = checker.check(ast)
 
-        # Return the list of type errors.
-        return errors
+        # Merge any structural builder errors (duplicate / shadowing
+        # variable definitions) ahead of the type errors so the report
+        # surfaces all semantic findings together.
+        builder_errors = semantic.get('builder_errors', []) or []
+        return list(builder_errors) + list(errors)

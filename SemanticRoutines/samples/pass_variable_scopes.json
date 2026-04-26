@@ -1,0 +1,654 @@
+{
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-26T20:58:17.728660+00:00",
+  "source_file": "samples/pass_variable_scopes.py",
+  "symbol_table": {
+    "module_name": "pass_variable_scopes",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": "tiferet.events"
+          },
+          "ScopedCalc": {
+            "name": "ScopedCalc",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "ScopedCalc": "module.ScopedCalc"
+        }
+      },
+      "module.ScopedCalc": {
+        "name": "ScopedCalc",
+        "kind": "class_def",
+        "path": "module.ScopedCalc",
+        "symbols": {
+          "base": {
+            "name": "base",
+            "kind": "attribute",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc"
+          },
+          "prepare": {
+            "name": "prepare",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc"
+          },
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc"
+          }
+        },
+        "children": {
+          "prepare": "module.ScopedCalc.prepare",
+          "execute": "module.ScopedCalc.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.ScopedCalc.prepare": {
+        "name": "prepare",
+        "kind": "method",
+        "path": "module.ScopedCalc.prepare",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.ScopedCalc.prepare"
+          },
+          "factor": {
+            "name": "factor",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc.prepare"
+          },
+          "scaled": {
+            "name": "scaled",
+            "kind": "variable",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc.prepare"
+          }
+        },
+        "children": {},
+        "parent_path": "module.ScopedCalc"
+      },
+      "module.ScopedCalc.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.ScopedCalc.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.ScopedCalc.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc.execute"
+          },
+          "offset": {
+            "name": "offset",
+            "kind": "variable",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc.execute"
+          },
+          "ratio": {
+            "name": "ratio",
+            "kind": "variable",
+            "type_annotation": "float",
+            "scope_path": "module.ScopedCalc.execute"
+          },
+          "label": {
+            "name": "label",
+            "kind": "variable",
+            "type_annotation": "str",
+            "scope_path": "module.ScopedCalc.execute"
+          },
+          "total": {
+            "name": "total",
+            "kind": "variable",
+            "type_annotation": "int",
+            "scope_path": "module.ScopedCalc.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.ScopedCalc"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "self.base",
+        "scope_path": "module.ScopedCalc.prepare",
+        "resolved_to": "module.ScopedCalc"
+      },
+      {
+        "name": "factor",
+        "scope_path": "module.ScopedCalc.prepare",
+        "resolved_to": "module.ScopedCalc.prepare"
+      },
+      {
+        "name": "scaled",
+        "scope_path": "module.ScopedCalc.prepare",
+        "resolved_to": "module.ScopedCalc.prepare"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.ScopedCalc.execute",
+        "resolved_to": "module.ScopedCalc.execute"
+      },
+      {
+        "name": "b",
+        "scope_path": "module.ScopedCalc.execute",
+        "resolved_to": "module.ScopedCalc.execute"
+      },
+      {
+        "name": "offset",
+        "scope_path": "module.ScopedCalc.execute",
+        "resolved_to": "module.ScopedCalc.execute"
+      },
+      {
+        "name": "total",
+        "scope_path": "module.ScopedCalc.execute",
+        "resolved_to": "module.ScopedCalc.execute"
+      }
+    ],
+    "unresolved": []
+  },
+  "ast": {
+    "name": "pass_variable_scopes",
+    "doc_string": "\"\"\"A calculator event that demonstrates local variables across data types and method scopes, plus arithmetic assignments that validate inferred types.\"\"\"",
+    "code": {
+      "kind": "artifact",
+      "decl": {
+        "name": "imports",
+        "type": {
+          "kind": "artifact"
+        },
+        "metadata": {
+          "type": "***"
+        },
+        "lineno": 3,
+        "col": 0
+      },
+      "body": {
+        "kind": "artifact",
+        "decl": {
+          "name": "infra",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "**"
+          },
+          "lineno": 5,
+          "col": 0
+        },
+        "body": {
+          "kind": "import_from",
+          "lineno": 6,
+          "col": 0,
+          "init_expr": {
+            "kind": "name",
+            "name": "tiferet.events"
+          },
+          "expr": {
+            "kind": "name",
+            "name": "DomainEvent"
+          }
+        }
+      },
+      "next": {
+        "kind": "artifact",
+        "decl": {
+          "name": "events",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "***"
+          },
+          "lineno": 8,
+          "col": 0
+        },
+        "body": {
+          "kind": "artifact",
+          "decl": {
+            "name": "scoped_calc",
+            "type": {
+              "kind": "artifact"
+            },
+            "metadata": {
+              "type": "** event"
+            },
+            "lineno": 10,
+            "col": 0
+          },
+          "body": {
+            "kind": "decl",
+            "decl": {
+              "name": "ScopedCalc",
+              "type": {
+                "kind": "class",
+                "name": "ScopedCalc",
+                "subtype": {
+                  "kind": "class",
+                  "name": "DomainEvent"
+                }
+              },
+              "doc_string": "\"\"\"An event with class state and locals across multiple method scopes.\"\"\"",
+              "code": {
+                "kind": "decl",
+                "decl": {
+                  "name": "attribute",
+                  "type": {
+                    "kind": "artifact"
+                  },
+                  "metadata": {
+                    "type": "ARTIFACT_MEMBER"
+                  },
+                  "code": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "base",
+                      "type": {
+                        "kind": "int"
+                      },
+                      "lineno": 15,
+                      "col": 4
+                    }
+                  },
+                  "lineno": 14,
+                  "col": 4,
+                  "next": {
+                    "name": "method",
+                    "type": {
+                      "kind": "artifact"
+                    },
+                    "metadata": {
+                      "type": "ARTIFACT_MEMBER"
+                    },
+                    "code": {
+                      "kind": "decl",
+                      "decl": {
+                        "name": "prepare",
+                        "type": {
+                          "kind": "func",
+                          "return_type": {
+                            "kind": "int"
+                          },
+                          "params": {
+                            "name": "self",
+                            "type": {
+                              "kind": "unknown"
+                            },
+                            "required": true,
+                            "next": {
+                              "name": "factor",
+                              "type": {
+                                "kind": "int"
+                              },
+                              "required": true
+                            }
+                          }
+                        },
+                        "doc_string": "\"\"\"Return a method-local int derived from a class attribute and an int parameter.\n\n        :param factor: A scaling factor.\n        :type factor: int\n        :return: The prepared value.\n        :rtype: int\n        \"\"\"",
+                        "code": {
+                          "kind": "snippet",
+                          "body": {
+                            "kind": "comment",
+                            "lineno": 27,
+                            "col": 8,
+                            "expr": {
+                              "kind": "comment",
+                              "value": "# A method-local int variable.",
+                              "lineno": 27,
+                              "col": 8
+                            },
+                            "next": {
+                              "kind": "expr",
+                              "lineno": 0,
+                              "col": 0,
+                              "expr": {
+                                "kind": "assign",
+                                "left": {
+                                  "kind": "name",
+                                  "name": "scaled",
+                                  "lineno": 28,
+                                  "col": 8
+                                },
+                                "right": {
+                                  "kind": "mul",
+                                  "value": "*",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "self.base",
+                                    "lineno": 28,
+                                    "col": 17
+                                  },
+                                  "right": {
+                                    "kind": "name",
+                                    "name": "factor",
+                                    "lineno": 28,
+                                    "col": 29
+                                  },
+                                  "lineno": 28,
+                                  "col": 27
+                                },
+                                "lineno": 28,
+                                "col": 15
+                              }
+                            }
+                          },
+                          "next": {
+                            "kind": "snippet",
+                            "body": {
+                              "kind": "comment",
+                              "lineno": 30,
+                              "col": 8,
+                              "expr": {
+                                "kind": "comment",
+                                "value": "# Return the computed value.",
+                                "lineno": 30,
+                                "col": 8
+                              },
+                              "next": {
+                                "kind": "return",
+                                "lineno": 31,
+                                "col": 8,
+                                "expr": {
+                                  "kind": "name",
+                                  "name": "scaled",
+                                  "lineno": 31,
+                                  "col": 15
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "lineno": 18,
+                        "col": 4
+                      }
+                    },
+                    "lineno": 17,
+                    "col": 4,
+                    "next": {
+                      "name": "method",
+                      "type": {
+                        "kind": "artifact"
+                      },
+                      "metadata": {
+                        "type": "ARTIFACT_MEMBER"
+                      },
+                      "code": {
+                        "kind": "decl",
+                        "decl": {
+                          "name": "execute",
+                          "type": {
+                            "kind": "func",
+                            "return_type": {
+                              "kind": "int"
+                            },
+                            "params": {
+                              "name": "self",
+                              "type": {
+                                "kind": "unknown"
+                              },
+                              "required": true,
+                              "next": {
+                                "name": "a",
+                                "type": {
+                                  "kind": "int"
+                                },
+                                "required": true,
+                                "next": {
+                                  "name": "b",
+                                  "type": {
+                                    "kind": "int"
+                                  },
+                                  "required": true
+                                }
+                              }
+                            }
+                          },
+                          "doc_string": "\"\"\"Combine multiple typed locals (int, float, str) and return an int.\n\n        :param a: The first operand.\n        :type a: int\n        :param b: The second operand.\n        :type b: int\n        :return: The combined arithmetic result.\n        :rtype: int\n        \"\"\"",
+                          "code": {
+                            "kind": "snippet",
+                            "body": {
+                              "kind": "comment",
+                              "lineno": 45,
+                              "col": 8,
+                              "expr": {
+                                "kind": "comment",
+                                "value": "# Method-local int with a literal RHS.",
+                                "lineno": 45,
+                                "col": 8
+                              },
+                              "next": {
+                                "kind": "expr",
+                                "lineno": 0,
+                                "col": 0,
+                                "expr": {
+                                  "kind": "assign",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "offset",
+                                    "lineno": 46,
+                                    "col": 8
+                                  },
+                                  "right": {
+                                    "kind": "int_val",
+                                    "value": "7",
+                                    "lineno": 46,
+                                    "col": 17
+                                  },
+                                  "lineno": 46,
+                                  "col": 15
+                                }
+                              }
+                            },
+                            "next": {
+                              "kind": "snippet",
+                              "body": {
+                                "kind": "comment",
+                                "lineno": 48,
+                                "col": 8,
+                                "expr": {
+                                  "kind": "comment",
+                                  "value": "# Method-local float to demonstrate a different inferred type.",
+                                  "lineno": 48,
+                                  "col": 8
+                                },
+                                "next": {
+                                  "kind": "expr",
+                                  "lineno": 0,
+                                  "col": 0,
+                                  "expr": {
+                                    "kind": "assign",
+                                    "left": {
+                                      "kind": "name",
+                                      "name": "ratio",
+                                      "lineno": 49,
+                                      "col": 8
+                                    },
+                                    "right": {
+                                      "kind": "num_val",
+                                      "value": "1.5",
+                                      "lineno": 49,
+                                      "col": 16
+                                    },
+                                    "lineno": 49,
+                                    "col": 14
+                                  }
+                                }
+                              },
+                              "next": {
+                                "kind": "snippet",
+                                "body": {
+                                  "kind": "comment",
+                                  "lineno": 51,
+                                  "col": 8,
+                                  "expr": {
+                                    "kind": "comment",
+                                    "value": "# Method-local str distinct from numeric variables.",
+                                    "lineno": 51,
+                                    "col": 8
+                                  },
+                                  "next": {
+                                    "kind": "expr",
+                                    "lineno": 0,
+                                    "col": 0,
+                                    "expr": {
+                                      "kind": "assign",
+                                      "left": {
+                                        "kind": "name",
+                                        "name": "label",
+                                        "lineno": 52,
+                                        "col": 8
+                                      },
+                                      "right": {
+                                        "kind": "str_val",
+                                        "value": "'total'",
+                                        "lineno": 52,
+                                        "col": 16
+                                      },
+                                      "lineno": 52,
+                                      "col": 14
+                                    }
+                                  }
+                                },
+                                "next": {
+                                  "kind": "snippet",
+                                  "body": {
+                                    "kind": "comment",
+                                    "lineno": 54,
+                                    "col": 8,
+                                    "expr": {
+                                      "kind": "comment",
+                                      "value": "# Arithmetic assignment that the type checker validates against the int operands.",
+                                      "lineno": 54,
+                                      "col": 8
+                                    },
+                                    "next": {
+                                      "kind": "expr",
+                                      "lineno": 0,
+                                      "col": 0,
+                                      "expr": {
+                                        "kind": "assign",
+                                        "left": {
+                                          "kind": "name",
+                                          "name": "total",
+                                          "lineno": 55,
+                                          "col": 8
+                                        },
+                                        "right": {
+                                          "kind": "add",
+                                          "value": "+",
+                                          "left": {
+                                            "kind": "add",
+                                            "value": "+",
+                                            "left": {
+                                              "kind": "name",
+                                              "name": "a",
+                                              "lineno": 55,
+                                              "col": 16
+                                            },
+                                            "right": {
+                                              "kind": "name",
+                                              "name": "b",
+                                              "lineno": 55,
+                                              "col": 20
+                                            },
+                                            "lineno": 55,
+                                            "col": 18
+                                          },
+                                          "right": {
+                                            "kind": "name",
+                                            "name": "offset",
+                                            "lineno": 55,
+                                            "col": 24
+                                          },
+                                          "lineno": 55,
+                                          "col": 22
+                                        },
+                                        "lineno": 55,
+                                        "col": 14
+                                      }
+                                    }
+                                  },
+                                  "next": {
+                                    "kind": "snippet",
+                                    "body": {
+                                      "kind": "comment",
+                                      "lineno": 57,
+                                      "col": 8,
+                                      "expr": {
+                                        "kind": "comment",
+                                        "value": "# Return total so the resolver references local, parameter, and self scopes.",
+                                        "lineno": 57,
+                                        "col": 8
+                                      },
+                                      "next": {
+                                        "kind": "return",
+                                        "lineno": 58,
+                                        "col": 8,
+                                        "expr": {
+                                          "kind": "name",
+                                          "name": "total",
+                                          "lineno": 58,
+                                          "col": 15
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "lineno": 34,
+                          "col": 4
+                        }
+                      },
+                      "lineno": 33,
+                      "col": 4
+                    }
+                  }
+                }
+              },
+              "lineno": 11,
+              "col": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

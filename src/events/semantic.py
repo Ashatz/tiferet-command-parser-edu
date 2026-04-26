@@ -55,8 +55,10 @@ class PerformSemanticAnalysis(DomainEvent):
         resolver = NameResolver(builder.scopes)
         resolution = resolver.resolve(ast)
 
-        # Return the semantic analysis result.
+        # Return the semantic analysis result, including any structural
+        # errors collected by the builder (e.g., duplicate / shadowing).
         return {
             'symbol_table': symbol_table,
             'resolution': resolution.model_dump(exclude_none=True),
+            'builder_errors': list(builder.errors),
         }

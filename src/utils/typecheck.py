@@ -520,22 +520,29 @@ class TypeChecker:
         if not class_decl.code:
             return False
 
-        # Walk the class body statement chain.
+        # Walk the class body statement chain. Each statement carries a
+        # Declaration whose chained `.next` siblings represent additional
+        # member declarations (the parser packs all members into a single
+        # decl statement plus a sibling-decl linked list).
         current = class_decl.code
         while current:
             if current.kind == StatementKind.DECL and current.decl:
-                decl = current.decl
-                metadata = decl.metadata or {}
+                member_decl = current.decl
+                while member_decl is not None:
+                    metadata = member_decl.metadata or {}
 
-                # Check artifact member wrappers for method members.
-                if (decl.type and decl.type.kind == TypeKind.ARTIFACT
-                        and metadata.get('type') == 'ARTIFACT_MEMBER'
-                        and decl.name in ('method', 'init')):
+                    # Check artifact member wrappers for method members.
+                    if (member_decl.type
+                            and member_decl.type.kind == TypeKind.ARTIFACT
+                            and metadata.get('type') == 'ARTIFACT_MEMBER'
+                            and member_decl.name in ('method', 'init')):
 
-                    # Check the inner declaration name.
-                    inner_decl = self.extract_inner_decl(decl)
-                    if inner_decl and inner_decl.name == method_name:
-                        return True
+                        # Check the inner declaration name.
+                        inner_decl = self.extract_inner_decl(member_decl)
+                        if inner_decl and inner_decl.name == method_name:
+                            return True
+
+                    member_decl = member_decl.next
 
             current = current.next
 

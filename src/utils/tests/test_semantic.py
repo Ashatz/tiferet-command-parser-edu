@@ -1266,3 +1266,518 @@ def test_artifact_snake_to_pascal_conversion():
     assert TypeChecker.snake_to_pascal('add_error') == 'AddError'
     assert TypeChecker.snake_to_pascal('perform_lexical_analysis') == 'PerformLexicalAnalysis'
     assert TypeChecker.snake_to_pascal('a') == 'A'
+
+
+# *** helpers — method/event AST builders for local-variable tests
+
+def _assign_stmt(target_name: str, value_expr) -> Stmt:
+    '''Build an `expr` statement representing `<target_name> = <value_expr>`.'''
+
+    return Stmt(
+        kind='expr',
+        expr=Expr(
+            kind='assign',
+            left=Expr.new_name_expr(target_name),
+            right=value_expr,
+        ),
+    )
+
+
+def _binary_expr(kind: str, left, right) -> Expr:
+    '''Build a binary operator expression node.'''
+
+    return Expr(kind=kind, left=left, right=right)
+
+
+def _build_event_with_method(
+    class_name: str,
+    method_name: str,
+    params: ParamList,
+    return_type: Type,
+    body: Stmt,
+    attributes: list = None,
+) -> Decl:
+    '''Wrap a method body inside a minimal event module so the symbol-table
+    builder traverses through artifact -> class -> method.
+    '''
+
+    # Imports section.
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+
+    # Method.
+    method_decl = Decl.new_func_decl(
+        name=method_name,
+        type=Type.new_func_type(params=params, return_type=return_type),
+        body=Stmt.new_snippet_stmt(code=body),
+    )
+    method_member = Decl.new_member_decl(
+        name='method' if method_name != '__init__' else 'init',
+        member_body=Stmt.new_decl_stmt(method_decl),
+    )
+
+    # Optional attribute members come before the method member.
+    members_root = None
+    for attr_decl in attributes or []:
+        attr_member = Decl.new_member_decl(
+            name='attribute',
+            member_body=Stmt.new_decl_stmt(attr_decl),
+        )
+        if members_root is None:
+            members_root = attr_member
+        else:
+            members_root.set_next(attr_member)
+    if members_root is None:
+        members_root = method_member
+    else:
+        members_root.set_next(method_member)
+
+    cls_decl = Decl.new_class_decl(
+        name=class_name,
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None,
+        members=Stmt.new_decl_stmt(members_root),
+    )
+
+    # Use the snake_case form of the class name as the section name to
+    # satisfy the artifact/class-name concordance check (PascalCase <-> snake).
+    section_name = ''.join(
+        ('_' + c.lower()) if c.isupper() else c for c in class_name
+    ).lstrip('_')
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl(section_name, '** event'),
+        section_body=Stmt.new_decl_stmt(cls_decl),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    return Decl.new_module_decl(name=f'pass_{section_name}', code=imports_section)
+
+
+# *** tests — local variables: data types and scopes
+
+# ** test: locals_register_with_inferred_types
+def test_locals_register_with_inferred_types():
+    '''Method-local assignments register VARIABLE symbols with types inferred
+    from int, float, str, and arithmetic right-hand sides.'''
+
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+
+    # i = 1
+    assign_i = _assign_stmt('i', Expr(kind='int_val', value='1'))
+    # x = 1.5
+    assign_x = _assign_stmt('x', Expr(kind='num_val', value='1.5'))
+    # name = 'hi'
+    assign_name = _assign_stmt('name', Expr(kind='str_val', value="'hi'"))
+    # total = i + 2
+    assign_total = _assign_stmt(
+        'total',
+        _binary_expr('add', Expr.new_name_expr('i'), Expr(kind='int_val', value='2')),
+    )
+
+    body = assign_i
+    body.set_next(assign_x)
+    body.set_next(assign_name)
+    body.set_next(assign_total)
+    body.set_next(Stmt.new_return_stmt(return_expr=Expr.new_name_expr('total')))
+
+    module = _build_event_with_method(
+        class_name='Calc',
+        method_name='execute',
+        params=self_param,
+        return_type=Type.new(kind='int'),
+        body=body,
+    )
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    method_scope = builder.scopes['module.Calc.execute']
+    assert method_scope.has_symbol('i')
+    assert method_scope.has_symbol('x')
+    assert method_scope.has_symbol('name')
+    assert method_scope.has_symbol('total')
+
+    assert method_scope.get_symbol('i').type_annotation == 'int'
+    assert method_scope.get_symbol('x').type_annotation == 'float'
+    assert method_scope.get_symbol('name').type_annotation == 'str'
+    assert method_scope.get_symbol('total').type_annotation == 'int'
+    assert method_scope.get_symbol('i').kind == SymbolKind.VARIABLE
+
+    # No structural errors in this passing case.
+    assert builder.errors == []
+
+
+# ** test: locals_isolated_per_method_scope
+def test_locals_isolated_per_method_scope():
+    '''A local variable defined in one method scope must not leak into a sibling
+    method scope on the same class. Demonstrates variable definitions across
+    scopes.'''
+
+    self_param_a = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    self_param_b = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+
+    body_a = _assign_stmt('counter', Expr(kind='int_val', value='1'))
+    body_a.set_next(Stmt.new_return_stmt(return_expr=Expr.new_name_expr('counter')))
+
+    body_b = _assign_stmt('label', Expr(kind='str_val', value="'hello'"))
+    body_b.set_next(Stmt.new_return_stmt(return_expr=Expr.new_name_expr('label')))
+
+    # Build a class with two method members manually.
+    method_a = Decl.new_func_decl(
+        name='compute',
+        type=Type.new_func_type(params=self_param_a, return_type=Type.new(kind='int')),
+        body=Stmt.new_snippet_stmt(code=body_a),
+    )
+    method_b = Decl.new_func_decl(
+        name='execute',
+        type=Type.new_func_type(params=self_param_b, return_type=Type.new(kind='str')),
+        body=Stmt.new_snippet_stmt(code=body_b),
+    )
+
+    member_a = Decl.new_member_decl('method', member_body=Stmt.new_decl_stmt(method_a))
+    member_b = Decl.new_member_decl('method', member_body=Stmt.new_decl_stmt(method_b))
+    member_a.set_next(member_b)
+
+    cls_decl = Decl.new_class_decl(
+        name='Twin',
+        subclasses=Type.new_class_type(name='DomainEvent'),
+        doc_string=None,
+        members=Stmt.new_decl_stmt(member_a),
+    )
+
+    import_de = Stmt.new_import_stmt_from(
+        from_expr=Expr.new_name_expr('.settings'),
+        import_expr=Expr.new_name_expr('DomainEvent'),
+    )
+    app_group = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('app', '**'),
+        section_body=import_de,
+    )
+    imports_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('imports', '***'),
+        section_body=app_group,
+    )
+    event_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('twin', '** event'),
+        section_body=Stmt.new_decl_stmt(cls_decl),
+    )
+    events_section = Stmt.new_artifact_stmt(
+        section_header=Decl.new_artifact_decl('events', '***'),
+        section_body=event_section,
+    )
+    imports_section.set_next(events_section)
+
+    module = Decl.new_module_decl(name='pass_twin', code=imports_section)
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    compute_scope = builder.scopes['module.Twin.compute']
+    execute_scope = builder.scopes['module.Twin.execute']
+
+    # Each local lives only in its own method scope.
+    assert compute_scope.has_symbol('counter')
+    assert not compute_scope.has_symbol('label')
+    assert execute_scope.has_symbol('label')
+    assert not execute_scope.has_symbol('counter')
+    assert compute_scope.get_symbol('counter').type_annotation == 'int'
+    assert execute_scope.get_symbol('label').type_annotation == 'str'
+
+
+# ** test: expression_resolves_names_from_different_scopes
+def test_expression_resolves_names_from_different_scopes():
+    '''An expression that combines a parameter, a class attribute (via
+    self.attr), and a local variable must resolve every name through the
+    name resolver.'''
+
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    a_param = ParamList.new(name='a', type=Type.new(kind='int'), required=True)
+    self_param.set_next(a_param)
+
+    base_attr = Decl.new_attr_decl(name='base', types=Type.new(kind='int'))
+
+    # local = a + 1
+    assign_local = _assign_stmt(
+        'local',
+        _binary_expr('add', Expr.new_name_expr('a'), Expr(kind='int_val', value='1')),
+    )
+    # return self.base + local
+    return_stmt = Stmt.new_return_stmt(
+        return_expr=_binary_expr(
+            'add',
+            Expr.new_name_expr('self.base'),
+            Expr.new_name_expr('local'),
+        ),
+    )
+    assign_local.set_next(return_stmt)
+
+    module = _build_event_with_method(
+        class_name='ScopeMix',
+        method_name='execute',
+        params=self_param,
+        return_type=Type.new(kind='int'),
+        body=assign_local,
+        attributes=[base_attr],
+    )
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+    resolver = NameResolver(builder.scopes)
+    resolution = resolver.resolve(module)
+
+    resolved_names = {(r.name, r.resolved_to) for r in resolution.resolved}
+
+    # Parameter `a` resolves inside the method scope.
+    assert ('a', 'module.ScopeMix.execute') in resolved_names
+
+    # `self.base` resolves to the class scope where the attribute lives.
+    assert ('self.base', 'module.ScopeMix') in resolved_names
+
+    # Local `local` resolves inside the method scope.
+    assert ('local', 'module.ScopeMix.execute') in resolved_names
+
+    # No unresolved references.
+    assert resolution.unresolved == []
+
+
+# ** test: arithmetic_assignment_validates_data_type
+def test_arithmetic_assignment_validates_data_type():
+    '''An int-typed local can be reassigned (after passing the duplicate
+    guard) to another int-typed arithmetic expression without raising a
+    TYPE_MISMATCH_ASSIGNMENT error from the type checker.'''
+
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+    a_param = ParamList.new(name='a', type=Type.new(kind='int'), required=True)
+    b_param = ParamList.new(name='b', type=Type.new(kind='int'), required=True)
+    self_param.set_next(a_param)
+    self_param.set_next(b_param)
+
+    # total = a + b
+    assign_total = _assign_stmt(
+        'total',
+        _binary_expr('add', Expr.new_name_expr('a'), Expr.new_name_expr('b')),
+    )
+    return_stmt = Stmt.new_return_stmt(return_expr=Expr.new_name_expr('total'))
+    assign_total.set_next(return_stmt)
+
+    module = _build_event_with_method(
+        class_name='Adder',
+        method_name='execute',
+        params=self_param,
+        return_type=Type.new(kind='int'),
+        body=assign_total,
+    )
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    assert builder.scopes['module.Adder.execute'].get_symbol('total').type_annotation == 'int'
+    assert [e for e in errors if e['error_code'] == 'TYPE_MISMATCH_ASSIGNMENT'] == []
+    assert [e for e in errors if e['error_code'] == 'TYPE_MISMATCH_OPERATION'] == []
+
+
+# *** tests — semantic errors: undefined, duplicate, shadow, type mismatch
+
+# ** test: undefined_variable_is_unresolved
+def test_undefined_variable_is_unresolved():
+    '''A reference to an unknown identifier is captured as an UnresolvedName
+    by the name resolver — satisfies the "undefined variable" requirement.'''
+
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+
+    # return missing
+    return_stmt = Stmt.new_return_stmt(return_expr=Expr.new_name_expr('missing'))
+    body = return_stmt
+
+    module = _build_event_with_method(
+        class_name='LogResult',
+        method_name='execute',
+        params=self_param,
+        return_type=Type.new(kind='str'),
+        body=body,
+    )
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+    resolution = NameResolver(builder.scopes).resolve(module)
+
+    unresolved = [u.name for u in resolution.unresolved]
+    assert 'missing' in unresolved
+
+
+# ** test: duplicate_variable_same_scope
+def test_duplicate_variable_same_scope():
+    '''Re-assigning the same local name within a single method scope emits
+    DUPLICATE_VARIABLE_SAME_SCOPE.'''
+
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+
+    assign_one = _assign_stmt('total', Expr(kind='int_val', value='1'))
+    assign_two = _assign_stmt('total', Expr(kind='int_val', value='2'))
+    return_stmt = Stmt.new_return_stmt(return_expr=Expr.new_name_expr('total'))
+
+    body = assign_one
+    body.set_next(assign_two)
+    body.set_next(return_stmt)
+
+    module = _build_event_with_method(
+        class_name='DupVar',
+        method_name='execute',
+        params=self_param,
+        return_type=Type.new(kind='int'),
+        body=body,
+    )
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    dup_errors = [
+        e for e in builder.errors
+        if e['error_code'] == 'DUPLICATE_VARIABLE_SAME_SCOPE'
+    ]
+    assert len(dup_errors) == 1
+    assert dup_errors[0]['variable_name'] == 'total'
+    assert dup_errors[0]['scope_path'] == 'module.DupVar.execute'
+
+
+# ** test: variable_shadows_outer_scope
+def test_variable_shadows_outer_scope():
+    '''A local variable that shadows a class attribute defined in the
+    enclosing class scope emits VARIABLE_SHADOWS_OUTER_SCOPE.'''
+
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+
+    # Class attribute: count: int.
+    count_attr = Decl.new_attr_decl(name='count', types=Type.new(kind='int'))
+
+    # Method local that shadows the class attribute: count = 5.
+    assign_local = _assign_stmt('count', Expr(kind='int_val', value='5'))
+    return_stmt = Stmt.new_return_stmt(return_expr=Expr.new_name_expr('count'))
+    body = assign_local
+    body.set_next(return_stmt)
+
+    module = _build_event_with_method(
+        class_name='ShadowVar',
+        method_name='execute',
+        params=self_param,
+        return_type=Type.new(kind='int'),
+        body=body,
+        attributes=[count_attr],
+    )
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+
+    shadow_errors = [
+        e for e in builder.errors
+        if e['error_code'] == 'VARIABLE_SHADOWS_OUTER_SCOPE'
+    ]
+    assert len(shadow_errors) == 1
+    assert shadow_errors[0]['variable_name'] == 'count'
+    assert shadow_errors[0]['outer_scope_path'] == 'module.ShadowVar'
+    assert shadow_errors[0]['outer_kind'] == 'attribute'
+
+
+# ** test: assignment_type_mismatch_between_variables
+def test_assignment_type_mismatch_between_variables():
+    '''Assigning a str-typed variable's value to an int-typed self.attribute
+    must surface a TYPE_MISMATCH_ASSIGNMENT error — satisfies the
+    "assigning one variable to another with different data types" requirement.'''
+
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+
+    count_attr = Decl.new_attr_decl(name='count', types=Type.new(kind='int'))
+
+    # label = 'hello'
+    assign_label = _assign_stmt('label', Expr(kind='str_val', value="'hello'"))
+
+    # self.count = label
+    assign_attr = Stmt(
+        kind='expr',
+        expr=Expr(
+            kind='assign',
+            left=Expr.new_name_expr('self.count'),
+            right=Expr.new_name_expr('label'),
+        ),
+    )
+
+    return_stmt = Stmt.new_return_stmt(return_expr=Expr(kind='int_val', value='0'))
+
+    body = assign_label
+    body.set_next(assign_attr)
+    body.set_next(return_stmt)
+
+    module = _build_event_with_method(
+        class_name='AssignVar',
+        method_name='execute',
+        params=self_param,
+        return_type=Type.new(kind='int'),
+        body=body,
+        attributes=[count_attr],
+    )
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    mismatches = [e for e in errors if e['error_code'] == 'TYPE_MISMATCH_ASSIGNMENT']
+    assert len(mismatches) == 1
+    assert mismatches[0]['expected_type'] == 'int'
+    assert mismatches[0]['actual_type'] == 'str'
+
+
+# ** test: expression_type_mismatch_between_variables
+def test_expression_type_mismatch_between_variables():
+    '''Adding an int local to a str local must surface
+    TYPE_MISMATCH_OPERATION on the binary expression.'''
+
+    self_param = ParamList.new(name='self', type=Type.new_unknown_type(), required=True)
+
+    assign_n = _assign_stmt('n', Expr(kind='int_val', value='5'))
+    assign_s = _assign_stmt('s', Expr(kind='str_val', value="'oops'"))
+    bad_expr_stmt = Stmt(
+        kind='expr',
+        expr=_binary_expr('add', Expr.new_name_expr('n'), Expr.new_name_expr('s')),
+    )
+    return_stmt = Stmt.new_return_stmt(return_expr=Expr(kind='int_val', value='0'))
+
+    body = assign_n
+    body.set_next(assign_s)
+    body.set_next(bad_expr_stmt)
+    body.set_next(return_stmt)
+
+    module = _build_event_with_method(
+        class_name='ExprMix',
+        method_name='execute',
+        params=self_param,
+        return_type=Type.new(kind='int'),
+        body=body,
+    )
+
+    builder = SymbolTableBuilder()
+    builder.build(module)
+    checker = TypeChecker(builder.scopes)
+    errors = checker.check(module)
+
+    op_errors = [e for e in errors if e['error_code'] == 'TYPE_MISMATCH_OPERATION']
+    assert len(op_errors) == 1
+    assert op_errors[0]['operation'] == 'add'
+    assert op_errors[0]['left_type'] == 'int'
+    assert op_errors[0]['right_type'] == 'str'

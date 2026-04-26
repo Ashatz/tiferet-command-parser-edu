@@ -1,0 +1,464 @@
+{
+  "event_type": "SemanticAnalysisCompleted",
+  "timestamp": "2026-04-26T20:58:17.371078+00:00",
+  "source_file": "samples/pass_arithmetic_parens.py",
+  "symbol_table": {
+    "module_name": "pass_arithmetic_parens",
+    "scopes": {
+      "module": {
+        "name": "module",
+        "kind": "module",
+        "path": "module",
+        "symbols": {
+          "DomainEvent": {
+            "name": "DomainEvent",
+            "kind": "import",
+            "scope_path": "module",
+            "source_module": "tiferet.events"
+          },
+          "ParenCalc": {
+            "name": "ParenCalc",
+            "kind": "class_def",
+            "type_annotation": "DomainEvent",
+            "scope_path": "module"
+          }
+        },
+        "children": {
+          "ParenCalc": "module.ParenCalc"
+        }
+      },
+      "module.ParenCalc": {
+        "name": "ParenCalc",
+        "kind": "class_def",
+        "path": "module.ParenCalc",
+        "symbols": {
+          "execute": {
+            "name": "execute",
+            "kind": "method",
+            "type_annotation": "int",
+            "scope_path": "module.ParenCalc"
+          }
+        },
+        "children": {
+          "execute": "module.ParenCalc.execute"
+        },
+        "parent_path": "module"
+      },
+      "module.ParenCalc.execute": {
+        "name": "execute",
+        "kind": "method",
+        "path": "module.ParenCalc.execute",
+        "symbols": {
+          "self": {
+            "name": "self",
+            "kind": "parameter",
+            "type_annotation": "unknown",
+            "scope_path": "module.ParenCalc.execute"
+          },
+          "a": {
+            "name": "a",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.ParenCalc.execute"
+          },
+          "b": {
+            "name": "b",
+            "kind": "parameter",
+            "type_annotation": "int",
+            "scope_path": "module.ParenCalc.execute"
+          },
+          "grouped": {
+            "name": "grouped",
+            "kind": "variable",
+            "type_annotation": "int",
+            "scope_path": "module.ParenCalc.execute"
+          },
+          "sample": {
+            "name": "sample",
+            "kind": "variable",
+            "type_annotation": "int",
+            "scope_path": "module.ParenCalc.execute"
+          }
+        },
+        "children": {},
+        "parent_path": "module.ParenCalc"
+      }
+    },
+    "root_scope_path": "module"
+  },
+  "resolution": {
+    "resolved": [
+      {
+        "name": "DomainEvent",
+        "scope_path": "module",
+        "resolved_to": "module"
+      },
+      {
+        "name": "a",
+        "scope_path": "module.ParenCalc.execute",
+        "resolved_to": "module.ParenCalc.execute"
+      },
+      {
+        "name": "b",
+        "scope_path": "module.ParenCalc.execute",
+        "resolved_to": "module.ParenCalc.execute"
+      },
+      {
+        "name": "grouped",
+        "scope_path": "module.ParenCalc.execute",
+        "resolved_to": "module.ParenCalc.execute"
+      },
+      {
+        "name": "sample",
+        "scope_path": "module.ParenCalc.execute",
+        "resolved_to": "module.ParenCalc.execute"
+      }
+    ],
+    "unresolved": []
+  },
+  "ast": {
+    "name": "pass_arithmetic_parens",
+    "doc_string": "\"\"\"A calculator event that demonstrates parenthesized arithmetic expressions, including the canonical large arithmetic tree 5 * 8 - 6 + (11 - 9 * 7) + 3.\"\"\"",
+    "code": {
+      "kind": "artifact",
+      "decl": {
+        "name": "imports",
+        "type": {
+          "kind": "artifact"
+        },
+        "metadata": {
+          "type": "***"
+        },
+        "lineno": 3,
+        "col": 0
+      },
+      "body": {
+        "kind": "artifact",
+        "decl": {
+          "name": "infra",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "**"
+          },
+          "lineno": 5,
+          "col": 0
+        },
+        "body": {
+          "kind": "import_from",
+          "lineno": 6,
+          "col": 0,
+          "init_expr": {
+            "kind": "name",
+            "name": "tiferet.events"
+          },
+          "expr": {
+            "kind": "name",
+            "name": "DomainEvent"
+          }
+        }
+      },
+      "next": {
+        "kind": "artifact",
+        "decl": {
+          "name": "events",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "***"
+          },
+          "lineno": 8,
+          "col": 0
+        },
+        "body": {
+          "kind": "artifact",
+          "decl": {
+            "name": "paren_calc",
+            "type": {
+              "kind": "artifact"
+            },
+            "metadata": {
+              "type": "** event"
+            },
+            "lineno": 10,
+            "col": 0
+          },
+          "body": {
+            "kind": "decl",
+            "decl": {
+              "name": "ParenCalc",
+              "type": {
+                "kind": "class",
+                "name": "ParenCalc",
+                "subtype": {
+                  "kind": "class",
+                  "name": "DomainEvent"
+                }
+              },
+              "doc_string": "\"\"\"An event that exercises parenthesized arithmetic and operator precedence.\"\"\"",
+              "code": {
+                "kind": "decl",
+                "decl": {
+                  "name": "method",
+                  "type": {
+                    "kind": "artifact"
+                  },
+                  "metadata": {
+                    "type": "ARTIFACT_MEMBER"
+                  },
+                  "code": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "execute",
+                      "type": {
+                        "kind": "func",
+                        "return_type": {
+                          "kind": "int"
+                        },
+                        "params": {
+                          "name": "self",
+                          "type": {
+                            "kind": "unknown"
+                          },
+                          "required": true,
+                          "next": {
+                            "name": "a",
+                            "type": {
+                              "kind": "int"
+                            },
+                            "required": true,
+                            "next": {
+                              "name": "b",
+                              "type": {
+                                "kind": "int"
+                              },
+                              "required": true
+                            }
+                          }
+                        }
+                      },
+                      "doc_string": "\"\"\"Return a result computed from a, b, and several parenthesized sub-expressions.\n\n        :param a: The first operand.\n        :type a: int\n        :param b: The second operand.\n        :type b: int\n        :return: The combined arithmetic result.\n        :rtype: int\n        \"\"\"",
+                      "code": {
+                        "kind": "snippet",
+                        "body": {
+                          "kind": "comment",
+                          "lineno": 26,
+                          "col": 8,
+                          "expr": {
+                            "kind": "comment",
+                            "value": "# Compute a grouped sub-expression that depends on both parameters.",
+                            "lineno": 26,
+                            "col": 8
+                          },
+                          "next": {
+                            "kind": "expr",
+                            "lineno": 0,
+                            "col": 0,
+                            "expr": {
+                              "kind": "assign",
+                              "left": {
+                                "kind": "name",
+                                "name": "grouped",
+                                "lineno": 27,
+                                "col": 8
+                              },
+                              "right": {
+                                "kind": "mul",
+                                "value": "*",
+                                "left": {
+                                  "kind": "add",
+                                  "value": "+",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "a",
+                                    "lineno": 27,
+                                    "col": 19
+                                  },
+                                  "right": {
+                                    "kind": "name",
+                                    "name": "b",
+                                    "lineno": 27,
+                                    "col": 23
+                                  },
+                                  "lineno": 27,
+                                  "col": 21
+                                },
+                                "right": {
+                                  "kind": "int_val",
+                                  "value": "2",
+                                  "lineno": 27,
+                                  "col": 28
+                                },
+                                "lineno": 27,
+                                "col": 26
+                              },
+                              "lineno": 27,
+                              "col": 16
+                            }
+                          }
+                        },
+                        "next": {
+                          "kind": "snippet",
+                          "body": {
+                            "kind": "comment",
+                            "lineno": 29,
+                            "col": 8,
+                            "expr": {
+                              "kind": "comment",
+                              "value": "# The canonical large arithmetic tree: 5*8 - 6 + (11 - 9*7) + 3.",
+                              "lineno": 29,
+                              "col": 8
+                            },
+                            "next": {
+                              "kind": "expr",
+                              "lineno": 0,
+                              "col": 0,
+                              "expr": {
+                                "kind": "assign",
+                                "left": {
+                                  "kind": "name",
+                                  "name": "sample",
+                                  "lineno": 30,
+                                  "col": 8
+                                },
+                                "right": {
+                                  "kind": "add",
+                                  "value": "+",
+                                  "left": {
+                                    "kind": "add",
+                                    "value": "+",
+                                    "left": {
+                                      "kind": "sub",
+                                      "value": "-",
+                                      "left": {
+                                        "kind": "mul",
+                                        "value": "*",
+                                        "left": {
+                                          "kind": "int_val",
+                                          "value": "5",
+                                          "lineno": 30,
+                                          "col": 17
+                                        },
+                                        "right": {
+                                          "kind": "int_val",
+                                          "value": "8",
+                                          "lineno": 30,
+                                          "col": 21
+                                        },
+                                        "lineno": 30,
+                                        "col": 19
+                                      },
+                                      "right": {
+                                        "kind": "int_val",
+                                        "value": "6",
+                                        "lineno": 30,
+                                        "col": 25
+                                      },
+                                      "lineno": 30,
+                                      "col": 23
+                                    },
+                                    "right": {
+                                      "kind": "sub",
+                                      "value": "-",
+                                      "left": {
+                                        "kind": "int_val",
+                                        "value": "11",
+                                        "lineno": 30,
+                                        "col": 30
+                                      },
+                                      "right": {
+                                        "kind": "mul",
+                                        "value": "*",
+                                        "left": {
+                                          "kind": "int_val",
+                                          "value": "9",
+                                          "lineno": 30,
+                                          "col": 35
+                                        },
+                                        "right": {
+                                          "kind": "int_val",
+                                          "value": "7",
+                                          "lineno": 30,
+                                          "col": 39
+                                        },
+                                        "lineno": 30,
+                                        "col": 37
+                                      },
+                                      "lineno": 30,
+                                      "col": 33
+                                    },
+                                    "lineno": 30,
+                                    "col": 27
+                                  },
+                                  "right": {
+                                    "kind": "int_val",
+                                    "value": "3",
+                                    "lineno": 30,
+                                    "col": 44
+                                  },
+                                  "lineno": 30,
+                                  "col": 42
+                                },
+                                "lineno": 30,
+                                "col": 15
+                              }
+                            }
+                          },
+                          "next": {
+                            "kind": "snippet",
+                            "body": {
+                              "kind": "comment",
+                              "lineno": 32,
+                              "col": 8,
+                              "expr": {
+                                "kind": "comment",
+                                "value": "# Return the combined result so the parser sees the parens flowing through addition.",
+                                "lineno": 32,
+                                "col": 8
+                              },
+                              "next": {
+                                "kind": "return",
+                                "lineno": 33,
+                                "col": 8,
+                                "expr": {
+                                  "kind": "add",
+                                  "value": "+",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "grouped",
+                                    "lineno": 33,
+                                    "col": 15
+                                  },
+                                  "right": {
+                                    "kind": "name",
+                                    "name": "sample",
+                                    "lineno": 33,
+                                    "col": 25
+                                  },
+                                  "lineno": 33,
+                                  "col": 23
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "lineno": 15,
+                      "col": 4
+                    }
+                  },
+                  "lineno": 14,
+                  "col": 4
+                }
+              },
+              "lineno": 11,
+              "col": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

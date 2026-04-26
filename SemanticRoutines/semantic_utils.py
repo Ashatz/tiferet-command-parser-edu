@@ -35,7 +35,21 @@ class SymbolTableBuilder:
     Uses a stack of ScopeAggregate objects (list used as stack) to track
     the current lexical scope, and a flat dict registry for all scopes.
     Symbols are stored in a hash table (dict) within each scope.
+
+    The builder also accumulates structural semantic errors:
+      - DUPLICATE_VARIABLE_SAME_SCOPE: a name re-assigned within the same scope.
+      - VARIABLE_SHADOWS_OUTER_SCOPE: a method-local name shadows an outer
+        class attribute, parameter, import, or variable.
     """
+
+    # * attribute: NUMERIC_TYPES
+    NUMERIC_TYPES = {'int', 'float'}
+
+    # * attribute: ARITHMETIC_OPS
+    ARITHMETIC_OPS = {
+        ExprKind.ADD, ExprKind.SUB, ExprKind.MUL,
+        ExprKind.DIV,
+    }
 
     # * attribute: scopes
     scopes: Dict[str, ScopeAggregate]
@@ -43,12 +57,16 @@ class SymbolTableBuilder:
     # * attribute: scope_stack
     scope_stack: List[ScopeAggregate]
 
+    # * attribute: errors
+    errors: List[Dict]
+
     # * init
     def __init__(self):
         """Initialize the builder with empty state."""
 
         self.scopes = {}
         self.scope_stack = []
+        self.errors = []
 
     # * method: build
     def build(self, module_decl: Declaration) -> dict:
@@ -64,6 +82,7 @@ class SymbolTableBuilder:
         # Reset state for a fresh build.
         self.scopes = {}
         self.scope_stack = []
+        self.errors = []
 
         # Create the module scope.
         module_name = module_decl.name or 'unknown'
@@ -444,7 +463,10 @@ class SymbolTableBuilder:
     def handle_expr_stmt(self, stmt: Statement) -> None:
         """
         Handle an expression statement. If it's a self.X = ... assignment,
-        register X as an attribute in the enclosing class scope.
+        register X as an attribute in the enclosing class scope. Otherwise,
+        if it's a bare assignment (e.g., `x = a + b`) inside a method scope,
+        register x as a local VARIABLE symbol with an inferred type and
+        emit duplicate / shadowing errors when applicable.
 
         :param stmt: The expr statement.
         :type stmt: Statement
@@ -473,6 +495,48 @@ class SymbolTableBuilder:
                     scope_path=class_scope.path,
                 )
                 class_scope.add_symbol(symbol)
+            return
+
+        # Skip dotted assignments other than self.X (out of scope for local tracking).
+        if '.' in left_name:
+            return
+
+        # Bare local assignment — only meaningful inside a method scope.
+        if not self.scope_stack or self.current_scope.kind != SymbolKind.METHOD:
+            return
+
+        # Detect a duplicate definition in the same scope.
+        if self.current_scope.has_symbol(left_name):
+            self.add_error(
+                error_code='DUPLICATE_VARIABLE_SAME_SCOPE',
+                message=f"Variable '{left_name}' is already defined in scope '{self.current_scope.path}'",
+                variable_name=left_name,
+            )
+            return
+
+        # Detect shadowing of an outer scope.
+        outer = self.find_outer_symbol(left_name)
+        if outer is not None:
+            self.add_error(
+                error_code='VARIABLE_SHADOWS_OUTER_SCOPE',
+                message=(
+                    f"Variable '{left_name}' shadows existing definition in outer "
+                    f"scope '{outer.scope_path}'"
+                ),
+                variable_name=left_name,
+                outer_scope_path=outer.scope_path,
+                outer_kind=outer.kind.value if outer.kind else None,
+            )
+
+        # Register the local variable with an inferred type annotation.
+        type_annotation = self.infer_local_type(expr.right)
+        symbol = Symbol(
+            name=left_name,
+            kind=SymbolKind.VARIABLE,
+            scope_path=self.current_scope.path,
+            type_annotation=type_annotation,
+        )
+        self.current_scope.add_symbol(symbol)
 
     # * method: handle_snippet
     def handle_snippet(self, stmt: Statement) -> None:
@@ -499,6 +563,120 @@ class SymbolTableBuilder:
             if scope.kind == SymbolKind.CLASS_DEF:
                 return scope
         return None
+
+    # * method: find_outer_symbol
+    def find_outer_symbol(self, name: str) -> Optional[Symbol]:
+        """
+        Look for a symbol with `name` in any scope strictly enclosing the
+        current scope. Used for shadowing detection.
+
+        :param name: The name to look up.
+        :type name: str
+        :return: The first matching Symbol from an outer scope, or None.
+        :rtype: Optional[Symbol]
+        """
+
+        for scope in reversed(self.scope_stack[:-1]):
+            symbol = scope.get_symbol(name)
+            if symbol:
+                return symbol
+        return None
+
+    # * method: infer_local_type
+    def infer_local_type(self, expr: Optional[Expression]) -> Optional[str]:
+        """
+        Infer the type annotation string for the right-hand side of a local
+        assignment. Mirrors the simple inference rules used by the type
+        checker so that locals participate in subsequent type compatibility
+        checks.
+
+        :param expr: The right-hand side expression.
+        :type expr: Expression | None
+        :return: A type annotation string, or None when unknown.
+        :rtype: str | None
+        """
+
+        if not expr:
+            return None
+
+        kind = expr.kind
+
+        if kind == ExprKind.INT_VAL:
+            return 'int'
+        if kind == ExprKind.STR_VAL:
+            return 'str'
+        if kind == ExprKind.BOOL_VAL:
+            return 'bool'
+
+        if kind == ExprKind.NAME:
+            return self.lookup_local_name_type(expr.name or '')
+
+        if kind in self.ARITHMETIC_OPS:
+            left_type = self.infer_local_type(expr.left)
+            right_type = self.infer_local_type(expr.right)
+
+            if kind == ExprKind.ADD and left_type == 'str' and right_type == 'str':
+                return 'str'
+            if kind == ExprKind.MUL:
+                if (left_type == 'str' and right_type == 'int') or (left_type == 'int' and right_type == 'str'):
+                    return 'str'
+            if left_type in self.NUMERIC_TYPES and right_type in self.NUMERIC_TYPES:
+                if left_type == 'float' or right_type == 'float':
+                    return 'float'
+                return 'int'
+
+        return None
+
+    # * method: lookup_local_name_type
+    def lookup_local_name_type(self, name: str) -> Optional[str]:
+        """
+        Look up a name in the active scope chain to infer its type annotation.
+
+        :param name: The name to look up.
+        :type name: str
+        :return: The type annotation string, or None.
+        :rtype: str | None
+        """
+
+        if not name:
+            return None
+
+        if name.startswith('self.'):
+            attr_name = name[5:]
+            class_scope = self.find_enclosing_class_scope()
+            if class_scope:
+                symbol = class_scope.get_symbol(attr_name)
+                if symbol:
+                    return symbol.type_annotation
+            return None
+
+        for scope in reversed(self.scope_stack):
+            symbol = scope.get_symbol(name)
+            if symbol:
+                return symbol.type_annotation
+        return None
+
+    # * method: add_error
+    def add_error(self, error_code: str, message: str, **kwargs) -> None:
+        """
+        Record a structural semantic error discovered while building the
+        symbol table.
+
+        :param error_code: The error classification code.
+        :type error_code: str
+        :param message: Human-readable description.
+        :type message: str
+        :param kwargs: Additional context fields.
+        :type kwargs: dict
+        """
+
+        error = {
+            'error_code': error_code,
+            'message': message,
+            'scope_path': self.current_scope.path if self.scope_stack else 'module',
+            **kwargs,
+        }
+        self.errors.append(error)
 
 
 # ** util: name_resolver
