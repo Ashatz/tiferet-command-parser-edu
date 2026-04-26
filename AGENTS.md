@@ -17,9 +17,9 @@ This project has two layers:
 ### Bounded Contexts
 
 - **Lexical scanning** (`src/events/lexer.py`) — Source file reading, tokenization via PLY, INDENT/DEDENT injection via `BlockTracker`.
-- **Syntactic parsing** (`src/events/parser.py`) — Token stream parsing into a Pydantic AST via PLY yacc with PEMDAS-correct arithmetic precedence.
-- **Semantic analysis** (`src/events/semantic.py`, `src/utils/semantic.py`) — Symbol table construction and name resolution from the parsed AST. Standalone domain/mapper copies in `SemanticRoutines/`.
-- **Type checking** (`src/events/typecheck.py`, `src/utils/typecheck.py`) — Structural artifact validation and type checking against the symbol table. Validates import groups, section-class name concordance, artifact member types, method signatures, and assignment/operation type compatibility.
+- **Syntactic parsing** (`src/events/parser.py`) — Token stream parsing into a Pydantic AST via PLY yacc with PEMDAS-correct arithmetic precedence and a `primary_expr` rule that supports parenthesized sub-expressions (`( ... )`) at atom level. Literal terminals are typed from the actual PLY token kind (`STR_VAL` / `INT_VAL` / `NUM_VAL` / `BOOL_VAL`).
+- **Semantic analysis** (`src/events/semantic.py`, `src/utils/semantic.py`) — Symbol table construction and name resolution from the parsed AST. The builder also registers method-local assignments as `VARIABLE` symbols with inferred types (literal, name, arithmetic, including via `self.X` resolution) and accumulates structural diagnostics (`DUPLICATE_VARIABLE_SAME_SCOPE`, `VARIABLE_SHADOWS_OUTER_SCOPE`). Standalone domain/mapper copies in `SemanticRoutines/`.
+- **Type checking** (`src/events/typecheck.py`, `src/utils/typecheck.py`) — Structural artifact validation and type checking against the symbol table. Validates import groups, section-class name concordance, artifact member types, method signatures, and assignment/operation type compatibility. The final error list also includes builder-produced semantic errors merged in by `PerformTypeCheck`.
 - **IR generation** (`src/events/ir.py`) — Walks the parsed AST to produce a keter IR conforming to the schema in `IntermediateRepresentation/schema.txt`.
 - **Code generation** (`src/events/codegen.py`, `src/utils/codegen.py`) — Transforms the IR into a structured YAML-conforming output dict via `TiferetGenerator`, conforming to `CodeGen/schema.yml`.
 - **AST optimization** (`src/events/optimizer.py`, `src/utils/optimizer.py`) — `FoldConstants` applies `ConstantFolder` (implements `ASTOptimizerService`) to fold constant numeric sub-expressions, and `ReduceStrength` applies `StrengthReducer` (implements `ASTStrengthReducerService`) to rewrite multiplication/division by a power of two into shifts and `x ** 2` into `x * x`. Both run at `-O O1` before IR generation.
@@ -137,7 +137,7 @@ docs/
       parser.md          — Parser utility guide (TiferetParser, AST structure)
       semantic.md        — Semantic analysis utility guide (SymbolTableBuilder, NameResolver)
 
-samples/                 — End-to-end sample Tiferet source files for all pipeline stages (25 files)
+samples/                 — End-to-end sample Tiferet source files for all pipeline stages (31 files)
   pass_imports_only.py               — Imports-only module (success case)
   pass_minimal_event.py              — Minimal event with no injection (success case)
   pass_minimal_injection_event.py    — Event with service injection (success case)
@@ -146,6 +146,8 @@ samples/                 — End-to-end sample Tiferet source files for all pipe
   pass_constant_folding_event.py     — Event with constant numeric sub-expressions demonstrating constant folding (success case)
   pass_strength_reduction_event.py   — Event demonstrating multiplication/division by a power of two and exponentiation by 2 reduced to shifts and self-multiplication at -O O1 (success case)
   pass_dead_code_after_return.py     — Event demonstrating direct post-return unreachable statements flagged as UNREACHABLE_AFTER_RETURN at -O O1 (success case)
+  pass_arithmetic_parens.py          — Event whose body exercises parenthesized arithmetic, including the canonical large arithmetic tree 5 * 8 - 6 + (11 - 9 * 7) + 3 (success case)
+  pass_variable_scopes.py            — Event with multiple methods and method-local variables of different inferred types (int, float, str) across distinct scopes (success case)
   fail_bare_function.py              — Top-level function outside artifact structure (failure case)
   fail_class_bare_attribute.py       — Class attribute without member artifact (failure case)
   fail_class_bare_method.py          — Class method without member artifact (failure case)
@@ -155,6 +157,10 @@ samples/                 — End-to-end sample Tiferet source files for all pipe
   fail_missing_member_artifact.py    — Member without artifact annotation (failure case)
   fail_unresolved_attribute.py       — Undefined attribute reference (semantic failure)
   fail_unresolved_import.py          — Unresolved import reference (semantic failure)
+  fail_undefined_variable.py         — Method body references an undefined identifier (NameResolver flags `UnresolvedName`)
+  fail_duplicate_same_scope.py       — Method body redefines the same local in one scope (DUPLICATE_VARIABLE_SAME_SCOPE)
+  fail_shadow_outer_scope.py         — Method-local variable shadows an enclosing class attribute (VARIABLE_SHADOWS_OUTER_SCOPE)
+  fail_assignment_type_mismatch.py   — str-typed local assigned to int-typed class attribute (TYPE_MISMATCH_ASSIGNMENT)
   fail_attribute_is_function.py      — Attribute member is a function declaration (type check failure)
   fail_event_class_mismatch.py       — Section name doesn't match class name (type check failure)
   fail_event_missing_execute.py      — Event class missing execute method (type check failure)
@@ -193,6 +199,10 @@ Optimizer/               — Optimizer deliverable (ECE 506 submission)
 SemanticRoutines/        — Semantic analysis layer (ECE 506 submission)
   ast_domain.py          — Pydantic AST domain objects (Type, Expression, Declaration, Statement, ParamList)
   ast_mapper.py          — Pydantic AST mapper aggregates with mutation methods
+  semantic_domain.py     — Pydantic symbol-table domain objects (SymbolKind, Symbol, Scope, ResolvedName, UnresolvedName, ResolutionResult)
+  semantic_mapper.py     — ScopeAggregate with scope factories and mutation methods
+  semantic_utils.py      — Standalone SymbolTableBuilder and NameResolver mirroring `src/utils/semantic.py` (locals tracking, duplicate / shadow diagnostics)
+  typecheck_utils.py     — Standalone TypeChecker mirroring `src/utils/typecheck.py`
   samples/               — Pre-computed JSON outputs (AST, symbol table, and failure cases)
     pass_imports_only.json
     pass_minimal_event.json
@@ -200,8 +210,15 @@ SemanticRoutines/        — Semantic analysis layer (ECE 506 submission)
     pass_multiple_operator_events.json
     pass_helper_method_event.json
     pass_constant_folding_event.json
+    pass_arithmetic_parens.json
+    pass_variable_scopes.json
     fail_unresolved_attribute.json
     fail_unresolved_import.json
+    fail_type_mismatch.json
+    fail_undefined_variable.json
+    fail_duplicate_same_scope.json
+    fail_shadow_outer_scope.json
+    fail_assignment_type_mismatch.json
 
 src/
   __init__.py            — Package exports and version (0.3.2)
@@ -264,8 +281,8 @@ src/
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant; consumed by KeterIREventGroup via a lazy import
     output.py            — OutputWriter (file I/O with format auto-detection), OutputPrinter (AST/symbol-table/error console output), ResultPayloadBuilder (per-stage payload assembly), and emit() helper
-    parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
-    semantic.py          — SymbolTableBuilder (single-pass AST walker for scope/symbol construction) + NameResolver (second-pass name resolution against scope registry)
+    parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService); expression hierarchy includes a `primary_expr` rule that lifts a full `operation_expr` back to atom level (parenthesized sub-expressions), and literal expressions are typed from the actual PLY token kind (STR_VAL / INT_VAL / NUM_VAL / BOOL_VAL)
+    semantic.py          — SymbolTableBuilder (single-pass AST walker for scope/symbol construction; method-local assignments register as VARIABLE symbols with inferred types and emit DUPLICATE_VARIABLE_SAME_SCOPE / VARIABLE_SHADOWS_OUTER_SCOPE) + NameResolver (second-pass name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
     optimizer.py         — YamlAnchorOptimizer (implements OptimizerService; YAML anchor/alias deduplication); ConstantFolder (extends ASTTraversal + ASTOptimizerService; post-order constant folding of numeric AST sub-expressions); StrengthReducer (extends ASTTraversal + ASTStrengthReducerService; post-order rewrite of multiplication/division by a power of two to shifts and `x ** 2` to `x * x`); ReturnAnalyzer (implements ReturnAnalyzerService; non-mutating scope-aware walk that flags statements following a return as `UNREACHABLE_AFTER_RETURN`)
@@ -274,8 +291,8 @@ src/
       test_lexer.py      — 13 tests for TiferetLexer and BlockTracker
       test_lexer_keter.py — 8 tests for KeterLexer tokenization and KETER_KEYWORDS
       test_output.py     — 19 tests for OutputWriter, ResultPayloadBuilder, and emit()
-      test_parser.py     — 51 tests for TiferetParser grammar rules and AST structure
-      test_semantic.py   — 26 tests for SymbolTableBuilder and NameResolver
+      test_parser.py     — 60 tests for TiferetParser grammar rules and AST structure (including parenthesized arithmetic and the canonical 5 * 8 - 6 + (11 - 9 * 7) + 3 tree)
+      test_semantic.py   — 35 tests for SymbolTableBuilder + NameResolver + TypeChecker, covering local-variable inference, multi-scope isolation, undefined / duplicate / shadow / type-mismatch diagnostics
       test_codegen.py    — 10 tests for TiferetGenerator
       test_optimizer.py  — 32 tests for YamlAnchorOptimizer + ConstantFolder + StrengthReducer + ReturnAnalyzer
 ```
@@ -287,7 +304,7 @@ src/
 The AST is built from Pydantic `BaseModel` classes defined in `src/domain/ast.py` and extended with mutation methods in `src/mappers/ast.py`. This is separate from the Tiferet framework's `schematics`-based DomainObject system.
 
 - **TypeKind** — Enum: `unknown`, `None`, `bool`, `str`, `int`, `float`, `list`, `dict`, `class`, `func`, `artifact`, `module`
-- **ExprKind** — Enum: `add`, `sub`, `mul`, `div`, `mod`, `exp`, `shl`, `shr`, `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `name`, `num_val`, `int_val`, `str_val`, `bool_val`, `assign`, `args_list`, `call`, `import`, `import_as`, `import_multi`, `artifact`, `comment`
+- **ExprKind** — Enum: `add`, `sub`, `mul`, `div`, `mod`, `exp`, `shl`, `shr`, `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `name`, `num_val`, `int_val`, `str_val`, `bool_val`, `assign`, `args_list`, `call`, `import`, `import_as`, `import_multi`, `artifact`, `comment`. `LiteralExpr` rules emit the precise kind (`INT_VAL`, `NUM_VAL`, `STR_VAL`, `BOOL_VAL`) based on the originating PLY token type.
 - **StatementKind** — Enum: `decl`, `expr`, `if_else`, `for`, `while`, `print`, `return`, `block`, `import`, `import_from`, `artifact`, `comment`, `snippet`
 
 AST nodes use linked-list chaining via `.next` fields (not Python lists). Mapper aggregates provide `set_next()`, `set_left()`, `set_right()`, `set_return_type()`, and static factories like `Decl.new_module_decl()`, `Stmt.new_artifact_stmt()`, `Expr.new_name_expr()`, etc.
@@ -337,7 +354,7 @@ Two classes:
 Three classes:
 - **TokenStream** — Adapter converting `List[TokenAggregate]` to PLY-compatible token stream.
 - **ParserBase** — Base class with shared utilities (`parse_member_kind`, `get_attribute_type`, `p_error`). Loads precedence and tokens from `src/assets/parser.py`.
-- **TiferetParser** — Full grammar implementation with `p_*` rule methods. Builds Pydantic AST nodes in semantic actions.
+- **TiferetParser** — Full grammar implementation with `p_*` rule methods. Builds Pydantic AST nodes in semantic actions. The expression layer adds a `primary_expr` rule (`primary_expr : name_or_literal_expr | LPAREN operation_expr RPAREN`) that lets parenthesized sub-expressions re-enter the precedence chain at atom level, and `p_literal_expr` chooses the AST `ExprKind` from the matched PLY token type rather than from the value string.
 
 ### `src/utils/ir.py`
 Two classes:
@@ -353,7 +370,7 @@ Consolidated output utilities:
 
 ### `src/utils/typecheck.py`
 One class:
-- **TypeChecker** — AST walker that performs structural artifact validation and rudimentary type checking against the symbol table. Collects errors as descriptive dicts (with `error_code`, `message`, `lineno`, `col`). Validates import group names, section-class name concordance, artifact member types (attribute must be variable, method must be function), method signatures (self parameter, return type), event `execute` method requirement, and assignment/binary-operation type compatibility.
+- **TypeChecker** — AST walker that performs structural artifact validation and rudimentary type checking against the symbol table. Collects errors as descriptive dicts (with `error_code`, `message`, `lineno`, `col`). Validates import group names, section-class name concordance, artifact member types (attribute must be variable, method must be function), method signatures (self parameter, return type), event `execute` method requirement, and assignment/binary-operation type compatibility. `class_has_method` walks both the Statement chain and the chained Declaration siblings inside the class body so multi-member classes correctly satisfy the `EVENT_MISSING_EXECUTE` check.
 
 ### `src/utils/codegen.py`
 One class:
@@ -371,11 +388,11 @@ Four classes:
 
 ### `src/events/semantic.py`
 One domain event:
-- **PerformSemanticAnalysis** — Validates the AST, builds a symbol table via `SymbolTableBuilder`, resolves names via `NameResolver`. Returns dict with `symbol_table` and `resolution`.
+- **PerformSemanticAnalysis** — Validates the AST, builds a symbol table via `SymbolTableBuilder`, resolves names via `NameResolver`. Returns a dict with `symbol_table`, `resolution`, and `builder_errors` (structural diagnostics emitted while registering method-local variables).
 
 ### `src/events/typecheck.py`
 One domain event:
-- **PerformTypeCheck** — Takes the AST and semantic analysis result, runs `TypeChecker` against the symbol table, returns a list of type error descriptors.
+- **PerformTypeCheck** — Takes the AST and semantic analysis result, runs `TypeChecker` against the symbol table, and returns the merged list of `builder_errors` plus type error descriptors so structural duplicate/shadow findings surface alongside type mismatches.
 
 ### `src/events/ir.py`
 One domain event:
@@ -409,7 +426,7 @@ Standalone module (intentionally NOT re-exported from `utils/__init__.py`):
 
 ### `src/utils/semantic.py`
 Two classes:
-- **SymbolTableBuilder** — Single-pass AST walker that constructs scopes (module, class, method) and populates symbol entries (imports, attributes, parameters, variables).
+- **SymbolTableBuilder** — Single-pass AST walker that constructs scopes (module, class, method) and populates symbol entries (imports, attributes, parameters, variables). Method-local assignments (`x = ...` inside a method scope) register as `VARIABLE` symbols with type annotations inferred via `infer_local_type` (literals → exact type, names → looked up via `lookup_local_name_type`, arithmetic propagates `int` / `float` / `str`). Duplicate definitions in the same scope emit `DUPLICATE_VARIABLE_SAME_SCOPE`, and locals shadowing an enclosing scope emit `VARIABLE_SHADOWS_OUTER_SCOPE`. Errors accumulate on `builder.errors` and are surfaced through `PerformSemanticAnalysis`.
 - **NameResolver** — Second-pass walker that resolves name references in expressions against the built scope registry, producing `ResolutionResult` with resolved and unresolved lists.
 
 ### `config.yml`
@@ -448,7 +465,7 @@ python compiler.py compile ast <ast_file> -o output.yaml
 ## Testing
 
 ```bash
-python -m pytest src/ -v    # 303 tests total
+python -m pytest src/ -v    # 317 tests total
 ```
 
 Test breakdown:
@@ -464,8 +481,8 @@ Test breakdown:
 - `src/utils/tests/test_lexer.py` — 13 tests (TiferetLexer + BlockTracker)
 - `src/utils/tests/test_lexer_keter.py` — 8 tests (KeterLexer tokenization + KETER_KEYWORDS)
 - `src/utils/tests/test_output.py` — 19 tests (OutputWriter, ResultPayloadBuilder, emit)
-- `src/utils/tests/test_parser.py` — 55 tests (TiferetParser grammar rules, including shift grammar)
-- `src/utils/tests/test_semantic.py` — 26 tests (SymbolTableBuilder + NameResolver)
+- `src/utils/tests/test_parser.py` — 60 tests (TiferetParser grammar rules — includes parenthesized arithmetic and the canonical 5 * 8 - 6 + (11 - 9 * 7) + 3 tree)
+- `src/utils/tests/test_semantic.py` — 35 tests (SymbolTableBuilder + NameResolver + TypeChecker; includes local variable inference, multi-scope isolation, undefined / duplicate / shadow / type-mismatch diagnostics)
 - `src/utils/tests/test_codegen.py` — 10 tests (TiferetGenerator)
 - `src/utils/tests/test_optimizer.py` — 32 tests (YamlAnchorOptimizer + ConstantFolder + StrengthReducer + ReturnAnalyzer)
 - `src/events/tests/test_lexer.py` — 2 tests (PerformLexicalAnalysis)

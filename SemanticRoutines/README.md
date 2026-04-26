@@ -108,7 +108,7 @@ Functions:
 
 - **`Symbol`** — An entry in a scope's symbol hash table.
   - `name` — The symbol identifier (e.g., `"DomainEvent"`, `"execute"`, `"count"`).
-  - `kind` — `SymbolKind` enum classifying the symbol (import, class_def, method, attribute, parameter, variable).
+  - `kind` — `SymbolKind` enum classifying the symbol (import, class_def, method, attribute, parameter, variable). Method-local assignments register as **`variable`** symbols with the type inferred from the right-hand side (literal kind, name lookup, or arithmetic propagation).
   - `type_annotation` — Lightweight type hint string recorded during parsing (e.g., `"str"`, `"int"`, `"DomainEvent"`). Used by the type checker for compatibility checks.
   - `scope_path` — Fully qualified path of the scope where this symbol is defined (e.g., `"module"`, `"module.Ping.execute"`).
   - `source_module` — For import symbols only: the originating module path (e.g., `".settings"`, `"tiferet.events"`). `None` for non-imports.
@@ -138,8 +138,8 @@ Functions:
 
 Key functions:
 
-- `SymbolTableBuilder.build(module_decl)` — Single-pass AST walk; constructs scopes and registers symbols; returns `{module_name, scopes, root_scope_path}`
-- `NameResolver.resolve(module_decl)` — Second-pass AST walk; resolves name references against the scope registry; returns `ResolutionResult` with resolved and unresolved lists
+- `SymbolTableBuilder.build(module_decl)` — Single-pass AST walk; constructs scopes and registers symbols; returns `{module_name, scopes, root_scope_path}`. Method-local assignments (`x = ...` inside a method scope) are registered as `VARIABLE` symbols whose `type_annotation` is inferred via `infer_local_type` (literal types, looked-up names, propagated arithmetic). Re-assigning the same local name in one scope emits `DUPLICATE_VARIABLE_SAME_SCOPE`, and a local that shadows an outer class attribute, parameter, or import emits `VARIABLE_SHADOWS_OUTER_SCOPE`. Both errors are accumulated on `builder.errors` and surfaced through the `PerformSemanticAnalysis` event.
+- `NameResolver.resolve(module_decl)` — Second-pass AST walk; resolves name references against the scope registry; returns `ResolutionResult` with resolved and unresolved lists.
 
 ### Type Checking
 
@@ -165,6 +165,11 @@ Error codes generated (≥2 required):
 10. `INVALID_METHOD_RETURN_TYPE` — return type is not a valid TypeKind
 11. `ATTRIBUTE_MEMBER_NAME_MISMATCH` — attribute member name ≠ inner declaration
 12. `METHOD_MEMBER_NAME_MISMATCH` — method member name ≠ inner declaration
+
+Additional structural diagnostics emitted by `SymbolTableBuilder` (merged into the same error list by `PerformTypeCheck`):
+
+13. `DUPLICATE_VARIABLE_SAME_SCOPE` — a local variable name is assigned more than once in the same method scope
+14. `VARIABLE_SHADOWS_OUTER_SCOPE` — a method-local variable shadows an enclosing class attribute, parameter, import, or other variable
 
 ### Parser Integration
 
@@ -492,6 +497,15 @@ Type Error [EVENT_MISSING_EXECUTE] in module (line 10, col 0):
 | `samples/pass_minimal_injection_event.json` | Pass | Event with attribute injection and `__init__` |
 | `samples/pass_multiple_operator_events.json` | Pass | Six arithmetic event classes |
 | `samples/pass_helper_method_event.json` | Pass | Event with helper method and chained arithmetic |
+| `samples/pass_constant_folding_event.json` | Pass | Constant numeric sub-expressions used to demonstrate AST folding |
+| `samples/pass_arithmetic_parens.json` | Pass | Parenthesized arithmetic, including the canonical large arithmetic tree `5 * 8 - 6 + (11 - 9 * 7) + 3` |
+| `samples/pass_variable_scopes.json` | Pass | Multiple methods, method-local variables of inferred types (`int`, `float`, `str`) across distinct scopes |
 | `samples/fail_unresolved_attribute.json` | Fail | Unresolved `self.logger` reference |
 | `samples/fail_unresolved_import.json` | Fail | Unresolved import reference |
 | `samples/fail_type_mismatch.json` | Fail | Type mismatch in assignment and operation |
+| `samples/fail_undefined_variable.json` | Fail | Reference to an undefined identifier (`UnresolvedName`) |
+| `samples/fail_duplicate_same_scope.json` | Fail | Same-scope local redefinition (`DUPLICATE_VARIABLE_SAME_SCOPE`) |
+| `samples/fail_shadow_outer_scope.json` | Fail | Local shadows enclosing class attribute (`VARIABLE_SHADOWS_OUTER_SCOPE`) |
+| `samples/fail_assignment_type_mismatch.json` | Fail | `str` local assigned to an `int`-typed class attribute (`TYPE_MISMATCH_ASSIGNMENT`) |
+
+When a sample emits any structural or type error, `PerformSemanticAnalysis` omits the `symbol_table` and `resolution` keys from the JSON envelope (errors are surfaced to the console instead). The AST is still included whenever `--include-ast true` is used, so the failure cases keep their full Pydantic AST for inspection.

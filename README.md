@@ -10,7 +10,7 @@ In DDD, a Domain Event represents a discrete, well-defined operation within the 
 
 This project focuses exclusively on Domain Events, which reside at the heart of every working Tiferet application. The Domain Event dialect is defined by a precise syntactic language: artifact comments serve as domain documentation, `DomainEvent` inheritance establishes the service boundary, `execute` methods orchestrate transactional use cases, injected service contracts provide infrastructure abstraction, model factories act as aggregate roots, and error codes form part of the shared domain vocabulary.
 
-The compiler applies lexical analysis via PLY to recognize Tiferet idioms (artifact sections, import groups, validation decorators), syntactic analysis via PLY yacc to parse Domain Event classes into a structured Pydantic AST with PEMDAS-correct arithmetic precedence, semantic analysis to build symbol tables and resolve name references, type checking to validate assignments and operations against the symbol table, AST-level constant folding to evaluate numeric sub-expressions at compile time, intermediate representation generation to produce a keter DSL capturing parameter contracts, ordered execution flow, and aggregated domain dependencies, and code generation to emit structured YAML output with optional anchor/alias optimization — serving as a semantically rich context store optimized for AI-assisted workflows.
+The compiler applies lexical analysis via PLY to recognize Tiferet idioms (artifact sections, import groups, validation decorators), syntactic analysis via PLY yacc to parse Domain Event classes into a structured Pydantic AST with PEMDAS-correct arithmetic precedence and **parenthesized sub-expressions** that lift any `OperationExpr` back to atom level, semantic analysis to build symbol tables (including method-local variables with inferred types) and resolve name references, type checking to validate assignments and operations against the symbol table along with structural diagnostics (duplicate-in-same-scope, shadow-outer-scope), AST-level constant folding to evaluate numeric sub-expressions at compile time, intermediate representation generation to produce a keter DSL capturing parameter contracts, ordered execution flow, and aggregated domain dependencies, and code generation to emit structured YAML output with optional anchor/alias optimization — serving as a semantically rich context store optimized for AI-assisted workflows.
 
 ### Project Overview
 
@@ -35,7 +35,7 @@ pip install -e ".[dev]"
 
 ### Usage
 
-The compiler performs lexical scanning, syntactic parsing, semantic analysis, type checking, AST-level constant folding, intermediate representation generation, code generation, and output optimization on Python source files written in the Tiferet Domain Event pattern. It recognizes domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords, builds a structured Pydantic AST reflecting the three-tier artifact hierarchy, constructs symbol tables with name resolution, performs structural and type validation, folds constant numeric sub-expressions before IR generation, generates a keter IR, and emits structured YAML output with optional YAML anchor/alias optimization.
+The compiler performs lexical scanning, syntactic parsing, semantic analysis, type checking, AST-level constant folding, intermediate representation generation, code generation, and output optimization on Python source files written in the Tiferet Domain Event pattern. It recognizes domain-specific tokens such as artifact comments, service calls, factory invocations, and structural keywords, builds a structured Pydantic AST reflecting the three-tier artifact hierarchy (with PEMDAS-correct arithmetic plus parenthesized sub-expressions), constructs symbol tables with name resolution — including method-local variables with inferred types and shadow / duplicate diagnostics — performs structural and type validation, folds constant numeric sub-expressions before IR generation, generates a keter IR, and emits structured YAML output with optional YAML anchor/alias optimization.
 
 #### CLI Commands
 
@@ -121,7 +121,7 @@ Unrecognized characters are emitted as `UNKNOWN` tokens for error reporting.
 
 ### Sample Files
 
-The `samples/` directory contains 23 Tiferet Domain Event source files used for end-to-end testing across all pipeline stages. Six are well-formed success cases; seventeen are intentional failure cases exercising parser, semantic, type checking, and structural error detection.
+The `samples/` directory contains 31 Tiferet Domain Event source files used for end-to-end testing across all pipeline stages. Ten are well-formed success cases; twenty-one are intentional failure cases exercising parser, semantic, type checking, and structural error detection.
 
 **Success cases:**
 
@@ -133,7 +133,10 @@ The `samples/` directory contains 23 Tiferet Domain Event source files used for 
 | `pass_multiple_operator_events.py` | Multi-event module with arithmetic operators |
 | `pass_helper_method_event.py` | Event with helper method and chained arithmetic expression |
 | `pass_constant_folding_event.py` | Event with constant numeric sub-expressions demonstrating constant folding |
+| `pass_strength_reduction_event.py` | Event demonstrating power-of-two strength reduction at `-O O1` |
 | `pass_dead_code_after_return.py` | Event with unreachable statements after `return`, demonstrating return analysis (`UNREACHABLE_AFTER_RETURN`) |
+| `pass_arithmetic_parens.py` | Event whose body exercises **parenthesized arithmetic expressions**, including the canonical large arithmetic tree `5 * 8 - 6 + (11 - 9 * 7) + 3` |
+| `pass_variable_scopes.py` | Event with multiple methods and **method-local variables** of different inferred types (`int`, `float`, `str`); used to demonstrate variable definitions across scopes |
 
 **Failure cases:**
 
@@ -148,6 +151,10 @@ The `samples/` directory contains 23 Tiferet Domain Event source files used for 
 | `fail_missing_member_artifact.py` | Member without required artifact annotation |
 | `fail_unresolved_attribute.py` | Reference to an undefined attribute (semantic error) |
 | `fail_unresolved_import.py` | Reference to an unresolved import (semantic error) |
+| `fail_undefined_variable.py` | Method body references an undefined identifier (name resolver flags it as `UnresolvedName`) |
+| `fail_duplicate_same_scope.py` | Method body redefines the same local in one scope (`DUPLICATE_VARIABLE_SAME_SCOPE`) |
+| `fail_shadow_outer_scope.py` | Method-local variable shadows an enclosing class attribute (`VARIABLE_SHADOWS_OUTER_SCOPE`) |
+| `fail_assignment_type_mismatch.py` | Assigns a `str` local to an `int`-typed class attribute (`TYPE_MISMATCH_ASSIGNMENT`) |
 | `fail_attribute_is_function.py` | Attribute member is a function declaration |
 | `fail_event_class_mismatch.py` | Section artifact name doesn't match class name |
 | `fail_event_missing_execute.py` | Event class missing required `execute` method |
@@ -162,7 +169,7 @@ The `samples/` directory contains 23 Tiferet Domain Event source files used for 
 The test suite validates domain objects, mappers, utilities, and domain events across all pipeline stages.
 
 ```bash
-# Run all tests (269 total)
+# Run all tests (317 total)
 python -m pytest src/ -v
 
 # Domain object tests
@@ -172,13 +179,13 @@ python -m pytest src/domain/tests/ -v        # 40 tests (AST, Token, IR, Semanti
 python -m pytest src/mappers/tests/ -v        # 35 tests (Token, AST, Semantic, IR, KeterTransferObject settings)
 
 # Utility tests
-python -m pytest src/utils/tests/ -v          # 159 tests (Lexer, KeterLexer, Parser, Output, Semantic, IR, Codegen, Optimizer)
+python -m pytest src/utils/tests/ -v          # 209 tests (Lexer, KeterLexer, Parser — incl. parenthesized arithmetic, Output, Semantic — incl. local variables / scopes / duplicate / shadow / type mismatch, IR, Codegen, Optimizer)
 
 # Domain event tests
 python -m pytest src/events/tests/ -v         # 33 tests (Lexer, Parser, IR, Codegen, Optimizer, Output)
 ```
 
-**Total: 269 tests** across 22 test files
+**Total: 317 tests** across 22 test files
 
 ### Project Structure
 
@@ -199,12 +206,17 @@ docs/
       parser.md          — Parser utility guide (TiferetParser, AST structure)
       semantic.md        — Semantic analysis utility guide (SymbolTableBuilder, NameResolver)
 
-samples/                 — End-to-end sample files for all pipeline stages (22 files)
+samples/                 — End-to-end sample files for all pipeline stages (31 files)
   pass_imports_only.py               — Imports-only module (success case)
   pass_minimal_event.py              — Minimal event with no injection (success case)
   pass_minimal_injection_event.py    — Event with service injection (success case)
   pass_multiple_operator_events.py   — Multi-event module with operators (success case)
   pass_helper_method_event.py        — Event with helper method and chained arithmetic (success case)
+  pass_constant_folding_event.py     — Constant numeric sub-expressions for AST-level folding (success case)
+  pass_strength_reduction_event.py   — Power-of-two strength reduction (success case)
+  pass_dead_code_after_return.py     — Unreachable code after return for diagnostics (success case)
+  pass_arithmetic_parens.py          — Parenthesized arithmetic, incl. 5 * 8 - 6 + (11 - 9 * 7) + 3 (success case)
+  pass_variable_scopes.py            — Method-local variables of different inferred types and scopes (success case)
   fail_bare_function.py              — Top-level function outside artifact structure (failure case)
   fail_class_bare_attribute.py       — Class attribute without member artifact (failure case)
   fail_class_bare_method.py          — Class method without member artifact (failure case)
@@ -214,6 +226,10 @@ samples/                 — End-to-end sample files for all pipeline stages (22
   fail_missing_member_artifact.py    — Member without artifact annotation (failure case)
   fail_unresolved_attribute.py       — Undefined attribute reference (semantic failure)
   fail_unresolved_import.py          — Unresolved import reference (semantic failure)
+  fail_undefined_variable.py         — Reference to an undefined local identifier (semantic failure)
+  fail_duplicate_same_scope.py       — Same-scope local redefinition (DUPLICATE_VARIABLE_SAME_SCOPE)
+  fail_shadow_outer_scope.py         — Local shadows enclosing class attribute (VARIABLE_SHADOWS_OUTER_SCOPE)
+  fail_assignment_type_mismatch.py   — str local assigned to int attribute (TYPE_MISMATCH_ASSIGNMENT)
   fail_attribute_is_function.py      — Attribute member is a function declaration (type check failure)
   fail_event_class_mismatch.py       — Section name doesn't match class name (type check failure)
   fail_event_missing_execute.py      — Event class missing execute method (type check failure)
@@ -284,8 +300,8 @@ src/
     lexer.py             — BlockTracker (INDENT/DEDENT state machine) + TiferetLexer (PLY lexer host implementing LexerService)
     lexer_keter.py       — KeterLexer (minimal lexer for the keter IR DSL) + KETER_KEYWORDS constant (intentionally NOT re-exported from utils/__init__.py)
     output.py            — OutputWriter (YAML/JSON/keter file output with format auto-detection), OutputPrinter (AST/symbol-table/error console output), ResultPayloadBuilder (per-stage payload assembly), emit() helper
-    parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService)
-    semantic.py          — SymbolTableBuilder (single-pass scope/symbol construction) + NameResolver (name resolution against scope registry)
+    parser.py            — TokenStream (PLY adapter) + ParserBase + TiferetParser (PLY yacc parser implementing ParserService); expression hierarchy supports PEMDAS-correct arithmetic plus parenthesized sub-expressions via a `primary_expr` rule that lifts a full `operation_expr` back to atom level, and literal expressions are typed from the actual PLY token kind (STR_VAL / INT_VAL / NUM_VAL / BOOL_VAL)
+    semantic.py          — SymbolTableBuilder (single-pass scope/symbol construction; method-local assignments register as VARIABLE symbols with inferred types and emit DUPLICATE_VARIABLE_SAME_SCOPE / VARIABLE_SHADOWS_OUTER_SCOPE) + NameResolver (name resolution against scope registry)
     typecheck.py         — TypeChecker: AST walker for structural artifact validation and type checking against the symbol table
     codegen.py           — TiferetGenerator (implements CodegenService; walks IR to produce structured YAML-conforming output dict)
     optimizer.py         — YamlAnchorOptimizer (YAML anchor/alias deduplication); ConstantFolder (extends ASTTraversal; post-order AST constant folding); StrengthReducer (extends ASTTraversal; post-order AST strength reduction for power-of-two multiplication/division and `x ** 2`); ReturnAnalyzer (non-mutating scope-aware walker that flags statements after a return as `UNREACHABLE_AFTER_RETURN`)

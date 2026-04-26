@@ -1,6 +1,6 @@
 # Context-Free Grammar Specification
 
-This grammar defines the **Tiferet Domain Event dialect** — a highly structured subset of Python 3.10+ used within the Tiferet framework for Domain-Driven Design. The grammar is organized around Tiferet's three-tier artifact comment hierarchy (`# ***` groups → `# **` sections → `# *` members), with class definitions, methods, typed attribute declarations, and import statements as the structural building blocks. Method bodies are parsed as sequences of **code snippets** — optional `LINE_COMMENT` headers followed by one or more statements — and statement internals are parsed with a full **PEMDAS-correct expression hierarchy** that includes bitwise shift operators (`<<`, `>>`), comparison operators, call expressions, assignments, and dotted name references.
+This grammar defines the **Tiferet Domain Event dialect** — a highly structured subset of Python 3.10+ used within the Tiferet framework for Domain-Driven Design. The grammar is organized around Tiferet's three-tier artifact comment hierarchy (`# ***` groups → `# **` sections → `# *` members), with class definitions, methods, typed attribute declarations, and import statements as the structural building blocks. Method bodies are parsed as sequences of **code snippets** — optional `LINE_COMMENT` headers followed by one or more statements — and statement internals are parsed with a full **PEMDAS-correct expression hierarchy** that includes bitwise shift operators (`<<`, `>>`), comparison operators, parenthesized sub-expressions (`(...)`), call expressions, assignments, and dotted name references.
 
 The grammar distinguishes ordinary imports (`IMPORT ImportExpr`) from relative / `from`-imports (`FROM FromExpr IMPORT ImportExpr`) and decomposes each into structured expression nodes. `OBSOLETE` and `TODO` annotations are modeled as optional prefixes or suffixes at both the section and member tiers. Synthetic `INDENT`/`DEDENT` tokens — injected by `BlockTracker` during lexing — serve as block delimiters for class bodies and method bodies.
 
@@ -26,11 +26,12 @@ V = { Module,
       StmtList, Stmt, AssignExpr, AssignRHS, ReturnExpr,
       OperationExpr, ComparisonExpr, CompOp,
       ShiftExpr, AdditiveExpr, MultiplicativeExpr, ExponentialExpr,
+      PrimaryExpr,
       CallExpr, CallArgs, CallArg,
       NameOrLiteral, LiteralExpr, IdentExpr, Ident, IdentDot }
 ```
 
-**62 non-terminals** organized into six layers. The table below groups them by role:
+**63 non-terminals** organized into six layers. The table below groups them by role:
 
 | Non-terminal | Layer | Description |
 |---|---|---|
@@ -88,6 +89,7 @@ V = { Module,
 | AdditiveExpr | Expr | Additive precedence (`+`, `-`), left-associative. |
 | MultiplicativeExpr | Expr | Multiplicative precedence (`*`, `/`, `%`), left-associative. |
 | ExponentialExpr | Expr | Exponentiation (`**`), right-associative. |
+| PrimaryExpr | Expr | Atom-level wrapper. Either a `NameOrLiteral` or a parenthesized `OperationExpr` (`( ... )`). Provides the recursion point that lets parentheses lift any sub-expression back to the top of the precedence hierarchy. |
 | CallExpr | Expr | A call expression `ident(args)`. |
 | CallArgs | Expr | Zero or more comma-separated call arguments. |
 | CallArg | Expr | A single call argument (operation or nested call). |
@@ -195,13 +197,23 @@ A statement like `result = (a << 2) + b * c ** 2` decomposes through the precede
 AssignExpr
  ├── IdentExpr("result")
  └── AdditiveExpr
-      ├── ShiftExpr(IdentExpr("a"), LSHIFT, LiteralExpr(2))
+      ├── PrimaryExpr( ShiftExpr(IdentExpr("a"), LSHIFT, LiteralExpr(2)) )
       └── MultiplicativeExpr
            ├── IdentExpr("b")
            └── ExponentialExpr(IdentExpr("c"), DOUBLESTAR, LiteralExpr(2))
 ```
 
 Each precedence level corresponds to a distinct non-terminal; recursion direction determines associativity (`ShiftExpr`, `AdditiveExpr`, `MultiplicativeExpr` are left-recursive; `ExponentialExpr` is right-recursive).
+
+`PrimaryExpr` is the atom-level wrapper that ties parentheses into the precedence chain. The canonical large arithmetic expression `5 * 8 - 6 + (11 - 9 * 7) + 3` parses cleanly because the parenthesized inner sub-expression `(11 - 9 * 7)` is reduced to a `PrimaryExpr` and then re-enters the chain at `ExponentialExpr`, allowing the outer `+` to combine it with the surrounding additive layer:
+
+```
+AdditiveExpr
+ ├── AdditiveExpr
+ │     ├── AdditiveExpr( SubExpr( Mul(5, 8), 6 ) )
+ │     └── PrimaryExpr( SubExpr( 11, Mul(9, 7) ) )    ← inner ( ... )
+ └── LiteralExpr(3)
+```
 
 ### Σ (Terminals):
 
@@ -439,11 +451,14 @@ Rule 81 consumes stray blank lines between snippets; rule 80 is the productive r
 (113) MultiplicativeExpr --> MultiplicativeExpr PERCENT ExponentialExpr
 (114) MultiplicativeExpr --> ExponentialExpr
 
-(115) ExponentialExpr    --> NameOrLiteral DOUBLESTAR ExponentialExpr  (* right-associative *)
-(116) ExponentialExpr    --> NameOrLiteral
+(115) ExponentialExpr    --> PrimaryExpr DOUBLESTAR ExponentialExpr  (* right-associative *)
+(116) ExponentialExpr    --> PrimaryExpr
+
+(116a) PrimaryExpr       --> NameOrLiteral
+(116b) PrimaryExpr       --> LPAREN OperationExpr RPAREN             (* grouped sub-expression *)
 ```
 
-Precedence from lowest to highest: **comparison → shift → additive → multiplicative → exponential → call → atom**. The `ShiftExpr` layer was introduced to support AST-level strength reduction (rewriting multiplication/division by a power of two into `<<` / `>>`).
+Precedence from lowest to highest: **comparison → shift → additive → multiplicative → exponential → primary → atom**. The `ShiftExpr` layer was introduced to support AST-level strength reduction (rewriting multiplication/division by a power of two into `<<` / `>>`). The `PrimaryExpr` layer (rules 116a–116b) was introduced to support **parenthesized sub-expressions**: rule 116b lets a full `OperationExpr` re-enter the chain at atom level, so a grouped expression like `(11 - 9 * 7)` may appear anywhere a name or literal can — including as the right operand of `**`, the left operand of `*`, or either side of `+` / `-`.
 
 #### Expressions — Calls and Atoms
 
@@ -786,7 +801,8 @@ Practical guidance for translating this grammar into a PLY `yacc` parser. The au
 - **Rule-per-method convention.** Each production is a `p_*` method whose **docstring** holds the rule. PLY parses the docstring (not the method body) to build the LALR(1) automaton; the method body is the semantic action that runs on reduction.
 - **Epsilon / empty list rules.** The PLY idiom for list non-terminals uses `list : list item | ε` with the empty alternative as its own `p_*` method (e.g. `p_group_list_empty`, `p_section_list_empty`). Rules 4, 9, 34, 40, 63, 77, 82, 90, 100, and 118 above correspond to these empty productions.
 - **Alternative rules.** Multiple right-hand sides for the same non-terminal may share a single `p_*` method (with `|` inside the docstring) when the semantic action is uniform, or be split across several methods when the actions differ. This is a purely stylistic choice; PLY collapses same-name rules at automaton build time.
-- **Operator precedence.** The expression grammar encodes precedence **structurally** through the `ComparisonExpr → ShiftExpr → AdditiveExpr → MultiplicativeExpr → ExponentialExpr` chain. Recursion direction selects associativity (left vs. right).
+- **Operator precedence.** The expression grammar encodes precedence **structurally** through the `ComparisonExpr → ShiftExpr → AdditiveExpr → MultiplicativeExpr → ExponentialExpr → PrimaryExpr` chain. Recursion direction selects associativity (left vs. right). `PrimaryExpr` introduces the optional parenthesization layer that lets a full `OperationExpr` re-enter the chain.
+- **Literal token kinds.** `LiteralExpr` builds AST nodes whose `ExprKind` is chosen from the **PLY token type** of the matched terminal: `STRING_LITERAL` → `STR_VAL`, `NUMBER_LITERAL` → `INT_VAL` or `NUM_VAL` depending on whether the value contains `.`, and `TRUE` / `FALSE` → `BOOL_VAL`. This ensures downstream type inference (in `SymbolTableBuilder.infer_local_type` and `TypeChecker`) sees the correct numeric vs. string typing.
 
 ### Precedence Declaration
 
@@ -814,10 +830,11 @@ Positions (`lineno`, `col`) are stamped on every constructed node using the `pos
 1. Parser accepts all parser pass samples (`Parser/samples/pass_*.py`) without syntax errors.
 2. Parser rejects all parser fail samples with a descriptive `SyntaxError`.
 3. Expression precedence is honoured: `x + y * 3 - 2` reduces as `(x + (y * 3)) - 2`, `a * 2**k` reduces as `a * (2**k)`, `a << 2 + b` reduces as `a << (2 + b)`.
-4. `from ... import` correctly decomposes leading dots (`from ..domain import Error`) and multi-imports (`from typing import List, Dict, Any`).
-5. Typed attribute declarations parse both simple (`error_service: ErrorService`) and union (`value: int | str`) annotations.
-6. Method signatures accept `self`-prefixed parameter lists with typed, defaulted, `*args`, and `**kwargs` parameters, across multiple lines.
-7. Decorators stack above attribute or method members via the recursive `MemberStmt → Decorator NEWLINE MemberStmt` rule.
+4. **Parenthesized sub-expressions are honoured**: `2 * (3 + 4)` reduces with `(3 + 4)` as the right operand of `*`, and the canonical large arithmetic tree `5 * 8 - 6 + (11 - 9 * 7) + 3` parses with `(11 - 9 * 7)` lifted as a single `PrimaryExpr` and recombined into the outer additive layer.
+5. `from ... import` correctly decomposes leading dots (`from ..domain import Error`) and multi-imports (`from typing import List, Dict, Any`).
+6. Typed attribute declarations parse both simple (`error_service: ErrorService`) and union (`value: int | str`) annotations.
+7. Method signatures accept `self`-prefixed parameter lists with typed, defaulted, `*args`, and `**kwargs` parameters, across multiple lines.
+8. Decorators stack above attribute or method members via the recursive `MemberStmt → Decorator NEWLINE MemberStmt` rule.
 
 ## Sample Files
 
@@ -834,6 +851,8 @@ These files conform to the grammar and should be accepted without errors.
 | `pass_minimal_injection_event.py` | Event with attribute, `__init__` member (using the `INIT` keyword), and `execute` method. Exercises `AttrDecl`, `MethodDecl` with `INIT`, `SELF`-prefixed parameter lists, and assignment expressions. |
 | `pass_multiple_operator_events.py` | Six arithmetic events (`Add`, `Subtract`, `Multiply`, `Divide`, `Modulus`, `Exponentiate`). Exercises multi-section parsing and every PEMDAS operator (`+`, `-`, `*`, `/`, `%`, `**`). |
 | `pass_helper_method_event.py` | Event with a helper method alongside `execute`; body contains chained arithmetic expressions parsed with correct precedence (`x + y * 3 - 2`) and call RHS in assignments. |
+| `pass_arithmetic_parens.py` | Event whose body exercises **parenthesized arithmetic expressions**, including the canonical large arithmetic tree `5 * 8 - 6 + (11 - 9 * 7) + 3`. Verifies that `PrimaryExpr → LPAREN OperationExpr RPAREN` lifts a full sub-expression back to atom level. |
+| `pass_variable_scopes.py` | Event with multiple methods and **method-local variables** of different inferred types (`int`, `float`, `str`). Used by the semantic test battery to verify variable definitions across scopes and arithmetic-assignment type validation. |
 
 ### Failing Samples
 
