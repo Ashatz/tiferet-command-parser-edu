@@ -62,6 +62,12 @@ attrs:
   analyze_returns_event:
     module_path: src.events.optimizer
     class_name: AnalyzeReturns
+  dead_code_eliminator_service:
+    module_path: src.utils.optimizer
+    class_name: DeadCodeEliminator
+  eliminate_dead_code_event:
+    module_path: src.events.optimizer
+    class_name: EliminateDeadCode
 
 features:
   scan:
@@ -126,6 +132,9 @@ features:
         - attribute_id: analyze_returns_event
           name: Analyze unreachable code after return
           data_key: dead_code_warnings
+        - attribute_id: eliminate_dead_code_event
+          name: Eliminate unreachable post-return statements from AST
+          data_key: ast
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
           data_key: ast
@@ -159,6 +168,9 @@ features:
         - attribute_id: analyze_returns_event
           name: Analyze unreachable code after return
           data_key: dead_code_warnings
+        - attribute_id: eliminate_dead_code_event
+          name: Eliminate unreachable post-return statements from AST
+          data_key: ast
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
           data_key: ast
@@ -217,6 +229,9 @@ features:
         - attribute_id: analyze_returns_event
           name: Analyze unreachable code after return
           data_key: dead_code_warnings
+        - attribute_id: eliminate_dead_code_event
+          name: Eliminate unreachable post-return statements from AST
+          data_key: ast
         - attribute_id: fold_constants_event
           name: Fold constant arithmetic sub-expressions in AST
           data_key: ast
@@ -450,7 +465,7 @@ cli:
           - name_or_flags:
               - -O
             default: O0
-            description: "Optimization level: O0 (none, default), O1 (AST constant folding + strength reduction), O2 (constant folding + strength reduction + YAML anchor/alias deduplication)."
+            description: "Optimization level: O0 (none, default), O1 (dead-code elimination + AST constant folding + strength reduction), O2 (everything in O1 plus YAML anchor/alias deduplication)."
       keter:
         group_key: compile
         key: keter
@@ -492,7 +507,7 @@ cli:
           - name_or_flags:
               - -O
             default: O0
-            description: "Optimization level: O0 (none, default), O1 (AST constant folding + strength reduction), O2 (constant folding + strength reduction + YAML anchor/alias deduplication)."
+            description: "Optimization level: O0 (none, default), O1 (dead-code elimination + AST constant folding + strength reduction), O2 (everything in O1 plus YAML anchor/alias deduplication)."
 
 interfaces:
   compiler:

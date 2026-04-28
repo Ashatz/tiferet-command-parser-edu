@@ -112,3 +112,31 @@ class ReturnAnalyzerService(Service):
         '''
 
         raise NotImplementedError()
+
+
+# ** interface: dead_code_eliminator_service
+class DeadCodeEliminatorService(Service):
+    '''
+    Abstract interface for AST-level dead-code elimination passes.
+    Implementations walk the parsed AST and physically remove
+    statements that are unreachable because they follow a ``return``
+    within the same scope. The pass is mutating: the returned AST
+    has the unreachable statements detached from their parent
+    statement chains.
+    '''
+
+    # * method: eliminate
+    @abstractmethod
+    def eliminate(self, ast: Declaration) -> Declaration:
+        '''
+        Walk the AST rooted at *ast* and detach every statement that
+        follows a ``return`` within the same scope, returning the
+        (possibly mutated) root node.
+
+        :param ast: The root DeclarationAggregate produced by the parser.
+        :type ast: Declaration
+        :return: The AST root with unreachable statements removed.
+        :rtype: Declaration
+        '''
+
+        raise NotImplementedError()

@@ -19,6 +19,7 @@ from ..interfaces.optimizer import (
     ASTOptimizerService,
     ASTStrengthReducerService,
     ReturnAnalyzerService,
+    DeadCodeEliminatorService,
 )
 from ..mappers.ast import ExpressionAggregate
 from .settings import ASTTraversal
@@ -933,4 +934,167 @@ class ReturnAnalyzer(ReturnAnalyzerService):
             )
 
         # Any other trailing statement does not guarantee termination.
+        return False
+
+
+# ** util: dead_code_eliminator
+class DeadCodeEliminator(ReturnAnalyzer, DeadCodeEliminatorService):
+    '''
+    Concrete AST optimizer that eliminates statements following a
+    ``return`` within the same scope. Whereas ``ReturnAnalyzer`` is
+    purely diagnostic, ``DeadCodeEliminator`` mutates the AST in place,
+    detaching every statement that the analyzer would otherwise flag as
+    ``UNREACHABLE_AFTER_RETURN``.
+
+    The eliminator inherits ``iter_effective_statements`` and
+    ``block_always_returns`` from :class:`ReturnAnalyzer` so the
+    same definition of "terminator" is used by both passes:
+
+    - A direct ``return`` statement terminates the remainder of its
+      enclosing chain.
+    - An ``if_else`` statement whose ``body`` and ``else_body``
+      chains both always return also terminates.
+    - A ``snippet`` or ``block`` container whose body always returns
+      terminates the parent chain (this matches the way the parser
+      groups consecutive lines into sibling snippets).
+
+    Comments are skipped for terminator detection and preserved by
+    elimination unless they appear strictly after a terminator within
+    the same chain.
+    '''
+
+    # * method: eliminate
+    def eliminate(self, ast: Declaration) -> Declaration:
+        '''
+        Entry point: walk the full AST and detach unreachable
+        statements from their enclosing chains.
+
+        :param ast: The root DeclarationAggregate produced by the parser.
+        :type ast: Declaration
+        :return: The same root with unreachable statements removed.
+        :rtype: Declaration
+        '''
+
+        # Walk the declaration tree, mutating chains in place.
+        self.eliminate_in_declaration(ast)
+
+        # Return the (mutated) root.
+        return ast
+
+    # * method: eliminate_in_declaration
+    def eliminate_in_declaration(self, decl: Optional[Declaration]) -> None:
+        '''
+        Recursively walk a declaration chain, eliminating dead code from
+        every code block encountered along the way.
+
+        :param decl: A Declaration node, or None to stop recursion.
+        :type decl: Declaration | None
+        '''
+
+        # Base case: nothing to walk.
+        if decl is None:
+            return
+
+        # Eliminate dead code from this declaration's code block.
+        if decl.code is not None:
+            decl.code = self.eliminate_chain(decl.code)
+
+        # Continue with the next declaration in the chain.
+        if decl.next is not None:
+            self.eliminate_in_declaration(decl.next)
+
+    # * method: eliminate_chain
+    def eliminate_chain(self, head: Optional[Statement]) -> Optional[Statement]:
+        '''
+        Walk a statement chain starting at *head*, recursing into nested
+        bodies and inline declarations, and detach everything after the
+        first terminator within the chain.
+
+        :param head: The first statement in the chain, or None.
+        :type head: Statement | None
+        :return: The same head reference with its tail truncated at the
+            first terminator, or None if *head* was None.
+        :rtype: Statement | None
+        '''
+
+        # Base case: empty chain.
+        if head is None:
+            return None
+
+        # Walk the chain, recursing into nested structures and stopping
+        # the parent chain at the first terminator we encounter.
+        current = head
+        while current is not None:
+
+            # Recurse into nested structures so dead code inside
+            # branches and inline declarations is eliminated too.
+            self.recurse_into_substructures(current)
+
+            # If this statement terminates the enclosing chain, truncate
+            # everything after it and return the (now-shortened) head.
+            if self.is_chain_terminator(current):
+                current.next = None
+                return head
+
+            # Otherwise advance to the next statement.
+            current = current.next
+
+        # No terminator found; the chain is returned unchanged.
+        return head
+
+    # * method: recurse_into_substructures
+    def recurse_into_substructures(self, stmt: Statement) -> None:
+        '''
+        Recurse into a statement's nested bodies and inline declarations
+        so dead code inside branches, snippets, loops, and inline class
+        or function declarations is eliminated independently from the
+        enclosing chain.
+
+        :param stmt: The statement whose children should be visited.
+        :type stmt: Statement
+        '''
+
+        # Inline declarations may open a new scope and contain code blocks
+        # of their own.
+        if stmt.decl is not None:
+            self.eliminate_in_declaration(stmt.decl)
+
+        # Recurse into the primary body of the statement.
+        if stmt.body is not None:
+            stmt.body = self.eliminate_chain(stmt.body)
+
+        # Recurse into the else branch.
+        if stmt.else_body is not None:
+            stmt.else_body = self.eliminate_chain(stmt.else_body)
+
+    # * method: is_chain_terminator
+    def is_chain_terminator(self, stmt: Statement) -> bool:
+        '''
+        Return True when *stmt* terminates the enclosing chain so that
+        every statement following it should be detached as dead code.
+
+        :param stmt: The statement to test.
+        :type stmt: Statement
+        :return: True if *stmt* unconditionally returns from the scope.
+        :rtype: bool
+        '''
+
+        # A direct return always terminates the chain.
+        if stmt.kind == StatementKind.RETURN:
+            return True
+
+        # An if/else terminates when both branches always return.
+        if stmt.kind == StatementKind.IF_ELSE:
+            return (
+                self.block_always_returns(stmt.body)
+                and self.block_always_returns(stmt.else_body)
+            )
+
+        # A snippet / block terminates when its (flattened) body always
+        # returns. This matches the parser convention of grouping
+        # consecutive source lines into sibling snippet statements.
+        if stmt.kind in (StatementKind.SNIPPET, StatementKind.BLOCK):
+            return self.block_always_returns(stmt.body)
+
+        # Any other statement is not a terminator.
         return False

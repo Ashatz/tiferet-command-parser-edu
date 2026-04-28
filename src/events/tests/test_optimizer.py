@@ -15,6 +15,7 @@ from ...domain.ast import ExprKind, StatementKind, TypeKind
 from ...interfaces.optimizer import (
     ASTOptimizerService,
     ASTStrengthReducerService,
+    DeadCodeEliminatorService,
     OptimizerService,
     ReturnAnalyzerService,
 )
@@ -26,11 +27,18 @@ from ...mappers.ast import (
 )
 from ...utils.optimizer import (
     ConstantFolder,
+    DeadCodeEliminator,
     StrengthReducer,
     ReturnAnalyzer,
     UNREACHABLE_AFTER_RETURN_CODE,
 )
-from ..optimizer import AnalyzeReturns, FoldConstants, OptimizeCode, ReduceStrength
+from ..optimizer import (
+    AnalyzeReturns,
+    EliminateDeadCode,
+    FoldConstants,
+    OptimizeCode,
+    ReduceStrength,
+)
 
 # *** fixtures
 
@@ -563,3 +571,145 @@ def test_analyze_returns_with_real_analyzer(sample_ast: DeclarationAggregate) ->
     assert result[0]['lineno'] == 11
     assert result[0]['return_lineno'] == 10
     assert result[0]['scope_path'] == 'module.execute'
+
+
+# ** fixture: mock_dead_code_eliminator_service
+@pytest.fixture
+def mock_dead_code_eliminator_service() -> DeadCodeEliminatorService:
+    '''
+    Returns a mock DeadCodeEliminatorService for testing.
+
+    :return: A mock DeadCodeEliminatorService.
+    :rtype: DeadCodeEliminatorService
+    '''
+
+    return mock.Mock(spec=DeadCodeEliminatorService)
+
+
+# *** tests — EliminateDeadCode
+
+# ** test: eliminate_dead_code_delegates_to_service
+def test_eliminate_dead_code_delegates_to_service(
+        mock_dead_code_eliminator_service: DeadCodeEliminatorService,
+        sample_ast: DeclarationAggregate,
+    ) -> None:
+    '''
+    Test that EliminateDeadCode calls dead_code_eliminator_service.eliminate
+    and returns the produced (possibly mutated) AST.
+
+    :param mock_dead_code_eliminator_service: The mock eliminator service.
+    :type mock_dead_code_eliminator_service: DeadCodeEliminatorService
+    :param sample_ast: The sample AST root.
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Arrange the service to return the same AST root.
+    mock_dead_code_eliminator_service.eliminate.return_value = sample_ast
+
+    # Execute via DomainEvent.handle.
+    result = DomainEvent.handle(
+        EliminateDeadCode,
+        dependencies={'dead_code_eliminator_service': mock_dead_code_eliminator_service},
+        ast=sample_ast,
+    )
+
+    # Assert the service was called and the result is the returned AST.
+    assert result is sample_ast
+    mock_dead_code_eliminator_service.eliminate.assert_called_once_with(sample_ast)
+
+
+# ** test: eliminate_dead_code_o0_passthrough
+def test_eliminate_dead_code_o0_passthrough(
+        mock_dead_code_eliminator_service: DeadCodeEliminatorService,
+        sample_ast: DeclarationAggregate,
+    ) -> None:
+    '''
+    Test that EliminateDeadCode at O0 returns the AST unchanged without
+    calling the service.
+
+    :param mock_dead_code_eliminator_service: The mock eliminator service.
+    :type mock_dead_code_eliminator_service: DeadCodeEliminatorService
+    :param sample_ast: The sample AST root.
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Execute at O0.
+    result = DomainEvent.handle(
+        EliminateDeadCode,
+        dependencies={'dead_code_eliminator_service': mock_dead_code_eliminator_service},
+        ast=sample_ast,
+        O='O0',
+    )
+
+    # The original AST must be returned and the service must not be called.
+    assert result is sample_ast
+    mock_dead_code_eliminator_service.eliminate.assert_not_called()
+
+
+# ** test: eliminate_dead_code_missing_ast
+def test_eliminate_dead_code_missing_ast(
+        mock_dead_code_eliminator_service: DeadCodeEliminatorService,
+    ) -> None:
+    '''
+    Test that EliminateDeadCode raises TiferetError when ast is not provided.
+
+    :param mock_dead_code_eliminator_service: The mock eliminator service.
+    :type mock_dead_code_eliminator_service: DeadCodeEliminatorService
+    '''
+
+    with pytest.raises(TiferetError):
+        DomainEvent.handle(
+            EliminateDeadCode,
+            dependencies={'dead_code_eliminator_service': mock_dead_code_eliminator_service},
+            # ast intentionally omitted
+        )
+
+
+# ** test: eliminate_dead_code_with_real_eliminator
+def test_eliminate_dead_code_with_real_eliminator(sample_ast: DeclarationAggregate) -> None:
+    '''
+    Integration test: EliminateDeadCode using the real DeadCodeEliminator
+    detaches a statement that follows a return inside a method body.
+
+    :param sample_ast: The sample AST root (will have a method body added).
+    :type sample_ast: DeclarationAggregate
+    '''
+
+    # Build: method body = return; expr (dead code).
+    ret = StatementAggregate(
+        kind=StatementKind.RETURN,
+        expr=ExpressionAggregate(kind=ExprKind.NAME, name='result'),
+        lineno=10,
+        col=8,
+    )
+    dead = StatementAggregate(
+        kind=StatementKind.EXPR,
+        expr=ExpressionAggregate(kind=ExprKind.NAME, name='noop'),
+        lineno=11,
+        col=8,
+    )
+    ret.next = dead
+
+    # Wrap the method body in a FUNC declaration, then in a module decl stmt.
+    method = DeclarationAggregate(
+        name='execute',
+        type=TypeAggregate(kind=TypeKind.FUNC),
+        code=ret,
+    )
+    sample_ast.code = StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=method,
+        lineno=1,
+    )
+
+    # Execute with the real DeadCodeEliminator.
+    result = DomainEvent.handle(
+        EliminateDeadCode,
+        dependencies={'dead_code_eliminator_service': DeadCodeEliminator()},
+        ast=sample_ast,
+    )
+
+    # The method body must now end at the return; the trailing EXPR is gone.
+    body = result.code.decl.code
+    assert body is ret
+    assert body.next is None

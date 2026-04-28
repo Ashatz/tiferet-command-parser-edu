@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from ..interfaces.optimizer import (
     ASTOptimizerService,
     ASTStrengthReducerService,
+    DeadCodeEliminatorService,
     OptimizerService,
     ReturnAnalyzerService,
 )
@@ -245,3 +246,67 @@ class AnalyzeReturns(DomainEvent):
 
         # O1 or higher: run the return analyzer.
         return self.return_analyzer_service.analyze(ast)
+
+
+# ** event: eliminate_dead_code
+class EliminateDeadCode(DomainEvent):
+    '''
+    AST optimization event that physically removes statements
+    following a ``return`` within the same scope. Delegates the walk
+    to the injected DeadCodeEliminatorService and returns the
+    (possibly mutated) AST root.
+
+    Companion to :class:`AnalyzeReturns`: the analyzer emits the
+    ``UNREACHABLE_AFTER_RETURN`` warnings for diagnostics, while this
+    event performs the corresponding elimination so downstream stages
+    (IR generation, codegen) operate on an AST without the unreachable
+    branches.
+    '''
+
+    # * attribute: dead_code_eliminator_service
+    dead_code_eliminator_service: DeadCodeEliminatorService
+
+    # * init
+    def __init__(self, dead_code_eliminator_service: DeadCodeEliminatorService):
+        '''
+        Initialize with an injected dead-code eliminator service.
+
+        :param dead_code_eliminator_service: The elimination service to apply.
+        :type dead_code_eliminator_service: DeadCodeEliminatorService
+        '''
+
+        # Set the dead-code eliminator service dependency.
+        self.dead_code_eliminator_service = dead_code_eliminator_service
+
+    # * method: execute
+    @DomainEvent.parameters_required(['ast'])
+    def execute(self,
+            ast: Decl,
+            O: str = 'O1',
+            **kwargs,
+        ) -> Decl:
+        '''
+        Apply the dead-code elimination pass based on the optimization
+        level. O0 passes through unchanged; O1 or higher invokes the
+        eliminator. Defaults to O1 so the IR and compile pipelines
+        always eliminate unreachable code unless told otherwise.
+
+        :param ast: The parsed module DeclarationAggregate.
+        :type ast: Decl
+        :param O: Optimization level (O0, O1, O2, ...).
+        :type O: str
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: dict
+        :return: The AST root, eliminated at O1+ or unchanged at O0.
+        :rtype: Decl
+        '''
+
+        # Normalize the optimization level.
+        level = O.strip().upper() if O else 'O1'
+
+        # O0: pass through unchanged.
+        if level == 'O0':
+            return ast
+
+        # O1 or higher: eliminate unreachable post-return statements.
+        return self.dead_code_eliminator_service.eliminate(ast)

@@ -18,6 +18,7 @@ from ..optimizer import (
     ConstantFolder,
     StrengthReducer,
     ReturnAnalyzer,
+    DeadCodeEliminator,
     UNREACHABLE_AFTER_RETURN_CODE,
 )
 
@@ -1170,3 +1171,338 @@ def test_analyze_if_only_one_branch_returns(analyzer: ReturnAnalyzer) -> None:
     # No terminator reached at the enclosing chain level.
     warnings = analyzer.analyze(module)
     assert warnings == []
+
+
+# ** fixture: eliminator
+@pytest.fixture
+def eliminator() -> DeadCodeEliminator:
+    '''
+    Returns a fresh DeadCodeEliminator instance.
+
+    :return: A DeadCodeEliminator.
+    :rtype: DeadCodeEliminator
+    '''
+
+    return DeadCodeEliminator()
+
+
+# *** tests — DeadCodeEliminator
+
+# ** test: eliminate_no_returns_unchanged
+def test_eliminate_no_returns_unchanged(eliminator: DeadCodeEliminator) -> None:
+    '''
+    Test that a method body without any return statements is left
+    completely unchanged by the eliminator.
+
+    :param eliminator: The DeadCodeEliminator instance.
+    :type eliminator: DeadCodeEliminator
+    '''
+
+    # Build: expr; expr (no terminator).
+    first = make_expr_stmt(lineno=1)
+    second = make_expr_stmt(lineno=2)
+    first.next = second
+    decl = method_decl('plain', first)
+
+    # Wrap in a module declaration.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # Apply the elimination pass.
+    result = eliminator.eliminate(module)
+
+    # The method body must still contain both statements.
+    body = result.code.decl.code
+    assert body is first
+    assert body.next is second
+    assert second.next is None
+
+
+# ** test: eliminate_drops_statement_after_return
+def test_eliminate_drops_statement_after_return(eliminator: DeadCodeEliminator) -> None:
+    '''
+    Test that a single statement following a return is detached from the
+    method body chain.
+
+    :param eliminator: The DeadCodeEliminator instance.
+    :type eliminator: DeadCodeEliminator
+    '''
+
+    # Build: return; expr (dead).
+    ret = make_return_stmt(lineno=10)
+    dead = make_expr_stmt(lineno=11)
+    ret.next = dead
+    decl = method_decl('execute', ret)
+
+    # Wrap in a module declaration.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # Apply the elimination pass.
+    result = eliminator.eliminate(module)
+
+    # The return must remain, but its successor must be detached.
+    body = result.code.decl.code
+    assert body is ret
+    assert body.kind == StatementKind.RETURN
+    assert body.next is None
+
+
+# ** test: eliminate_drops_multiple_trailing_statements
+def test_eliminate_drops_multiple_trailing_statements(eliminator: DeadCodeEliminator) -> None:
+    '''
+    Test that all statements following a return on the same chain are
+    detached, not just the immediately-following one.
+
+    :param eliminator: The DeadCodeEliminator instance.
+    :type eliminator: DeadCodeEliminator
+    '''
+
+    # Build: return; expr; expr.
+    ret = make_return_stmt(lineno=10)
+    dead_a = make_expr_stmt(lineno=11)
+    dead_b = make_expr_stmt(lineno=12)
+    ret.next = dead_a
+    dead_a.next = dead_b
+    decl = method_decl('describe', ret)
+
+    # Wrap in a module declaration.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # Apply the elimination pass.
+    result = eliminator.eliminate(module)
+
+    # Both trailing statements must be gone.
+    body = result.code.decl.code
+    assert body is ret
+    assert body.next is None
+
+
+# ** test: eliminate_drops_sibling_snippet_after_returning_snippet
+def test_eliminate_drops_sibling_snippet_after_returning_snippet(eliminator: DeadCodeEliminator) -> None:
+    '''
+    Test the sibling-snippet case that mirrors the parser output for
+    ``pass_dead_code_after_return.py``: the method body is two snippets
+    chained via .next; the first snippet's body terminates in a return,
+    and the second snippet is unreachable. The eliminator must detach
+    the entire second snippet from the chain.
+
+    :param eliminator: The DeadCodeEliminator instance.
+    :type eliminator: DeadCodeEliminator
+    '''
+
+    # Build first snippet: body is a single RETURN statement.
+    snippet_one = StatementAggregate(
+        kind=StatementKind.SNIPPET,
+        body=make_return_stmt(lineno=31),
+        lineno=30,
+    )
+
+    # Build second snippet: body is a single EXPR (the unreachable code).
+    snippet_two = StatementAggregate(
+        kind=StatementKind.SNIPPET,
+        body=make_expr_stmt(lineno=36),
+        lineno=35,
+    )
+
+    # Chain the snippets and wrap in a method.
+    snippet_one.next = snippet_two
+    decl = method_decl('execute', snippet_one)
+
+    # Wrap in a module declaration.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # Apply the elimination pass.
+    result = eliminator.eliminate(module)
+
+    # The first snippet must remain (returning), the sibling must be detached.
+    body = result.code.decl.code
+    assert body is snippet_one
+    assert body.next is None
+    # The first snippet's own body must be unchanged.
+    assert body.body is not None
+    assert body.body.kind == StatementKind.RETURN
+
+
+# ** test: eliminate_inside_snippet_body
+def test_eliminate_inside_snippet_body(eliminator: DeadCodeEliminator) -> None:
+    '''
+    Test that a return followed by dead code inside the same snippet body
+    is truncated at the return, even though the snippet itself remains in
+    place.
+
+    :param eliminator: The DeadCodeEliminator instance.
+    :type eliminator: DeadCodeEliminator
+    '''
+
+    # Build snippet body: return; expr (dead within the snippet).
+    ret = make_return_stmt(lineno=11)
+    dead = make_expr_stmt(lineno=12)
+    ret.next = dead
+
+    # Wrap the body in a snippet container.
+    snippet = StatementAggregate(
+        kind=StatementKind.SNIPPET,
+        body=ret,
+        lineno=10,
+    )
+    decl = method_decl('execute', snippet)
+
+    # Wrap in a module declaration.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # Apply the elimination pass.
+    result = eliminator.eliminate(module)
+
+    # The snippet remains; its body terminates at the return.
+    body = result.code.decl.code
+    assert body is snippet
+    assert body.body is ret
+    assert body.body.next is None
+
+
+# ** test: eliminate_if_else_terminator_drops_sibling
+def test_eliminate_if_else_terminator_drops_sibling(eliminator: DeadCodeEliminator) -> None:
+    '''
+    Test that an if/else whose body and else_body both end in a return
+    is treated as a chain terminator, so the statement following the
+    if/else is detached.
+
+    :param eliminator: The DeadCodeEliminator instance.
+    :type eliminator: DeadCodeEliminator
+    '''
+
+    # Build body branch: return.
+    body = make_return_stmt(lineno=6)
+
+    # Build else branch: return.
+    else_body = make_return_stmt(lineno=8)
+
+    # Build: if/else (both branches return); expr (should be dropped).
+    if_else = make_if_else_stmt(lineno=5, body=body, else_body=else_body)
+    sibling = make_expr_stmt(lineno=10)
+    if_else.next = sibling
+    decl = method_decl('branching', if_else)
+
+    # Wrap in a module declaration.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # Apply the elimination pass.
+    result = eliminator.eliminate(module)
+
+    # The if/else remains intact; the trailing sibling is detached.
+    chain = result.code.decl.code
+    assert chain is if_else
+    assert chain.next is None
+    # Both branches retained their return statements.
+    assert chain.body is body
+    assert chain.else_body is else_body
+
+
+# ** test: eliminate_if_only_one_branch_returns_keeps_sibling
+def test_eliminate_if_only_one_branch_returns_keeps_sibling(eliminator: DeadCodeEliminator) -> None:
+    '''
+    Test that an if/else whose else branch does NOT return is not a
+    terminator, and the statement following the if/else is preserved.
+
+    :param eliminator: The DeadCodeEliminator instance.
+    :type eliminator: DeadCodeEliminator
+    '''
+
+    # Build body branch: return.
+    body = make_return_stmt(lineno=6)
+
+    # Build else branch: non-return EXPR.
+    else_body = make_expr_stmt(lineno=8)
+
+    # Build: if/else (only one branch returns); expr (kept).
+    if_else = make_if_else_stmt(lineno=5, body=body, else_body=else_body)
+    sibling = make_expr_stmt(lineno=10)
+    if_else.next = sibling
+    decl = method_decl('partial', if_else)
+
+    # Wrap in a module declaration.
+    module = DeclarationAggregate(name='test_module', code=StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=decl,
+        lineno=1,
+    ))
+
+    # Apply the elimination pass.
+    result = eliminator.eliminate(module)
+
+    # Sibling must remain in the chain.
+    chain = result.code.decl.code
+    assert chain is if_else
+    assert chain.next is sibling
+
+
+# ** test: eliminate_nested_scope_isolation
+def test_eliminate_nested_scope_isolation(eliminator: DeadCodeEliminator) -> None:
+    '''
+    Test that a return in one method body does not affect statements
+    living in a sibling method's body — elimination respects scope
+    boundaries the same way return analysis does.
+
+    :param eliminator: The DeadCodeEliminator instance.
+    :type eliminator: DeadCodeEliminator
+    '''
+
+    # First method: return followed by a dead statement.
+    first_ret = make_return_stmt(lineno=5)
+    first_dead = make_expr_stmt(lineno=6)
+    first_ret.next = first_dead
+    first_decl = method_decl('first', first_ret)
+
+    # Second method: a lone EXPR — must not be touched.
+    second_body = make_expr_stmt(lineno=20)
+    second_decl = method_decl('second', second_body)
+
+    # Chain the two declarations as siblings in a module body.
+    first_stmt = StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=first_decl,
+        lineno=1,
+    )
+    second_stmt = StatementAggregate(
+        kind=StatementKind.DECL,
+        decl=second_decl,
+        lineno=15,
+    )
+    first_stmt.next = second_stmt
+    module = DeclarationAggregate(name='test_module', code=first_stmt)
+
+    # Apply the elimination pass.
+    result = eliminator.eliminate(module)
+
+    # First method: dead statement removed.
+    first_body = result.code.decl.code
+    assert first_body is first_ret
+    assert first_body.next is None
+
+    # Second method: untouched (single EXPR statement).
+    second_body_after = result.code.next.decl.code
+    assert second_body_after is second_body
+    assert second_body_after.kind == StatementKind.EXPR
