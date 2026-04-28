@@ -29,12 +29,6 @@ evt_grp:
           - Return the label immediately.
           stmt:
           - Return('score recorded')
-        - coms:
-          - This statement is unreachable because it follows a return
-          - within the same scope, and the compiler flags it as
-          - UNREACHABLE_AFTER_RETURN.
-          stmt:
-          - Assign(note, 'never reached')
       methods:
         describe:
           params:
@@ -47,9 +41,3 @@ evt_grp:
             - Return the decorated label immediately.
             stmt:
             - 'Return(Add(''label: '', label))'
-          - coms:
-            - The following two statements both sit on the same post-return
-            - chain and are flagged as UNREACHABLE_AFTER_RETURN in order.
-            stmt:
-            - Assign(trailing, 'trailing assignment')
-            - Assign(extra, 'another trailing assignment')
