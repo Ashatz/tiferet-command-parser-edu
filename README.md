@@ -339,6 +339,33 @@ src/
 - **Focus**: Full compiler pipeline (lexer, parser, semantic analysis, type checking, AST constant folding, IR generation, code generation, output optimization) for the Tiferet Domain Event pattern
 - **License**: MIT (educational reuse encouraged)
 
+### Generative AI Statement
+
+Generative AI tools were used throughout this project. Two AI models contributed in distinct roles:
+
+**Grok 4.2 (xAI)** was used in the early design phase for:
+- Defining the initial lexer token set for the Tiferet Domain Event dialect
+- Drafting the initial context-free grammar rules
+- Modeling the initial intermediate representation (keter) structure
+- Designing the initial Tiferet-DSL structured YAML output format
+
+**Oz / Claude (Warp / Anthropic)** handled the implementation phase:
+- Writing all production code across every pipeline stage (lexer, parser, semantic analysis, type checking, IR generation, code generation, optimization)
+- Writing the full test suite (317 tests)
+- Debugging failures and iterating on the implementation
+
+**Example prompt that drove significant progress:**
+
+> *"Before writing any code, produce a detailed development plan for adding constant folding and strength reduction to the compiler pipeline. Walk through which components need to change — interfaces, utilities, domain events, config — and how they connect. Be thorough and iterate until the plan is solid before implementing anything."*
+
+This planning-first prompt was critical. Because the Tiferet framework's component guides (domain objects, events, interfaces, mappers, utilities) were loaded as AI rules, the agent could assemble a plan organized around the exact components that needed to be built — in the right order, with the right patterns. The iterative review of that plan before a single line of code was written prevented several architectural mistakes that would have been costly to unwind later.
+
+**Tips for using AI effectively with Tiferet:**
+
+1. **Add the Tiferet core guides as AI rules.** The component-specific style guides at [https://github.com/greatstrength/tiferet/tree/main/docs/core](https://github.com/greatstrength/tiferet/tree/main/docs/core) cover domain objects, events, interfaces, mappers, utilities, and more. When these are part of the AI's ruleset, it can reference them as authoritative guidelines and generate code that is consistent with the framework's patterns without prompting.
+
+2. **Always plan before implementing.** Ask the agent to produce a development plan first and iterate on it before writing any code. With the Tiferet guides in context, the agent understands which components are needed and in what order. A thorough, reviewed plan dramatically reduces debugging time and rework.
+
 ### Acknowledgments
 
 ECE 506: Compiler Design – University of Arizona  
