@@ -1,0 +1,139 @@
+EventGroup(pass_all_optimizations, "Four events demonstrating each compiler optimization.
+The shared signature across all events triggers YAML anchor/alias at -O O2.",
+    ImportGroups(
+        ImportGroup(infra, Imports(
+            Import(tiferet.events, DomainEvent),
+        )),
+    ),
+    Events(
+        Event(fold_constants, FoldConstants, "Constant Folding: pure-literal sub-expressions evaluated at compile time.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(
+                Params(
+                    Param("value:int:true::The input value."),
+                    Param("kwargs:dict:false::"),
+                ),
+                Returns(
+                    Return("int:The folded result."),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                            Comment("(3 * 5) folds to 15 and (2 + 6) folds to 8 at compile time."),
+                        ),
+                        Statements(
+                            Statement(Return(Sub(Add(value, 15), 8))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+        Event(reduce_strength, ReduceStrength, "Strength Reduction: power-of-two ops rewritten to cheaper bit shifts.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(
+                Params(
+                    Param("value:int:true::The input value."),
+                    Param("kwargs:dict:false::"),
+                ),
+                Returns(
+                    Return("int:The combined result."),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                            Comment("value * 8  ->  value << 3  (multiply by 2**3 becomes left shift)"),
+                        ),
+                        Statements(
+                            Statement(Assign(scaled, Shl(value, 3))),
+                        ),
+                    ),
+                    Snippet(
+                        Comments(
+                            Comment("value / 4  ->  value >> 2  (divide by 2**2 becomes right shift)"),
+                        ),
+                        Statements(
+                            Statement(Assign(halved, Shr(value, 2))),
+                        ),
+                    ),
+                    Snippet(
+                        Comments(
+                            Comment("value ** 2  ->  value * value  (squaring becomes self-multiplication)"),
+                        ),
+                        Statements(
+                            Statement(Assign(squared, Mul(value, value))),
+                        ),
+                    ),
+                    Snippet(
+                        Comments(
+                            Comment("Return the combined result."),
+                        ),
+                        Statements(
+                            Statement(Return(Add(Add(scaled, halved), squared))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+        Event(eliminate_dead_code, EliminateDeadCode, "Dead Code Elimination: unreachable statements removed from the AST.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(
+                Params(
+                    Param("value:int:true::The input value."),
+                    Param("kwargs:dict:false::"),
+                ),
+                Returns(
+                    Return("int:The input value plus one."),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                            Comment("Return immediately -- everything below this is unreachable."),
+                        ),
+                        Statements(
+                            Statement(Return(Add(value, 1))),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+        Event(anchor_alias_dedup, AnchorAliasDedup, "Anchor/Alias Dedup: identical params and returns collapsed to YAML anchors.",
+            Attributes(
+            ),
+            Injections(
+            ),
+            Execute(
+                Params(
+                    Param("value:int:true::The input value."),
+                    Param("kwargs:dict:false::"),
+                ),
+                Returns(
+                    Return("int:The input value."),
+                ),
+                Snippets(
+                    Snippet(
+                        Comments(
+                            Comment("All four events share (value: int) params and int return type."),
+                            Comment("At -O O2 the YAML optimizer emits one anchor and three aliases."),
+                        ),
+                        Statements(
+                            Statement(Return(value)),
+                        ),
+                    ),
+                ),
+            ),
+            Methods()
+        ),
+    )
+)
