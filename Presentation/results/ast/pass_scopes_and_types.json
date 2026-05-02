@@ -1,0 +1,474 @@
+{
+  "event_type": "ParseCompleted",
+  "timestamp": "2026-05-02T17:06:46.435397+00:00",
+  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/Presentation/samples/pass_scopes_and_types.py",
+  "ast": {
+    "name": "pass_scopes_and_types",
+    "code": {
+      "kind": "artifact",
+      "decl": {
+        "name": "imports",
+        "type": {
+          "kind": "artifact"
+        },
+        "metadata": {
+          "type": "***"
+        },
+        "lineno": 1,
+        "col": 0
+      },
+      "body": {
+        "kind": "artifact",
+        "decl": {
+          "name": "infra",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "**"
+          },
+          "lineno": 3,
+          "col": 0
+        },
+        "body": {
+          "kind": "import_from",
+          "lineno": 4,
+          "col": 0,
+          "init_expr": {
+            "kind": "name",
+            "name": "tiferet.events"
+          },
+          "expr": {
+            "kind": "name",
+            "name": "DomainEvent"
+          }
+        }
+      },
+      "next": {
+        "kind": "artifact",
+        "decl": {
+          "name": "events",
+          "type": {
+            "kind": "artifact"
+          },
+          "metadata": {
+            "type": "***"
+          },
+          "lineno": 6,
+          "col": 0
+        },
+        "body": {
+          "kind": "artifact",
+          "decl": {
+            "name": "score_calculator",
+            "type": {
+              "kind": "artifact"
+            },
+            "metadata": {
+              "type": "** event"
+            },
+            "lineno": 8,
+            "col": 0
+          },
+          "body": {
+            "kind": "decl",
+            "decl": {
+              "name": "ScoreCalculator",
+              "type": {
+                "kind": "class",
+                "name": "ScoreCalculator",
+                "subtype": {
+                  "kind": "class",
+                  "name": "DomainEvent"
+                }
+              },
+              "doc_string": "\"\"\"An event that computes a weighted score from class and method-local variables.\"\"\"",
+              "code": {
+                "kind": "decl",
+                "decl": {
+                  "name": "attribute",
+                  "type": {
+                    "kind": "artifact"
+                  },
+                  "metadata": {
+                    "type": "ARTIFACT_MEMBER"
+                  },
+                  "code": {
+                    "kind": "decl",
+                    "decl": {
+                      "name": "base_points",
+                      "type": {
+                        "kind": "int"
+                      },
+                      "lineno": 13,
+                      "col": 4
+                    }
+                  },
+                  "lineno": 12,
+                  "col": 4,
+                  "next": {
+                    "name": "attribute",
+                    "type": {
+                      "kind": "artifact"
+                    },
+                    "metadata": {
+                      "type": "ARTIFACT_MEMBER"
+                    },
+                    "code": {
+                      "kind": "decl",
+                      "decl": {
+                        "name": "multiplier",
+                        "type": {
+                          "kind": "float"
+                        },
+                        "lineno": 16,
+                        "col": 4
+                      }
+                    },
+                    "lineno": 15,
+                    "col": 4,
+                    "next": {
+                      "name": "method",
+                      "type": {
+                        "kind": "artifact"
+                      },
+                      "metadata": {
+                        "type": "ARTIFACT_MEMBER"
+                      },
+                      "code": {
+                        "kind": "decl",
+                        "decl": {
+                          "name": "apply_bonus",
+                          "type": {
+                            "kind": "func",
+                            "return_type": {
+                              "kind": "int"
+                            },
+                            "params": {
+                              "name": "self",
+                              "type": {
+                                "kind": "unknown"
+                              },
+                              "required": true,
+                              "next": {
+                                "name": "points",
+                                "type": {
+                                  "kind": "int"
+                                },
+                                "required": true
+                              }
+                            }
+                          },
+                          "doc_string": "\"\"\"Add a fixed bonus to a point value.\n\n        :param points: The input points to adjust.\n        :type points: int\n        :return: The adjusted point value with bonus applied.\n        :rtype: int\n        \"\"\"",
+                          "code": {
+                            "kind": "snippet",
+                            "body": {
+                              "kind": "comment",
+                              "lineno": 28,
+                              "col": 8,
+                              "expr": {
+                                "kind": "comment",
+                                "value": "# Method-local int declared in this scope (separate from class scope).",
+                                "lineno": 28,
+                                "col": 8
+                              },
+                              "next": {
+                                "kind": "expr",
+                                "lineno": 0,
+                                "col": 0,
+                                "expr": {
+                                  "kind": "assign",
+                                  "left": {
+                                    "kind": "name",
+                                    "name": "bonus",
+                                    "lineno": 29,
+                                    "col": 8
+                                  },
+                                  "right": {
+                                    "kind": "int_val",
+                                    "value": "10",
+                                    "lineno": 29,
+                                    "col": 16
+                                  },
+                                  "lineno": 29,
+                                  "col": 14
+                                }
+                              }
+                            },
+                            "next": {
+                              "kind": "snippet",
+                              "body": {
+                                "kind": "comment",
+                                "lineno": 31,
+                                "col": 8,
+                                "expr": {
+                                  "kind": "comment",
+                                  "value": "# Return points combined with the local bonus (cross-scope: param + local).",
+                                  "lineno": 31,
+                                  "col": 8
+                                },
+                                "next": {
+                                  "kind": "return",
+                                  "lineno": 32,
+                                  "col": 8,
+                                  "expr": {
+                                    "kind": "add",
+                                    "value": "+",
+                                    "left": {
+                                      "kind": "name",
+                                      "name": "points",
+                                      "lineno": 32,
+                                      "col": 15
+                                    },
+                                    "right": {
+                                      "kind": "name",
+                                      "name": "bonus",
+                                      "lineno": 32,
+                                      "col": 24
+                                    },
+                                    "lineno": 32,
+                                    "col": 22
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "lineno": 19,
+                          "col": 4
+                        }
+                      },
+                      "lineno": 18,
+                      "col": 4,
+                      "next": {
+                        "name": "method",
+                        "type": {
+                          "kind": "artifact"
+                        },
+                        "metadata": {
+                          "type": "ARTIFACT_MEMBER"
+                        },
+                        "code": {
+                          "kind": "decl",
+                          "decl": {
+                            "name": "execute",
+                            "type": {
+                              "kind": "func",
+                              "return_type": {
+                                "kind": "float"
+                              },
+                              "params": {
+                                "name": "self",
+                                "type": {
+                                  "kind": "unknown"
+                                },
+                                "required": true,
+                                "next": {
+                                  "name": "amount",
+                                  "type": {
+                                    "kind": "int"
+                                  },
+                                  "required": true,
+                                  "next": {
+                                    "name": "kwargs",
+                                    "type": {
+                                      "kind": "dict",
+                                      "subtype": {
+                                        "kind": "unknown"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "doc_string": "\"\"\"Compute a weighted score using class attributes and method-local variables.\n\n        :param amount: The raw input amount.\n        :type amount: int\n        :param kwargs: Additional keyword arguments.\n        :type kwargs: dict\n        :return: The final weighted score.\n        :rtype: float\n        \"\"\"",
+                            "code": {
+                              "kind": "snippet",
+                              "body": {
+                                "kind": "comment",
+                                "lineno": 46,
+                                "col": 8,
+                                "expr": {
+                                  "kind": "comment",
+                                  "value": "# Method-local int derived from class attribute and parameter (cross-scope expression).",
+                                  "lineno": 46,
+                                  "col": 8
+                                },
+                                "next": {
+                                  "kind": "expr",
+                                  "lineno": 0,
+                                  "col": 0,
+                                  "expr": {
+                                    "kind": "assign",
+                                    "left": {
+                                      "kind": "name",
+                                      "name": "adjusted",
+                                      "lineno": 47,
+                                      "col": 8
+                                    },
+                                    "right": {
+                                      "kind": "add",
+                                      "value": "+",
+                                      "left": {
+                                        "kind": "name",
+                                        "name": "self.base_points",
+                                        "lineno": 47,
+                                        "col": 19
+                                      },
+                                      "right": {
+                                        "kind": "name",
+                                        "name": "amount",
+                                        "lineno": 47,
+                                        "col": 38
+                                      },
+                                      "lineno": 47,
+                                      "col": 36
+                                    },
+                                    "lineno": 47,
+                                    "col": 17
+                                  }
+                                }
+                              },
+                              "next": {
+                                "kind": "snippet",
+                                "body": {
+                                  "kind": "comment",
+                                  "lineno": 49,
+                                  "col": 8,
+                                  "expr": {
+                                    "kind": "comment",
+                                    "value": "# Apply a bonus via a helper method call (function call statement).",
+                                    "lineno": 49,
+                                    "col": 8
+                                  },
+                                  "next": {
+                                    "kind": "expr",
+                                    "lineno": 0,
+                                    "col": 0,
+                                    "expr": {
+                                      "kind": "assign",
+                                      "left": {
+                                        "kind": "name",
+                                        "name": "bonus_points",
+                                        "lineno": 50,
+                                        "col": 8
+                                      },
+                                      "right": {
+                                        "kind": "call",
+                                        "left": {
+                                          "kind": "name",
+                                          "name": "self.apply_bonus",
+                                          "lineno": 50,
+                                          "col": 23
+                                        },
+                                        "right": {
+                                          "kind": "args_list",
+                                          "left": {
+                                            "kind": "name",
+                                            "name": "amount",
+                                            "lineno": 50,
+                                            "col": 40
+                                          }
+                                        },
+                                        "lineno": 0,
+                                        "col": 0
+                                      },
+                                      "lineno": 50,
+                                      "col": 21
+                                    }
+                                  }
+                                },
+                                "next": {
+                                  "kind": "snippet",
+                                  "body": {
+                                    "kind": "comment",
+                                    "lineno": 52,
+                                    "col": 8,
+                                    "expr": {
+                                      "kind": "comment",
+                                      "value": "# Method-local float derived from class attribute and local int (cross-scope expression).",
+                                      "lineno": 52,
+                                      "col": 8
+                                    },
+                                    "next": {
+                                      "kind": "expr",
+                                      "lineno": 0,
+                                      "col": 0,
+                                      "expr": {
+                                        "kind": "assign",
+                                        "left": {
+                                          "kind": "name",
+                                          "name": "weighted",
+                                          "lineno": 53,
+                                          "col": 8
+                                        },
+                                        "right": {
+                                          "kind": "mul",
+                                          "value": "*",
+                                          "left": {
+                                            "kind": "name",
+                                            "name": "self.multiplier",
+                                            "lineno": 53,
+                                            "col": 19
+                                          },
+                                          "right": {
+                                            "kind": "name",
+                                            "name": "adjusted",
+                                            "lineno": 53,
+                                            "col": 37
+                                          },
+                                          "lineno": 53,
+                                          "col": 35
+                                        },
+                                        "lineno": 53,
+                                        "col": 17
+                                      }
+                                    }
+                                  },
+                                  "next": {
+                                    "kind": "snippet",
+                                    "body": {
+                                      "kind": "comment",
+                                      "lineno": 55,
+                                      "col": 8,
+                                      "expr": {
+                                        "kind": "comment",
+                                        "value": "# Return the final weighted score.",
+                                        "lineno": 55,
+                                        "col": 8
+                                      },
+                                      "next": {
+                                        "kind": "return",
+                                        "lineno": 56,
+                                        "col": 8,
+                                        "expr": {
+                                          "kind": "name",
+                                          "name": "weighted",
+                                          "lineno": 56,
+                                          "col": 15
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "lineno": 35,
+                            "col": 4
+                          }
+                        },
+                        "lineno": 34,
+                        "col": 4
+                      }
+                    }
+                  }
+                }
+              },
+              "lineno": 9,
+              "col": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}
