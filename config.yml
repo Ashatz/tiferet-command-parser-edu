@@ -443,6 +443,10 @@ cli:
               - --output-format
             default: auto
             description: "Output format: keter or auto."
+          - name_or_flags:
+              - -O
+            default: O0
+            description: "Optimization level: O0 (none, default), O1 (dead-code elimination + AST constant folding + strength reduction)."
 
     compile:
       event:

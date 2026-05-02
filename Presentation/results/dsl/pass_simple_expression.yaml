@@ -1,0 +1,21 @@
+evt_grp:
+  name: pass_simple_expression
+  impt:
+    infra:
+    - src: tiferet.events
+      tgts:
+      - DomainEvent
+  evts:
+    evaluate_expression:
+      name: EvaluateExpression
+      desc: A simple event that evaluates a single arithmetic expression.
+      execute:
+        params:
+        - kwargs:dict:false::Additional keyword arguments.
+        returns:
+        - int:The result of the arithmetic expression.
+        snpt:
+        - coms:
+          - Evaluate and return the expression.
+          stmt:
+          - Return(Add(Sub(Add(1, 3), Mul(Div(4, 2), 5)), 6))
