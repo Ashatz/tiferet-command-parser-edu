@@ -50,7 +50,7 @@ class OutputWriter:
         '''
 
         # Auto-detect format from file extension.
-        if output_format == 'auto':
+        if output_format is None or output_format == 'auto':
             ext = os.path.splitext(output_path)[1].lower()
             if ext == '.json':
                 return 'json'

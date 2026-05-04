@@ -373,6 +373,7 @@ cli:
             description: Path to output YAML/JSON file.
           - name_or_flags:
               - --output-format
+            default: auto
             description: "Output format: yaml, json, console, or auto."
           - name_or_flags:
               - --summary-only
