@@ -1,7 +1,7 @@
 {
   "event_type": "TokensScanned",
-  "timestamp": "2026-05-04T16:21:13.389229+00:00",
-  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/Presentation/samples/pass_simple_expression.py",
+  "timestamp": "2026-05-05T23:00:30.662319+00:00",
+  "source_file": "Presentation/samples/pass_simple_expression.py",
   "tokens": [
     {
       "type": "ARTIFACT_IMPORTS_START",

@@ -1,7 +1,7 @@
 {
   "event_type": "SemanticAnalysisCompleted",
-  "timestamp": "2026-05-02T17:07:10.172447+00:00",
-  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/Presentation/samples/pass_scopes_and_types.py",
+  "timestamp": "2026-05-05T23:20:55.677581+00:00",
+  "source_file": "Presentation/samples/pass_scopes_and_types.py",
   "symbol_table": {
     "module_name": "pass_scopes_and_types",
     "scopes": {
@@ -127,7 +127,6 @@
           "weighted": {
             "name": "weighted",
             "kind": "variable",
-            "type_annotation": "float",
             "scope_path": "module.ScoreCalculator.execute"
           }
         },
@@ -181,6 +180,11 @@
       },
       {
         "name": "adjusted",
+        "scope_path": "module.ScoreCalculator.execute",
+        "resolved_to": "module.ScoreCalculator.execute"
+      },
+      {
+        "name": "bonus_points",
         "scope_path": "module.ScoreCalculator.execute",
         "resolved_to": "module.ScoreCalculator.execute"
       },
@@ -592,22 +596,34 @@
                                           "col": 8
                                         },
                                         "right": {
-                                          "kind": "mul",
-                                          "value": "*",
+                                          "kind": "add",
+                                          "value": "+",
                                           "left": {
-                                            "kind": "name",
-                                            "name": "self.multiplier",
+                                            "kind": "mul",
+                                            "value": "*",
+                                            "left": {
+                                              "kind": "name",
+                                              "name": "self.multiplier",
+                                              "lineno": 53,
+                                              "col": 19
+                                            },
+                                            "right": {
+                                              "kind": "name",
+                                              "name": "adjusted",
+                                              "lineno": 53,
+                                              "col": 37
+                                            },
                                             "lineno": 53,
-                                            "col": 19
+                                            "col": 35
                                           },
                                           "right": {
                                             "kind": "name",
-                                            "name": "adjusted",
+                                            "name": "bonus_points",
                                             "lineno": 53,
-                                            "col": 37
+                                            "col": 48
                                           },
                                           "lineno": 53,
-                                          "col": 35
+                                          "col": 46
                                         },
                                         "lineno": 53,
                                         "col": 17

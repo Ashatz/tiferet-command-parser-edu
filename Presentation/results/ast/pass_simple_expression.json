@@ -1,7 +1,7 @@
 {
   "event_type": "ParseCompleted",
-  "timestamp": "2026-05-02T16:44:09.480282+00:00",
-  "source_file": "/Users/ashatz/Documents/GitHub/tiferet-command-parser-edu/Presentation/samples/pass_simple_expression.py",
+  "timestamp": "2026-05-05T23:02:25.039733+00:00",
+  "source_file": "Presentation/samples/pass_simple_expression.py",
   "ast": {
     "name": "pass_simple_expression",
     "code": {

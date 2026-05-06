@@ -26,7 +26,7 @@ class ScoreCalculator(DomainEvent):
         """
 
         # Method-local int declared in this scope (separate from class scope).
-        bonus = 10
+        bonus = '10'
 
         # Return points combined with the local bonus (cross-scope: param + local).
         return points + bonus
@@ -50,7 +50,7 @@ class ScoreCalculator(DomainEvent):
         bonus_points = self.apply_bonus(amount)
 
         # Method-local float derived from class attribute and local int (cross-scope expression).
-        weighted = self.multiplier * adjusted
+        weighted = self.multiplier * adjusted + bonus_points
 
         # Return the final weighted score.
         return weighted

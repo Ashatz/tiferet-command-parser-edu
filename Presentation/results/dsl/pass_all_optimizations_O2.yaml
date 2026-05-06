@@ -1,0 +1,76 @@
+vars:
+- &id001
+  - value:int:true::The input value.
+  - 'kwargs:dict:false::'
+evt_grp:
+  name: pass_all_optimizations
+  desc: 'Four events demonstrating each compiler optimization.
+
+    The shared signature across all events triggers YAML anchor/alias at -O O2.'
+  impt:
+    infra:
+    - src: tiferet.events
+      tgts:
+      - DomainEvent
+  evts:
+    fold_constants:
+      name: FoldConstants
+      desc: 'Constant Folding: pure-literal sub-expressions evaluated at compile time.'
+      execute:
+        params: *id001
+        returns:
+        - int:The folded result.
+        snpt:
+        - coms:
+          - (3 * 5) folds to 15 and (2 + 6) folds to 8 at compile time.
+          stmt:
+          - Return(Sub(Add(value, 15), 8))
+    reduce_strength:
+      name: ReduceStrength
+      desc: 'Strength Reduction: power-of-two ops rewritten to cheaper bit shifts.'
+      execute:
+        params: *id001
+        returns:
+        - int:The combined result.
+        snpt:
+        - coms:
+          - value * 8  ->  value << 3  (multiply by 2**3 becomes left shift)
+          stmt:
+          - Assign(scaled, Shl(value, 3))
+        - coms:
+          - value / 4  ->  value >> 2  (divide by 2**2 becomes right shift)
+          stmt:
+          - Assign(halved, Shr(value, 2))
+        - coms:
+          - value ** 2  ->  value * value  (squaring becomes self-multiplication)
+          stmt:
+          - Assign(squared, Mul(value, value))
+        - coms:
+          - Return the combined result.
+          stmt:
+          - Return(Add(Add(scaled, halved), squared))
+    eliminate_dead_code:
+      name: EliminateDeadCode
+      desc: 'Dead Code Elimination: unreachable statements removed from the AST.'
+      execute:
+        params: *id001
+        returns:
+        - int:The input value plus one.
+        snpt:
+        - coms:
+          - Return immediately -- everything below this is unreachable.
+          stmt:
+          - Return(Add(value, 1))
+    anchor_alias_dedup:
+      name: AnchorAliasDedup
+      desc: 'Anchor/Alias Dedup: identical params and returns collapsed to YAML anchors.'
+      execute:
+        params: *id001
+        returns:
+        - int:The input value.
+        snpt:
+        - coms:
+          - 'All four events share (value: int) params and int return type.'
+          - At -O O2 the YAML optimizer emits one anchor and three aliases.
+          stmt:
+          - Return(value)
